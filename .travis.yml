@@ -1,0 +1,27 @@
+language: python
+
+install:
+  - "wget -O - http://apt.mopidy.com/mopidy.gpg | sudo apt-key add -"
+  - "sudo wget -O /etc/apt/sources.list.d/mopidy.list http://apt.mopidy.com/mopidy.list"
+  - "sudo apt-get update || true"
+  - "sudo apt-get install mopidy"
+  - "pip install coveralls flake8"
+
+before_script:
+  - "rm $VIRTUAL_ENV/lib/python$TRAVIS_PYTHON_VERSION/no-global-site-packages.txt"
+
+script:
+  - "flake8 $(find . -iname '*.py')"
+  - "nosetests --with-coverage --cover-package=mopidy_spotify"
+
+after_success:
+  - "coveralls"
+
+notifications:
+  irc:
+    channels:
+      - "irc.freenode.org#mopidy"
+    on_success: change
+    on_failure: change
+    use_notice: true
+    skip_join: true
