@@ -1,6 +1,6 @@
 import unittest
 
-from mopidy_spotify import Extension, frontend as frontend_lib
+from mopidy_spotify import Extension, backend as backend_lib
 
 
 class ExtensionTest(unittest.TestCase):
@@ -24,4 +24,9 @@ class ExtensionTest(unittest.TestCase):
         self.assertIn('timeout', schema)
         self.assertIn('cache_dir', schema)
 
-    # TODO Write more tests
+    def test_get_backend_classes(self):
+        ext = Extension()
+
+        backends = ext.get_backend_classes()
+
+        self.assertIn(backend_lib.SpotifyBackend, backends)
