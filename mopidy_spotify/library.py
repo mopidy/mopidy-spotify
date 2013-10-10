@@ -197,6 +197,10 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
         for (field, values) in mopidy_query.iteritems():
             if field == 'date':
                 field = 'year'
+            if field == 'albumartist':
+                # XXX Don't know of a way to search for the album's artist
+                # instead of the track's artist on Spotify.
+                field = 'artist'
             if not hasattr(values, '__iter__'):
                 values = [values]
             for value in values:
