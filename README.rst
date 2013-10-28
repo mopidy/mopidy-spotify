@@ -85,6 +85,11 @@ Project resources
 Changelog
 =========
 
+v1.0.1 (UNRELEASED)
+-------------------
+
+- Support searches from Mopidy that are using the ``albumartist`` field type.
+
 v1.0.0 (2013-10-08)
 -------------------
 
