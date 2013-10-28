@@ -153,6 +153,11 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
             return SearchResult(uri=uri, tracks=tracks)
 
         spotify_query = self._translate_search_query(query)
+
+        if not spotify_query:
+            logger.debug('Spotify search aborted due to empty query')
+            return SearchResult(uri='spotify:search')
+
         logger.debug('Spotify search query: %s' % spotify_query)
 
         future = pykka.ThreadingFuture()
@@ -195,12 +200,15 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
     def _translate_search_query(self, mopidy_query):
         spotify_query = []
         for (field, values) in mopidy_query.iteritems():
-            if field == 'date':
-                field = 'year'
             if field == 'albumartist':
                 # XXX Don't know of a way to search for the album's artist
                 # instead of the track's artist on Spotify.
                 field = 'artist'
+            if field == 'track_no':
+                # Spotify does not support filtering by track number.
+                continue
+            if field == 'date':
+                field = 'year'
             if not hasattr(values, '__iter__'):
                 values = [values]
             for value in values:

@@ -88,7 +88,13 @@ Changelog
 v1.0.1 (UNRELEASED)
 -------------------
 
-- Support searches from Mopidy that are using the ``albumartist`` field type.
+- Support searches from Mopidy that are using the ``albumartist`` field type,
+  added in Mopidy 0.16.
+
+- Ignore the ``track_no`` field in search queries, added in Mopidy 0.16.
+
+- Abort Spotify searches immediately if the search query is empty instead of
+  waiting for the 10s timeout before returning an empty search result.
 
 v1.0.0 (2013-10-08)
 -------------------
