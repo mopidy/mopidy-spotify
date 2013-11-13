@@ -73,7 +73,7 @@ The following configuration values are available:
   etc. Defaults to 10 seconds.
 - ``spotify/cache_dir``: The dir where the Spotify extension caches data.
   Defaults to ``$XDG_CACHE_DIR/mopidy/spotify``, which usually means
-  ``~/.cache/mopidy/spotify``.
+  ``~/.cache/mopidy/spotify``. If set to an empty string, caching is disabled.
 
 
 Project resources
@@ -86,6 +86,12 @@ Project resources
 
 Changelog
 =========
+
+v1.0.2 (UNRELEASED)
+-------------------
+
+- Make the ``spotify/cache_dir`` config value optional, so that it can be set
+  to an empty string to disable caching.
 
 v1.0.1 (2013-10-28)
 -------------------

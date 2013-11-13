@@ -24,7 +24,7 @@ class Extension(ext.Extension):
         schema['password'] = config.Secret()
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
         schema['timeout'] = config.Integer(minimum=0)
-        schema['cache_dir'] = config.Path()
+        schema['cache_dir'] = config.Path(optional=True)
         return schema
 
     def get_backend_classes(self):
