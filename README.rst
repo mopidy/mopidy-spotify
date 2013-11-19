@@ -90,7 +90,7 @@ Project resources
 Changelog
 =========
 
-v1.0.2 (UNRELEASED)
+v1.0.2 (2013-11-19)
 -------------------
 
 - Add ``spotify/settings_dir`` config value so that libspotify settings can be
