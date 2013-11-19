@@ -25,6 +25,7 @@ class Extension(ext.Extension):
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
         schema['timeout'] = config.Integer(minimum=0)
         schema['cache_dir'] = config.Path(optional=True)
+        schema['settings_dir'] = config.Path()
         return schema
 
     def get_backend_classes(self):
