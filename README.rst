@@ -95,6 +95,12 @@ Project resources
 Changelog
 =========
 
+v1.0.3 (UNRELEASED)
+-------------------
+
+- Change search field ``track`` to ``track_name`` for compatibility with
+  Mopidy 0.17. (Fixes: mopidy/mopidy#610)
+
 v1.0.2 (2013-11-19)
 -------------------
 

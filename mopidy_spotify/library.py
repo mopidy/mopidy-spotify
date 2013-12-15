@@ -204,6 +204,8 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
                 # XXX Don't know of a way to search for the album's artist
                 # instead of the track's artist on Spotify.
                 field = 'artist'
+            if field == 'track_name':
+                field = 'track'
             if field == 'track_no':
                 # Spotify does not support filtering by track number.
                 continue
