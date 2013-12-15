@@ -95,7 +95,7 @@ Project resources
 Changelog
 =========
 
-v1.0.3 (UNRELEASED)
+v1.0.3 (2013-12-15)
 -------------------
 
 - Change search field ``track`` to ``track_name`` for compatibility with
