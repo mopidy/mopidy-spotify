@@ -25,18 +25,15 @@ class SpotifyTrack(Track):
             self._spotify_track = Link.from_string(uri).as_track()
         elif track:
             self._spotify_track = track
-        self._unloaded_track = Track(uri=uri, name='[loading...]')
         self._track = None
 
     @property
     def _proxy(self):
-        if self._track:
-            return self._track
-        elif self._spotify_track.is_loaded():
+        if self._track is None:
+            if not self._spotify_track.is_loaded():
+                return translator.to_mopidy_track(self._spotify_track)
             self._track = translator.to_mopidy_track(self._spotify_track)
-            return self._track
-        else:
-            return self._unloaded_track
+        return self._track
 
     def __getattribute__(self, name):
         if name.startswith('_'):
