@@ -95,6 +95,14 @@ Project resources
 Changelog
 =========
 
+v1.0.4 (UNRELEASED)
+-------------------
+
+- Change ``library.lookup()`` to return tracks even if they are unplayable.
+  There's no harm in letting them be added to the tracklist, as Mopidy will
+  simply skip to the next track when failing to play the track. (Fixes:
+  mopidy/mopidy#606)
+
 v1.0.3 (2013-12-15)
 -------------------
 

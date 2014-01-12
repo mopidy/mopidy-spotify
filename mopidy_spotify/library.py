@@ -89,10 +89,7 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
         track = Link.from_string(uri).as_track()
         self._wait_for_object_to_load(track)
         if track.is_loaded():
-            if track.availability() == TRACK_AVAILABLE:
-                return [SpotifyTrack(track=track)]
-            else:
-                return []
+            return [SpotifyTrack(track=track)]
         else:
             return [SpotifyTrack(uri=uri)]
 
