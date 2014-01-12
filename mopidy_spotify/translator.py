@@ -6,12 +6,14 @@ import spotify
 
 from mopidy.models import Artist, Album, Track, Playlist
 
-logger = logging.getLogger('mopidy_spotify')
 
+logger = logging.getLogger('mopidy_spotify')
 
 artist_cache = {}
 album_cache = {}
 track_cache = {}
+
+TRACK_AVAILABLE = 1
 
 
 def to_mopidy_artist(spotify_artist):
@@ -50,6 +52,9 @@ def to_mopidy_track(spotify_track, bitrate=None):
         return track_cache[uri]
     if not spotify_track.is_loaded():
         return Track(uri=uri, name='[loading...]')
+    name = spotify_track.name()
+    if spotify_track.availability() != TRACK_AVAILABLE:
+        name = '[unplayable] %s' % name
     spotify_album = spotify_track.album()
     if spotify_album is not None and spotify_album.is_loaded():
         date = spotify_album.year()
@@ -57,7 +62,7 @@ def to_mopidy_track(spotify_track, bitrate=None):
         date = None
     track_cache[uri] = Track(
         uri=uri,
-        name=spotify_track.name(),
+        name=name,
         artists=[to_mopidy_artist(a) for a in spotify_track.artists()],
         album=to_mopidy_album(spotify_track.album()),
         track_no=spotify_track.index(),
