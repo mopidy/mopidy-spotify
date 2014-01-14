@@ -16,6 +16,44 @@ from . import translator
 
 logger = logging.getLogger('mopidy_spotify')
 
+SPOTIFY_COUNTRIES = {
+    'AD': 'Andorra',
+    'AR': 'Argentina',
+    'AT': 'Austria',
+    'AU': 'Australia',
+    'BE': 'Belgium',
+    'CH': 'Switzerland',
+    'CO': 'Colombia',
+    'CY': 'Cyprus',
+    'DE': 'Germany',
+    'DK': 'Denmark',
+    'EE': 'Estonia',
+    'ES': 'Spain',
+    'FI': 'Finland',
+    'FR': 'France',
+    'GB': 'United Kingdom',
+    'GR': 'Greece',
+    'HK': 'Hong Kong',
+    'IE': 'Ireland',
+    'IS': 'Iceland',
+    'IT': 'Italy',
+    'LI': 'Liechtenstein',
+    'LT': 'Lithuania',
+    'LU': 'Luxembourg',
+    'LV': 'Latvia',
+    'MC': 'Monaco',
+    'MX': 'Mexico',
+    'MY': 'Malaysia',
+    'NL': 'Netherlands',
+    'NO': 'Norway',
+    'NZ': 'New Zealand',
+    'PT': 'Portugal',
+    'SE': 'Sweden',
+    'SG': 'Singapore',
+    'TR': 'Turkey',
+    'TW': 'Taiwan',
+    'US': 'United States'}
+
 
 class SpotifyTrack(Track):
     """Proxy object for unloaded Spotify tracks."""
@@ -64,19 +102,32 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
         super(SpotifyLibraryProvider, self).__init__(*args, **kwargs)
         self._timeout = self.backend.config['spotify']['timeout']
 
-        # TODO: add /artists/{top/tracks,albums/tracks}
+        # TODO: add /artists/{top/tracks,albums/tracks} and /users?
         self._root = collections.OrderedDict()
-        self._root['/My top tracks'] = b'current'
+        self._root['/Personal top tracks'] = b'current'
         self._root['/Global top tracks'] = b'all'
+        self._root['/Country top tracks'] = b'countries'
+
+        self._countries = collections.OrderedDict()
         for code in self.backend.config['spotify']['toplist_countries']:
-            self._root['/%s top tracks' % code.upper()] = bytes(code.upper())
+            code = bytes(code.upper())
+            name = SPOTIFY_COUNTRIES.get(code, code)
+            self._countries['/Country top tracks/%s' % name] = code
 
     def browse(self, path):
         if path == '/':
             return [Ref.directory(uri=name) for name in self._root]
 
-        if path not in self._root:
+        if path not in self._root.keys() + self._countries.keys():
             return []
+
+        if path in self._countries:
+            toplist_type = self._countries[path]
+        else:
+            toplist_type = self._root[path]
+
+        if toplist_type == 'countries':
+            return [Ref.directory(uri=name) for name in self._countries]
 
         result = []
         done = threading.Event()
@@ -85,7 +136,6 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
                 result.append(translator.to_mopidy_track_ref(track))
             done.set()
 
-        toplist_type = self._root[path]
         logger.debug('Performing toplist browse for %s.', toplist_type)
         ToplistBrowser(b'tracks', toplist_type, callback, None)
         if not done.wait(self._timeout):
