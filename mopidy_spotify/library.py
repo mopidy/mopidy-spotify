@@ -1,14 +1,16 @@
 from __future__ import unicode_literals
 
+import collections
 import logging
+import threading
 import time
 import urllib
 
 import pykka
-from spotify import Link, SpotifyError
+from spotify import Link, SpotifyError, ToplistBrowser
 
 from mopidy.backends import base
-from mopidy.models import Track, SearchResult
+from mopidy.models import Ref, Track, SearchResult
 
 from . import translator
 
@@ -56,9 +58,39 @@ class SpotifyTrack(Track):
 
 
 class SpotifyLibraryProvider(base.BaseLibraryProvider):
+    root_directory_name = 'spotify'
+
     def __init__(self, *args, **kwargs):
         super(SpotifyLibraryProvider, self).__init__(*args, **kwargs)
         self._timeout = self.backend.config['spotify']['timeout']
+
+        # TODO: add /artsits/{top/tracks,albums/tracks}
+        self._root = collections.OrderedDict()
+        self._root['/My top tracks'] = b'current'
+        self._root['/Global top tracks'] = b'all'
+        for code in self.backend.config['spotify']['toplist_countries']:
+            self._root['/%s top tracks' % code.upper()] = bytes(code.upper())
+
+    def browse(self, path):
+        if path == '/':
+            return [Ref.directory(uri=name) for name in self._root]
+
+        if path not in self._root:
+            return []
+
+        result = []
+        done = threading.Event()
+        def callback(browser, userdata):
+            for track in browser:
+                result.append(translator.to_mopidy_track_ref(track))
+            done.set()
+
+        toplist_type = self._root[path]
+        logger.debug('Performing toplist browse for %s.', toplist_type)
+        ToplistBrowser(b'tracks', toplist_type, callback, None)
+        if not done.wait(self._timeout):
+            logger.warning('%s toplist browse timed out.', toplist_type)
+        return result
 
     def find_exact(self, query=None, uris=None):
         return self.search(query=query, uris=uris)

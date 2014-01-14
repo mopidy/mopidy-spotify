@@ -4,7 +4,7 @@ import logging
 
 import spotify
 
-from mopidy.models import Artist, Album, Track, Playlist
+from mopidy.models import Artist, Album, Playlist, Ref, Track
 
 
 logger = logging.getLogger('mopidy_spotify')
@@ -42,6 +42,11 @@ def to_mopidy_album(spotify_album):
         artists=[to_mopidy_artist(spotify_album.artist())],
         date=spotify_album.year())
     return album_cache[uri]
+
+
+def to_mopidy_track_ref(spotify_track):
+    uri = str(spotify.Link.from_track(spotify_track, 0))
+    return Ref.track(uri=uri, name=spotify_track.name())
 
 
 def to_mopidy_track(spotify_track, bitrate=None):
