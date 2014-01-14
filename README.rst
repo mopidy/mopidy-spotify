@@ -82,7 +82,7 @@ The following configuration values are available:
 - ``spotify/settings_dir``: The dir where the Spotify extension stores
   libspotify settings. Defaults to ``$XDG_CONFIG_DIR/mopidy/spotify``, which
   usually means ``~/.config/mopidy/spotify``.
-- ``spotify/toplist_countries``: Comma seperated list of two letter contry
+- ``spotify/toplist_countries``: Comma separated list of two letter country
   domains to get toplists for.
 
 

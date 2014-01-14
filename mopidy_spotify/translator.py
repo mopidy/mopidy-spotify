@@ -35,7 +35,7 @@ def to_mopidy_album(spotify_album):
     if uri in album_cache:
         return album_cache[uri]
     if not spotify_album.is_loaded():
-        return Album(uri=uri, name='[loading]')
+        return Album(uri=uri, name='[loading] %s' % uri)
     album_cache[uri] = Album(
         uri=uri,
         name=spotify_album.name(),
