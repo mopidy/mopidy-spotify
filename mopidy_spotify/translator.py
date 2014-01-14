@@ -23,7 +23,7 @@ def to_mopidy_artist(spotify_artist):
     if uri in artist_cache:
         return artist_cache[uri]
     if not spotify_artist.is_loaded():
-        return Artist(uri=uri, name='[loading...]')
+        return Artist(uri=uri, name='[loading] %s' % uri)
     artist_cache[uri] = Artist(uri=uri, name=spotify_artist.name())
     return artist_cache[uri]
 
@@ -35,7 +35,7 @@ def to_mopidy_album(spotify_album):
     if uri in album_cache:
         return album_cache[uri]
     if not spotify_album.is_loaded():
-        return Album(uri=uri, name='[loading...]')
+        return Album(uri=uri, name='[loading]')
     album_cache[uri] = Album(
         uri=uri,
         name=spotify_album.name(),
@@ -46,7 +46,13 @@ def to_mopidy_album(spotify_album):
 
 def to_mopidy_track_ref(spotify_track):
     uri = str(spotify.Link.from_track(spotify_track, 0))
-    return Ref.track(uri=uri, name=spotify_track.name())
+    if not spotify_track.is_loaded():
+        return Ref.track(uri=uri, name='[loading] %s' % uri)
+
+    name = spotify_track.name()
+    if spotify_track.availability() != TRACK_AVAILABLE:
+        name = '[unplayable] %s' % name
+    return Ref.track(uri=uri, name=name)
 
 
 def to_mopidy_track(spotify_track, bitrate=None):
@@ -56,7 +62,7 @@ def to_mopidy_track(spotify_track, bitrate=None):
     if uri in track_cache:
         return track_cache[uri]
     if not spotify_track.is_loaded():
-        return Track(uri=uri, name='[loading...]')
+        return Track(uri=uri, name='[loading] %s' % uri)
     name = spotify_track.name()
     if spotify_track.availability() != TRACK_AVAILABLE:
         name = '[unplayable] %s' % name
@@ -87,7 +93,7 @@ def to_mopidy_playlist(
         logger.debug('Spotify playlist translation error: %s', e)
         return
     if not spotify_playlist.is_loaded():
-        return Playlist(uri=uri, name='[loading...]')
+        return Playlist(uri=uri, name='[loading] %s' % uri)
     name = spotify_playlist.name()
     if folders:
         folder_names = '/'.join(folder.name() for folder in folders)

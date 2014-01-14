@@ -64,7 +64,7 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
         super(SpotifyLibraryProvider, self).__init__(*args, **kwargs)
         self._timeout = self.backend.config['spotify']['timeout']
 
-        # TODO: add /artsits/{top/tracks,albums/tracks}
+        # TODO: add /artists/{top/tracks,albums/tracks}
         self._root = collections.OrderedDict()
         self._root['/My top tracks'] = b'current'
         self._root['/Global top tracks'] = b'all'
