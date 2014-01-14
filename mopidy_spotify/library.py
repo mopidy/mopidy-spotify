@@ -131,6 +131,7 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
 
         result = []
         done = threading.Event()
+
         def callback(browser, userdata):
             for track in browser:
                 result.append(translator.to_mopidy_track_ref(track))
