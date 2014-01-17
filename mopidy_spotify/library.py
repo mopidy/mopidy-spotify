@@ -96,38 +96,45 @@ class SpotifyTrack(Track):
 
 
 class SpotifyLibraryProvider(base.BaseLibraryProvider):
-    root_directory_name = 'spotify'
+    root_directory = Ref.directory(uri='spotify:directory', name='Spotify')
 
     def __init__(self, *args, **kwargs):
         super(SpotifyLibraryProvider, self).__init__(*args, **kwargs)
         self._timeout = self.backend.config['spotify']['timeout']
 
         # TODO: add /artists/{top/tracks,albums/tracks} and /users?
-        self._root = collections.OrderedDict()
-        self._root['/Personal top tracks'] = b'current'
-        self._root['/Global top tracks'] = b'all'
-        self._root['/Country top tracks'] = b'countries'
+        self._root = [Ref.directory(uri='spotify:toplist:current',
+                                    name='Personal top tracks'),
+                      Ref.directory(uri='spotify:toplist:all',
+                                    name='Global top tracks')]
+        self._countries = []
 
-        self._countries = collections.OrderedDict()
+        if not self.backend.config['spotify']['toplist_countries']:
+            return
+
+        self._root.append(Ref.directory(uri='spotify:toplist:countries',
+                                        name='Country top tracks'))
         for code in self.backend.config['spotify']['toplist_countries']:
-            code = bytes(code.upper())
-            name = SPOTIFY_COUNTRIES.get(code, code)
-            self._countries['/Country top tracks/%s' % name] = code
+            code = code.upper()
+            self._countries.append(Ref.directory(
+                uri='spotify:toplist:%s' % code.lower(),
+                name=SPOTIFY_COUNTRIES.get(code, code)))
 
-    def browse(self, path):
-        if path == '/':
-            return [Ref.directory(uri=name) for name in self._root]
+    def browse(self, uri):
+        if uri == self.root_directory.uri:
+            return self._root
 
-        if path not in self._root.keys() + self._countries.keys():
+        variant, identifier = translator.parse_uri(uri.lower())
+        if variant != 'toplist':
             return []
 
-        if path in self._countries:
-            toplist_type = self._countries[path]
-        else:
-            toplist_type = self._root[path]
+        if identifier == 'countries':
+            return self._countries
 
-        if toplist_type == 'countries':
-            return [Ref.directory(uri=name) for name in self._countries]
+        if identifier not in ('all', 'current'):
+            identifier = identifier.upper()
+            if identifier not in SPOTIFY_COUNTRIES:
+                return []
 
         result = []
         done = threading.Event()
@@ -137,10 +144,11 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
                 result.append(translator.to_mopidy_track_ref(track))
             done.set()
 
-        logger.debug('Performing toplist browse for %s.', toplist_type)
-        ToplistBrowser(b'tracks', toplist_type, callback, None)
+        logger.debug('Performing toplist browse for %s', identifier)
+        ToplistBrowser(b'tracks', bytes(identifier), callback, None)
         if not done.wait(self._timeout):
             logger.warning('%s toplist browse timed out.', toplist_type)
+
         return result
 
     def find_exact(self, query=None, uris=None):

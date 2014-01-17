@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import logging
+import re
 
 import spotify
 
@@ -14,6 +15,13 @@ album_cache = {}
 track_cache = {}
 
 TRACK_AVAILABLE = 1
+
+
+def parse_uri(uri):
+    result = re.findall(r'^spotify:([a-z]+)(?::(\w+))?$', uri)
+    if result:
+        return result[0]
+    return None, None
 
 
 def to_mopidy_artist(spotify_artist):
