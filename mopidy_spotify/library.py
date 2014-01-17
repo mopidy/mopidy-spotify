@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import collections
 import logging
 import threading
 import time
@@ -147,7 +146,7 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
         logger.debug('Performing toplist browse for %s', identifier)
         ToplistBrowser(b'tracks', bytes(identifier), callback, None)
         if not done.wait(self._timeout):
-            logger.warning('%s toplist browse timed out.', toplist_type)
+            logger.warning('%s toplist browse timed out.', identifier)
 
         return result
 
