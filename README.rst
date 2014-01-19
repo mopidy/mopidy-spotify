@@ -26,7 +26,7 @@ Dependencies
 ============
 
 - A Spotify Premium subscription. Mopidy-Spotify **will not** work with Spotify
-  Free or Spotify Unlimited, just Spotify Premium.
+  Free, just Spotify Premium.
 
 - A non-Facebook Spotify username and password. If you created your account
   through Facebook you'll need to create a "device password" to be able to use
