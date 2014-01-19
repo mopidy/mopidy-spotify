@@ -1,3 +1,4 @@
+import mock
 import unittest
 
 from mopidy_spotify import Extension, backend as backend_lib
@@ -24,9 +25,10 @@ class ExtensionTest(unittest.TestCase):
         self.assertIn('timeout', schema)
         self.assertIn('cache_dir', schema)
 
-    def test_get_backend_classes(self):
+    def test_setup(self):
+        registry = mock.Mock()
+
         ext = Extension()
+        ext.setup(registry)
 
-        backends = ext.get_backend_classes()
-
-        self.assertIn(backend_lib.SpotifyBackend, backends)
+        registry.add.assert_called_with('backend', backend_lib.SpotifyBackend)

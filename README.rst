@@ -82,6 +82,8 @@ The following configuration values are available:
 - ``spotify/settings_dir``: The dir where the Spotify extension stores
   libspotify settings. Defaults to ``$XDG_CONFIG_DIR/mopidy/spotify``, which
   usually means ``~/.config/mopidy/spotify``.
+- ``spotify/toplist_countries``: Comma separated list of two letter country
+  domains to get toplists for.
 
 
 Project resources
@@ -102,6 +104,9 @@ v1.0.4 (UNRELEASED)
   There's no harm in letting them be added to the tracklist, as Mopidy will
   simply skip to the next track when failing to play the track. (Fixes:
   mopidy/mopidy#606)
+
+- Added basic library browsing support that exposes user, global and country
+  toplists.
 
 v1.0.3 (2013-12-15)
 -------------------

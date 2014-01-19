@@ -1,18 +1,57 @@
 from __future__ import unicode_literals
 
 import logging
+import threading
 import time
 import urllib
 
 import pykka
-from spotify import Link, SpotifyError
+from spotify import Link, SpotifyError, ToplistBrowser
 
 from mopidy.backends import base
-from mopidy.models import Track, SearchResult
+from mopidy.models import Ref, Track, SearchResult
 
 from . import translator
 
 logger = logging.getLogger('mopidy_spotify')
+
+SPOTIFY_COUNTRIES = {
+    'AD': 'Andorra',
+    'AR': 'Argentina',
+    'AT': 'Austria',
+    'AU': 'Australia',
+    'BE': 'Belgium',
+    'CH': 'Switzerland',
+    'CO': 'Colombia',
+    'CY': 'Cyprus',
+    'DE': 'Germany',
+    'DK': 'Denmark',
+    'EE': 'Estonia',
+    'ES': 'Spain',
+    'FI': 'Finland',
+    'FR': 'France',
+    'GB': 'United Kingdom',
+    'GR': 'Greece',
+    'HK': 'Hong Kong',
+    'IE': 'Ireland',
+    'IS': 'Iceland',
+    'IT': 'Italy',
+    'LI': 'Liechtenstein',
+    'LT': 'Lithuania',
+    'LU': 'Luxembourg',
+    'LV': 'Latvia',
+    'MC': 'Monaco',
+    'MX': 'Mexico',
+    'MY': 'Malaysia',
+    'NL': 'Netherlands',
+    'NO': 'Norway',
+    'NZ': 'New Zealand',
+    'PT': 'Portugal',
+    'SE': 'Sweden',
+    'SG': 'Singapore',
+    'TR': 'Turkey',
+    'TW': 'Taiwan',
+    'US': 'United States'}
 
 
 class SpotifyTrack(Track):
@@ -56,9 +95,60 @@ class SpotifyTrack(Track):
 
 
 class SpotifyLibraryProvider(base.BaseLibraryProvider):
+    root_directory = Ref.directory(uri='spotify:directory', name='Spotify')
+
     def __init__(self, *args, **kwargs):
         super(SpotifyLibraryProvider, self).__init__(*args, **kwargs)
         self._timeout = self.backend.config['spotify']['timeout']
+
+        # TODO: add /artists/{top/tracks,albums/tracks} and /users?
+        self._root = [Ref.directory(uri='spotify:toplist:current',
+                                    name='Personal top tracks'),
+                      Ref.directory(uri='spotify:toplist:all',
+                                    name='Global top tracks')]
+        self._countries = []
+
+        if not self.backend.config['spotify']['toplist_countries']:
+            return
+
+        self._root.append(Ref.directory(uri='spotify:toplist:countries',
+                                        name='Country top tracks'))
+        for code in self.backend.config['spotify']['toplist_countries']:
+            code = code.upper()
+            self._countries.append(Ref.directory(
+                uri='spotify:toplist:%s' % code.lower(),
+                name=SPOTIFY_COUNTRIES.get(code, code)))
+
+    def browse(self, uri):
+        if uri == self.root_directory.uri:
+            return self._root
+
+        variant, identifier = translator.parse_uri(uri.lower())
+        if variant != 'toplist':
+            return []
+
+        if identifier == 'countries':
+            return self._countries
+
+        if identifier not in ('all', 'current'):
+            identifier = identifier.upper()
+            if identifier not in SPOTIFY_COUNTRIES:
+                return []
+
+        result = []
+        done = threading.Event()
+
+        def callback(browser, userdata):
+            for track in browser:
+                result.append(translator.to_mopidy_track_ref(track))
+            done.set()
+
+        logger.debug('Performing toplist browse for %s', identifier)
+        ToplistBrowser(b'tracks', bytes(identifier), callback, None)
+        if not done.wait(self._timeout):
+            logger.warning('%s toplist browse timed out.', identifier)
+
+        return result
 
     def find_exact(self, query=None, uris=None):
         return self.search(query=query, uris=uris)
