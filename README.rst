@@ -97,8 +97,10 @@ Project resources
 Changelog
 =========
 
-v1.0.4 (UNRELEASED)
+v1.1.0 (UNRELEASED)
 -------------------
+
+- Require Mopidy >= 0.18.
 
 - Change ``library.lookup()`` to return tracks even if they are unplayable.
   There's no harm in letting them be added to the tracklist, as Mopidy will
