@@ -14,7 +14,7 @@ from . import translator
 from .container_manager import SpotifyContainerManager
 from .playlist_manager import SpotifyPlaylistManager
 
-logger = logging.getLogger('mopidy_spotify')
+logger = logging.getLogger(__name__)
 
 BITRATES = {96: 2, 160: 0, 320: 1}
 

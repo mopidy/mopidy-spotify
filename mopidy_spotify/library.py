@@ -13,7 +13,7 @@ from mopidy.models import Ref, Track, SearchResult
 
 from . import translator
 
-logger = logging.getLogger('mopidy_spotify')
+logger = logging.getLogger(__name__)
 
 SPOTIFY_COUNTRIES = {
     'AD': 'Andorra',

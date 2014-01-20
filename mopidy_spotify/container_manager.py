@@ -5,7 +5,7 @@ import logging
 from spotify.manager import SpotifyContainerManager as \
     PyspotifyContainerManager
 
-logger = logging.getLogger('mopidy_spotify')
+logger = logging.getLogger(__name__)
 
 
 class SpotifyContainerManager(PyspotifyContainerManager):

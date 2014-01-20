@@ -10,7 +10,7 @@ from mopidy_spotify.playback import SpotifyPlaybackProvider
 from mopidy_spotify.session_manager import SpotifySessionManager
 from mopidy_spotify.playlists import SpotifyPlaylistsProvider
 
-logger = logging.getLogger('mopidy_spotify')
+logger = logging.getLogger(__name__)
 
 
 class SpotifyBackend(pykka.ThreadingActor, base.Backend):

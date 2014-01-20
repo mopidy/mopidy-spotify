@@ -9,7 +9,7 @@ from mopidy import audio
 from mopidy.backends import base
 
 
-logger = logging.getLogger('mopidy_spotify')
+logger = logging.getLogger(__name__)
 
 
 def need_data_callback(spotify_backend, length_hint):

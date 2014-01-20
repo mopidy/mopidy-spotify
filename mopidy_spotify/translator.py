@@ -8,7 +8,7 @@ import spotify
 from mopidy.models import Artist, Album, Playlist, Ref, Track
 
 
-logger = logging.getLogger('mopidy_spotify')
+logger = logging.getLogger(__name__)
 
 artist_cache = {}
 album_cache = {}
