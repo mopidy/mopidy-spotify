@@ -26,7 +26,7 @@ setup(
         'setuptools',
         'Mopidy >= 0.18',
         'Pykka >= 1.1',
-        'pyspotify >= 1.9, < 2',
+        'pyspotify >= 1.9, < 1.999',
     ],
     test_suite='nose.collector',
     tests_require=[

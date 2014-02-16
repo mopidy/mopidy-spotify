@@ -97,6 +97,12 @@ Project resources
 Changelog
 =========
 
+v1.1.1 (UNRELEASED)
+-------------------
+
+- Change requirement on pyspotify from ``>= 1.9, < 2`` to ``>= 1.9, < 1.999``,
+  so that it is parsed correctly and pyspotify 1.x is installed instead of 2.x.
+
 v1.1.0 (2014-01-20)
 -------------------
 
