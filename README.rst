@@ -97,7 +97,7 @@ Project resources
 Changelog
 =========
 
-v1.1.1 (UNRELEASED)
+v1.1.1 (2014-02-16)
 -------------------
 
 - Change requirement on pyspotify from ``>= 1.9, < 2`` to ``>= 1.9, < 1.999``,
