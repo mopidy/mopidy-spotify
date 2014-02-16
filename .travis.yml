@@ -5,7 +5,7 @@ install:
   - "sudo wget -O /etc/apt/sources.list.d/mopidy.list http://apt.mopidy.com/mopidy.list"
   - "sudo apt-get update || true"
   - "sudo apt-get install $(apt-cache depends mopidy-spotify | awk '$2 !~ /mopidy-spotify|python:any/ {print $2}')"
-  - "pip install coveralls flake8 mopidy==dev"
+  - "pip install --allow-unverified=mopidy coveralls flake8 mopidy==dev"
 
 before_script:
   - "rm $VIRTUAL_ENV/lib/python$TRAVIS_PYTHON_VERSION/no-global-site-packages.txt"
