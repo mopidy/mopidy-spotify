@@ -6,8 +6,7 @@ import threading
 
 from spotify.manager import SpotifySessionManager as PyspotifySessionManager
 
-from mopidy import audio
-from mopidy.backends.listener import BackendListener
+from mopidy import audio, backend
 from mopidy.utils import process, versioning
 
 from . import translator
@@ -190,7 +189,7 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
         playlists = filter(None, playlists)
         self.backend.playlists.playlists = playlists
         logger.info('Loaded %d Spotify playlists', len(playlists))
-        BackendListener.send('playlists_loaded')
+        backend.BackendListener.send('playlists_loaded')
 
     def logout(self):
         """Log out from spotify"""

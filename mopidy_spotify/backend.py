@@ -4,7 +4,8 @@ import logging
 
 import pykka
 
-from mopidy.backends import base
+from mopidy import backend
+
 from mopidy_spotify.library import SpotifyLibraryProvider
 from mopidy_spotify.playback import SpotifyPlaybackProvider
 from mopidy_spotify.session_manager import SpotifySessionManager
@@ -13,7 +14,7 @@ from mopidy_spotify.playlists import SpotifyPlaylistsProvider
 logger = logging.getLogger(__name__)
 
 
-class SpotifyBackend(pykka.ThreadingActor, base.Backend):
+class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
     def __init__(self, config, audio):
         super(SpotifyBackend, self).__init__()
 

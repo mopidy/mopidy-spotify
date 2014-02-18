@@ -97,6 +97,12 @@ Project resources
 Changelog
 =========
 
+v1.1.3 (UNRELEASED)
+-------------------
+
+- Switch to new backend API locations, required by the upcoming Mopidy 0.19
+  release.
+
 v1.1.2 (2014-02-18)
 -------------------
 

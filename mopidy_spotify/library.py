@@ -7,7 +7,7 @@ import urllib
 import pykka
 from spotify import Link, SpotifyError, ToplistBrowser
 
-from mopidy.backends import base
+from mopidy import backend
 from mopidy.models import Ref, Track, SearchResult
 
 from . import translator, utils
@@ -93,7 +93,7 @@ class SpotifyTrack(Track):
         return self._proxy.copy(**values)
 
 
-class SpotifyLibraryProvider(base.BaseLibraryProvider):
+class SpotifyLibraryProvider(backend.LibraryProvider):
     root_directory = Ref.directory(uri='spotify:directory', name='Spotify')
 
     def __init__(self, *args, **kwargs):

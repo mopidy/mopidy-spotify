@@ -5,8 +5,7 @@ import functools
 
 from spotify import Link, SpotifyError
 
-from mopidy import audio
-from mopidy.backends import base
+from mopidy import audio, backend
 
 from . import utils
 
@@ -26,7 +25,7 @@ def seek_data_callback(spotify_backend, time_position):
     spotify_backend.playback.on_seek_data(time_position)
 
 
-class SpotifyPlaybackProvider(base.BasePlaybackProvider):
+class SpotifyPlaybackProvider(backend.PlaybackProvider):
     # These GStreamer caps matches the audio data provided by libspotify
     _caps = (
         'audio/x-raw-int, endianness=(int)1234, channels=(int)2, '

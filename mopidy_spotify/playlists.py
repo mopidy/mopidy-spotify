@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
 
-from mopidy.backends import base
+from mopidy import backend
 
 
-class SpotifyPlaylistsProvider(base.BasePlaylistsProvider):
+class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def create(self, name):
         pass  # TODO
 
