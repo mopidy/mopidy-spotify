@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 import threading
-import time
 import urllib
 
 import pykka
@@ -11,7 +10,7 @@ from spotify import Link, SpotifyError, ToplistBrowser
 from mopidy.backends import base
 from mopidy.models import Ref, Track, SearchResult
 
-from . import translator
+from . import translator, utils
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +171,7 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
 
     def _lookup_track(self, uri):
         track = Link.from_string(uri).as_track()
-        self._wait_for_object_to_load(track)
+        utils.wait_for_object_to_load(track, self._timeout)
         if track.is_loaded():
             return [SpotifyTrack(track=track)]
         else:
@@ -181,32 +180,19 @@ class SpotifyLibraryProvider(base.BaseLibraryProvider):
     def _lookup_album(self, uri):
         album = Link.from_string(uri).as_album()
         album_browser = self.backend.spotify.session.browse_album(album)
-        self._wait_for_object_to_load(album_browser)
+        utils.wait_for_object_to_load(album_browser, self._timeout)
         return [SpotifyTrack(track=t) for t in album_browser]
 
     def _lookup_artist(self, uri):
         artist = Link.from_string(uri).as_artist()
         artist_browser = self.backend.spotify.session.browse_artist(artist)
-        self._wait_for_object_to_load(artist_browser)
+        utils.wait_for_object_to_load(artist_browser, self._timeout)
         return [SpotifyTrack(track=t) for t in artist_browser]
 
     def _lookup_playlist(self, uri):
         playlist = Link.from_string(uri).as_playlist()
-        self._wait_for_object_to_load(playlist)
+        utils.wait_for_object_to_load(playlist, self._timeout)
         return [SpotifyTrack(track=t) for t in playlist]
-
-    def _wait_for_object_to_load(self, spotify_obj, timeout=None):
-        # XXX Sleeping to wait for the Spotify object to load is an ugly hack,
-        # but it works. We should look into other solutions for this.
-        if timeout is None:
-            timeout = self._timeout
-        wait_until = time.time() + timeout
-        while not spotify_obj.is_loaded():
-            time.sleep(0.1)
-            if time.time() > wait_until:
-                logger.debug(
-                    'Timeout: Spotify object did not load in %ds', timeout)
-                return
 
     def refresh(self, uri=None):
         pass  # TODO
