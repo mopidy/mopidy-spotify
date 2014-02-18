@@ -8,6 +8,8 @@ from spotify import Link, SpotifyError
 from mopidy import audio
 from mopidy.backends import base
 
+from . import utils
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ class SpotifyPlaybackProvider(base.BasePlaybackProvider):
 
     def __init__(self, *args, **kwargs):
         super(SpotifyPlaybackProvider, self).__init__(*args, **kwargs)
+        self._timeout = self.backend.config['spotify']['timeout']
         self._first_seek = False
 
     def play(self, track):
@@ -50,8 +53,9 @@ class SpotifyPlaybackProvider(base.BasePlaybackProvider):
         self._first_seek = True
 
         try:
-            self.backend.spotify.session.load(
-                Link.from_string(track.uri).as_track())
+            spotify_track = Link.from_string(track.uri).as_track()
+            utils.wait_for_object_to_load(spotify_track, self._timeout)
+            self.backend.spotify.session.load(spotify_track)
             self.backend.spotify.session.play(1)
             self.backend.spotify.buffer_timestamp = 0
 
