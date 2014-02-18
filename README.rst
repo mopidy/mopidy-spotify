@@ -97,6 +97,13 @@ Project resources
 Changelog
 =========
 
+v1.1.2 (2014-02-18)
+-------------------
+
+- Wait for track to be loaded before playing it. This fixes playback of tracks
+  looked up directly by URI, and not through a playlist or search. (Fixes:
+  mopidy/mopidy#675)
+
 v1.1.1 (2014-02-16)
 -------------------
 
