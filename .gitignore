@@ -2,6 +2,8 @@
 *.pyc
 *.swp
 .coverage
+.tox/
 MANIFEST
 build/
 dist/
+xunit-*.xml
