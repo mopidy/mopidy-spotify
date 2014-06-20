@@ -18,7 +18,7 @@ TRACK_AVAILABLE = 1
 
 
 def parse_uri(uri):
-    result = re.findall(r'^spotify:([a-z]+)(?::(\w+))?$', uri)
+    result = re.findall(r'^spotify:([a-z]+)(?::([\w:]+))?$', uri)
     if result:
         return result[0]
     return None, None
