@@ -124,6 +124,12 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
         variant, identifier = translator.parse_uri(uri.lower())
 
+        if variant == 'album':
+            album = Link.from_string(uri).as_album()
+            album_browser = self.backend.spotify.session.browse_album(album)
+            utils.wait_for_object_to_load(album_browser, self._timeout)
+            return [translator.to_mopidy_track_ref(t) for t in album_browser]
+
         if variant == 'user':
             playlist = Link.from_string(uri).as_playlist()
             utils.wait_for_object_to_load(playlist, self._timeout)
