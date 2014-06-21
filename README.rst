@@ -97,6 +97,12 @@ Project resources
 Changelog
 =========
 
+v1.x.y (UNRELEASED)
+-------------------
+
+- Add support for browsing playlists and albums. Needed to allow music discovery
+  extensions expose these in a clean way.
+
 v1.1.3 (2014-02-18)
 -------------------
 
