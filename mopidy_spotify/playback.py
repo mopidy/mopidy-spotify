@@ -72,6 +72,10 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             logger.info('Playback of %s failed: %s', track.uri, e)
             return False
 
+    def resume(self):
+        self.backend.spotify.session.play(1)
+        return super(SpotifyPlaybackProvider, self).resume()
+
     def stop(self):
         self.backend.spotify.session.play(0)
         return super(SpotifyPlaybackProvider, self).stop()
