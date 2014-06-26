@@ -103,6 +103,9 @@ v1.2.0 (UNRELEASED)
 - Add support for browsing playlists and albums. Needed to allow music
   discovery extensions expose these in a clean way.
 
+- Fix loss of audio when resuming from paused, when caused by another Spotify
+  client starting playback. (PR: #19)
+
 v1.1.3 (2014-02-18)
 -------------------
 
