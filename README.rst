@@ -110,7 +110,7 @@ Project resources
 Changelog
 =========
 
-v1.2.0 (UNRELEASED)
+v1.2.0 (2014-07-21)
 -------------------
 
 - Add support for browsing playlists and albums. Needed to allow music
