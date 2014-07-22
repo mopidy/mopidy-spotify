@@ -5,7 +5,7 @@ import os
 from mopidy import config, ext
 
 
-__version__ = '1.2.0'
+__version__ = '2.0.0'
 
 
 class Extension(ext.Extension):
@@ -30,5 +30,6 @@ class Extension(ext.Extension):
         return schema
 
     def setup(self, registry):
-        from .backend import SpotifyBackend
+        from mopidy_spotify.backend import SpotifyBackend
+
         registry.add('backend', SpotifyBackend)
