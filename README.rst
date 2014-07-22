@@ -38,7 +38,7 @@ Dependencies
   The package is available as ``libspotify12`` from
   `apt.mopidy.com <http://apt.mopidy.com/>`__.
 
-- ``pyspotify`` >= 1.9, < 2. The ``libspotify`` python wrapper. The package is
+- ``pyspotify`` >= 2. The ``libspotify`` python wrapper. The package is
   available as ``python-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
 
 - ``Mopidy`` >= 0.18. The music server that Mopidy-Spotify extends.
@@ -109,6 +109,11 @@ Project resources
 
 Changelog
 =========
+
+v2.0.0 (UNRELEASED)
+-------------------
+
+- Rewrite using pyspotify 2.
 
 v1.2.0 (2014-07-21)
 -------------------
