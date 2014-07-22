@@ -2,14 +2,68 @@ from __future__ import unicode_literals
 
 import unittest
 
-from mopidy_spotify.backend import SpotifyBackend
+import mock
+
+import spotify
+
+from mopidy_spotify import backend
 
 
-class BackendTest(unittest.TestCase):
+@mock.patch.object(backend, 'spotify', spec=spotify)
+class SpotifyBackendTest(unittest.TestCase):
 
-    def setUp(self):
-        config = {}
-        self.backend = SpotifyBackend(config=config, audio=None)
+    config = {
+        'spotify': {
+            'username': 'alice',
+            'password': 'password',
+            'cache_dir': '/my/cache/dir',
+            'settings_dir': '/my/settings/dir',
+        }
+    }
 
-    def test_uri_schemes(self):
-        self.assertIn('spotify', self.backend.uri_schemes)
+    def get_backend(self):
+        return backend.SpotifyBackend(config=self.config, audio=None)
+
+    def test_uri_schemes(self, spotify):
+        backend = self.get_backend()
+        self.assertIn('spotify', backend.uri_schemes)
+
+    def test_init_creates_configured_session(self, spotify):
+        cache_location_mock = mock.PropertyMock()
+        settings_location_mock = mock.PropertyMock()
+        config_mock = spotify.Config.return_value
+        type(config_mock).cache_location = cache_location_mock
+        type(config_mock).settings_location = settings_location_mock
+
+        self.get_backend()
+
+        spotify.Config.assert_called_once_with()
+        config_mock.load_application_key_file.assert_called_once_with(mock.ANY)
+        cache_location_mock.assert_called_once_with('/my/cache/dir')
+        settings_location_mock.assert_called_once_with('/my/settings/dir')
+        spotify.Session.assert_called_once_with(config_mock)
+
+    def test_on_start_adds_connection_state_changed_handler_to_session(
+            self, spotify):
+        session = spotify.Session.return_value
+
+        backend = self.get_backend()
+        backend.on_start()
+
+        session.on.assert_called_once_with(
+            spotify.SessionEvent.CONNECTION_STATE_UPDATED, mock.ANY)
+
+    def test_on_start_starts_the_pyspotify_event_loop(self, spotify):
+        backend = self.get_backend()
+        backend.on_start()
+
+        spotify.EventLoop.assert_called_once_with(backend._session)
+        spotify.EventLoop.return_value.start.assert_called_once_with()
+
+    def test_on_start_logs_in(self, spotify):
+        backend = self.get_backend()
+
+        backend.on_start()
+
+        spotify.Session.return_value.login.assert_called_once_with(
+            'alice', 'password')
