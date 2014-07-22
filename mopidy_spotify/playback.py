@@ -1,13 +1,13 @@
 from __future__ import unicode_literals
 
-import logging
 import functools
-
-from spotify import Link, SpotifyError
+import logging
 
 from mopidy import audio, backend
 
-from . import utils
+from spotify import Link, SpotifyError
+
+from mopidy_spotify import utils
 
 
 logger = logging.getLogger(__name__)

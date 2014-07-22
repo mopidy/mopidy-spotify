@@ -4,14 +4,15 @@ import logging
 import os
 import threading
 
-from spotify.manager import SpotifySessionManager as PyspotifySessionManager
-
 from mopidy import audio, backend
 from mopidy.utils import process, versioning
 
-from . import translator
-from .container_manager import SpotifyContainerManager
-from .playlist_manager import SpotifyPlaylistManager
+from spotify.manager import SpotifySessionManager as PyspotifySessionManager
+
+from mopidy_spotify import translator
+from mopidy_spotify.container_manager import SpotifyContainerManager
+from mopidy_spotify.playlist_manager import SpotifyPlaylistManager
+
 
 logger = logging.getLogger(__name__)
 

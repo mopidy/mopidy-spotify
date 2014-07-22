@@ -2,14 +2,14 @@ from __future__ import unicode_literals
 
 import logging
 
-import pykka
-
 from mopidy import backend
+
+import pykka
 
 from mopidy_spotify.library import SpotifyLibraryProvider
 from mopidy_spotify.playback import SpotifyPlaybackProvider
-from mopidy_spotify.session_manager import SpotifySessionManager
 from mopidy_spotify.playlists import SpotifyPlaylistsProvider
+from mopidy_spotify.session_manager import SpotifySessionManager
 
 logger = logging.getLogger(__name__)
 

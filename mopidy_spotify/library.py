@@ -4,13 +4,14 @@ import logging
 import threading
 import urllib
 
+from mopidy import backend
+from mopidy.models import Ref, SearchResult, Track
+
 import pykka
+
 from spotify import Link, SpotifyError, ToplistBrowser
 
-from mopidy import backend
-from mopidy.models import Ref, Track, SearchResult
-
-from . import translator, utils
+from mopidy_spotify import translator, utils
 
 logger = logging.getLogger(__name__)
 

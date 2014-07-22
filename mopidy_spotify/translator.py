@@ -3,9 +3,9 @@ from __future__ import unicode_literals
 import logging
 import re
 
-import spotify
+from mopidy.models import Album, Artist, Playlist, Ref, Track
 
-from mopidy.models import Artist, Album, Playlist, Ref, Track
+import spotify
 
 
 logger = logging.getLogger(__name__)
