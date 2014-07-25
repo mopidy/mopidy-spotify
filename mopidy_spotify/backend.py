@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import logging
 import os
+import threading
 
 from mopidy import backend
 
@@ -14,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
+
+    _logged_in = threading.Event()
+    _logged_out = threading.Event()
+    _logged_out.set()
 
     def __init__(self, config, audio):
         super(SpotifyBackend, self).__init__()
@@ -36,11 +41,9 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self.uri_schemes = ['spotify']
 
     def on_start(self):
-        actor_proxy = self.actor_ref.proxy()
-
         self._session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
-            actor_proxy.on_connection_state_changed)
+            SpotifyBackend.on_connection_state_changed)
 
         self._event_loop = spotify.EventLoop(self._session)
         self._event_loop.start()
@@ -50,11 +53,18 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             self._config['spotify']['password'])
 
     def on_stop(self):
-        # TODO Logout and wait for the logout to complete
-        pass
+        # TODO Wait for the logout to complete
+        logger.debug('Logging out of Spotify')
+        self._session.logout()
+        self._logged_out.wait()
 
-    def on_connection_state_changed(self, session):
+    @classmethod
+    def on_connection_state_changed(cls, session):
         if session.connection.state is spotify.ConnectionState.LOGGED_IN:
             logger.info('Connected to Spotify')
+            cls._logged_in.set()
+            cls._logged_out.clear()
         elif session.connection.state is spotify.ConnectionState.LOGGED_OUT:
-            logger.info('Logged out of Spotify')
+            logger.debug('Logged out of Spotify')
+            cls._logged_in.clear()
+            cls._logged_out.set()

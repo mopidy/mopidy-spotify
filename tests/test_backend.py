@@ -67,3 +67,12 @@ class SpotifyBackendTest(unittest.TestCase):
 
         spotify.Session.return_value.login.assert_called_once_with(
             'alice', 'password')
+
+    def test_on_stop_logs_out_and_waits_for_logout_to_complete(self, spotify):
+        backend = self.get_backend()
+        backend._logged_out = mock.Mock()
+
+        backend.on_stop()
+
+        spotify.Session.return_value.logout.assert_called_once_with()
+        backend._logged_out.wait.assert_called_once_with()
