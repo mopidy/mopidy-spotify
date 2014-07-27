@@ -4,16 +4,7 @@ import mock
 
 import pytest
 
-import spotify
-
 from mopidy_spotify import backend, playlists
-
-
-@pytest.yield_fixture
-def spotify_mock():
-    patcher = mock.patch.object(backend, 'spotify', spec=spotify)
-    yield patcher.start()
-    patcher.stop()
 
 
 @pytest.fixture
