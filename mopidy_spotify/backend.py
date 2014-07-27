@@ -10,6 +10,8 @@ import pykka
 
 import spotify
 
+from mopidy_spotify import playlists
+
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         self.library = None
         self.playback = None
-        self.playlists = None
+        self.playlists = playlists.SpotifyPlaylistsProvider(backend=self)
 
         self.uri_schemes = ['spotify']
 

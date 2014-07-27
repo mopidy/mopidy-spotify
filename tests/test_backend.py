@@ -6,13 +6,12 @@ import pytest
 
 import spotify
 
-import mopidy_spotify.backend
+from mopidy_spotify import backend, playlists
 
 
 @pytest.yield_fixture
 def spotify_mock():
-    patcher = mock.patch.object(
-        mopidy_spotify.backend, 'spotify', spec=spotify)
+    patcher = mock.patch.object(backend, 'spotify', spec=spotify)
     yield patcher.start()
     patcher.stop()
 
@@ -31,7 +30,7 @@ def config():
 
 
 def get_backend(config):
-    return mopidy_spotify.backend.SpotifyBackend(config=config, audio=None)
+    return backend.SpotifyBackend(config=config, audio=None)
 
 
 def test_uri_schemes(spotify_mock, config):
@@ -75,6 +74,13 @@ def test_init_adds_connection_state_changed_handler_to_session(
 
     session.on.assert_called_once_with(
         spotify_mock.SessionEvent.CONNECTION_STATE_UPDATED, mock.ANY)
+
+
+def test_init_sets_up_the_providers(spotify_mock, config):
+    backend = get_backend(config)
+
+    assert isinstance(backend.playlists, playlists.SpotifyPlaylistsProvider)
+    # TODO The remaining providers
 
 
 def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
