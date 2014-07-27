@@ -32,7 +32,12 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         spotify_config.cache_location = self._config['spotify']['cache_dir']
         spotify_config.settings_location = (
             self._config['spotify']['settings_dir'])
+
         self._session = spotify.Session(spotify_config)
+        self._session.on(
+            spotify.SessionEvent.CONNECTION_STATE_UPDATED,
+            SpotifyBackend.on_connection_state_changed)
+
         self._event_loop = spotify.EventLoop(self._session)
 
         self.library = None
@@ -42,10 +47,6 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self.uri_schemes = ['spotify']
 
     def on_start(self):
-        self._session.on(
-            spotify.SessionEvent.CONNECTION_STATE_UPDATED,
-            SpotifyBackend.on_connection_state_changed)
-
         self._event_loop.start()
 
         self._session.login(

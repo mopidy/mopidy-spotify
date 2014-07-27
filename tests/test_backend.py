@@ -55,12 +55,11 @@ def test_init_creates_configured_session(spotify_mock, config):
     spotify_mock.Session.assert_called_once_with(config_mock)
 
 
-def test_on_start_adds_connection_state_changed_handler_to_session(
+def test_init_adds_connection_state_changed_handler_to_session(
         spotify_mock, config):
     session = spotify_mock.Session.return_value
 
-    backend = get_backend(config)
-    backend.on_start()
+    get_backend(config)
 
     session.on.assert_called_once_with(
         spotify_mock.SessionEvent.CONNECTION_STATE_UPDATED, mock.ANY)
