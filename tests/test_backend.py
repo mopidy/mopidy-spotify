@@ -91,3 +91,4 @@ def test_on_stop_logs_out_and_waits_for_logout_to_complete(
 
     spotify_mock.Session.return_value.logout.assert_called_once_with()
     backend._logged_out.wait.assert_called_once_with()
+    spotify_mock.EventLoop.return_value.stop.assert_called_once_with()

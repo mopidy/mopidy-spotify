@@ -33,6 +33,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         spotify_config.settings_location = (
             self._config['spotify']['settings_dir'])
         self._session = spotify.Session(spotify_config)
+        self._event_loop = spotify.EventLoop(self._session)
 
         self.library = None
         self.playback = None
@@ -45,7 +46,6 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             SpotifyBackend.on_connection_state_changed)
 
-        self._event_loop = spotify.EventLoop(self._session)
         self._event_loop.start()
 
         self._session.login(
@@ -57,6 +57,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         logger.debug('Logging out of Spotify')
         self._session.logout()
         self._logged_out.wait()
+        self._event_loop.stop()
 
     @classmethod
     def on_connection_state_changed(cls, session):
