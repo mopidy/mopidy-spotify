@@ -53,7 +53,6 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             self._config['spotify']['password'])
 
     def on_stop(self):
-        # TODO Wait for the logout to complete
         logger.debug('Logging out of Spotify')
         self._session.logout()
         self._logged_out.wait()
