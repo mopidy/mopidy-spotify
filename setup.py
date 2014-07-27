@@ -29,11 +29,6 @@ setup(
         'Pykka >= 1.1',
         'pyspotify >= 2.0.0b3',
     ],
-    test_suite='nose.collector',
-    tests_require=[
-        'nose',
-        'mock >= 1.0',
-    ],
     entry_points={
         'mopidy.ext': [
             'spotify = mopidy_spotify:Extension',
