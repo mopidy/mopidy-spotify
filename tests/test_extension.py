@@ -22,6 +22,8 @@ def test_get_config_schema():
     assert 'bitrate' in schema
     assert 'timeout' in schema
     assert 'cache_dir' in schema
+    assert 'settings_dir' in schema
+    assert 'toplist_countries' in schema
 
 
 def test_setup():
