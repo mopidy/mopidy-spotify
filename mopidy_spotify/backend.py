@@ -61,11 +61,17 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
     @classmethod
     def on_connection_state_changed(cls, session):
-        if session.connection.state is spotify.ConnectionState.LOGGED_IN:
-            logger.info('Connected to Spotify')
-            cls._logged_in.set()
-            cls._logged_out.clear()
-        elif session.connection.state is spotify.ConnectionState.LOGGED_OUT:
+        if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
             logger.debug('Logged out of Spotify')
             cls._logged_in.clear()
             cls._logged_out.set()
+        elif session.connection.state is spotify.ConnectionState.LOGGED_IN:
+            logger.info('Logged in to Spotify in online mode')
+            cls._logged_in.set()
+            cls._logged_out.clear()
+        elif session.connection.state is spotify.ConnectionState.DISCONNECTED:
+            logger.info('Disconnected from Spotify')
+        elif session.connection.state is spotify.ConnectionState.OFFLINE:
+            logger.info('Logged in to Spotify in offline mode')
+            cls._logged_in.set()
+            cls._logged_out.clear()

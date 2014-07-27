@@ -82,12 +82,63 @@ def test_on_start_logs_in(spotify_mock, config):
 
 
 def test_on_stop_logs_out_and_waits_for_logout_to_complete(
-        spotify_mock, config):
+        spotify_mock, config, caplog):
     backend = get_backend(config)
     backend._logged_out = mock.Mock()
 
     backend.on_stop()
 
+    assert 'Logging out of Spotify' in caplog.text()
     spotify_mock.Session.return_value.logout.assert_called_once_with()
     backend._logged_out.wait.assert_called_once_with()
     spotify_mock.EventLoop.return_value.stop.assert_called_once_with()
+
+
+def test_on_connection_state_changed_when_logged_out(
+        spotify_mock, config, caplog):
+    session_mock = spotify_mock.Session.return_value
+    session_mock.connection.state = spotify_mock.ConnectionState.LOGGED_OUT
+    backend = get_backend(config)
+
+    backend.on_connection_state_changed(session_mock)
+
+    assert 'Logged out of Spotify' in caplog.text()
+    assert not backend._logged_in.is_set()
+    assert backend._logged_out.is_set()
+
+
+def test_on_connection_state_changed_when_logged_in(
+        spotify_mock, config, caplog):
+    session_mock = spotify_mock.Session.return_value
+    session_mock.connection.state = spotify_mock.ConnectionState.LOGGED_IN
+    backend = get_backend(config)
+
+    backend.on_connection_state_changed(session_mock)
+
+    assert 'Logged in to Spotify in online mode' in caplog.text()
+    assert backend._logged_in.is_set()
+    assert not backend._logged_out.is_set()
+
+
+def test_on_connection_state_changed_when_disconnected(
+        spotify_mock, config, caplog):
+    session_mock = spotify_mock.Session.return_value
+    session_mock.connection.state = spotify_mock.ConnectionState.DISCONNECTED
+    backend = get_backend(config)
+
+    backend.on_connection_state_changed(session_mock)
+
+    assert 'Disconnected from Spotify' in caplog.text()
+
+
+def test_on_connection_state_changed_when_offline(
+        spotify_mock, config, caplog):
+    session_mock = spotify_mock.Session.return_value
+    session_mock.connection.state = spotify_mock.ConnectionState.OFFLINE
+    backend = get_backend(config)
+
+    backend.on_connection_state_changed(session_mock)
+
+    assert 'Logged in to Spotify in offline mode' in caplog.text()
+    assert backend._logged_in.is_set()
+    assert not backend._logged_out.is_set()
