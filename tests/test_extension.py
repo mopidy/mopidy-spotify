@@ -24,6 +24,7 @@ def test_get_config_schema():
     assert 'cache_dir' in schema
     assert 'settings_dir' in schema
     assert 'toplist_countries' in schema
+    assert 'offline' in schema
 
 
 def test_setup():

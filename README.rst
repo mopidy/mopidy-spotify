@@ -97,6 +97,7 @@ The following configuration values are available:
   usually means ``~/.config/mopidy/spotify``.
 - ``spotify/toplist_countries``: Comma separated list of two letter country
   domains to get toplists for.
+- ``spotify/offline``: Whether to stay in offline mode. Defaults to ``false``.
 
 
 Project resources

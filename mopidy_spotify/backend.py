@@ -34,6 +34,10 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             self._config['spotify']['settings_dir'])
 
         self._session = spotify.Session(spotify_config)
+
+        if self._config['spotify']['offline']:
+            self._session.connection.allow_network = False
+
         self._session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             SpotifyBackend.on_connection_state_changed)

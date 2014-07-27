@@ -25,6 +25,7 @@ def config():
             'password': 'password',
             'cache_dir': '/my/cache/dir',
             'settings_dir': '/my/settings/dir',
+            'offline': False,
         }
     }
 
@@ -53,6 +54,17 @@ def test_init_creates_configured_session(spotify_mock, config):
     cache_location_mock.assert_called_once_with('/my/cache/dir')
     settings_location_mock.assert_called_once_with('/my/settings/dir')
     spotify_mock.Session.assert_called_once_with(config_mock)
+
+
+def test_init_disallows_network_if_offline_config_is_set(spotify_mock, config):
+    session = spotify_mock.Session.return_value
+    allow_network_mock = mock.PropertyMock()
+    type(session.connection).allow_network = allow_network_mock
+    config['spotify']['offline'] = True
+
+    get_backend(config)
+
+    allow_network_mock.assert_called_once_with(False)
 
 
 def test_init_adds_connection_state_changed_handler_to_session(

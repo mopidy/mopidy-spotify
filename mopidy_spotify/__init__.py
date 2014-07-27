@@ -27,6 +27,7 @@ class Extension(ext.Extension):
         schema['cache_dir'] = config.Path(optional=True)
         schema['settings_dir'] = config.Path()
         schema['toplist_countries'] = config.List(optional=True)
+        schema['offline'] = config.Boolean()
         return schema
 
     def setup(self, registry):
