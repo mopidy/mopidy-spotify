@@ -11,7 +11,9 @@ install:
   - "wget -O - http://apt.mopidy.com/mopidy.gpg | sudo apt-key add -"
   - "sudo wget -O /etc/apt/sources.list.d/mopidy.list http://apt.mopidy.com/mopidy.list"
   - "sudo apt-get update || true"
-  #- "sudo apt-get install mopidy-spotify"
+  - "sudo apt-get install mopidy-spotify"
+  # Note: The next line can be removed when pyspotify2 has been packaged as a
+  # Debian package.
   - "sudo apt-get install python-all-dev libffi-dev libspotify-dev"
   - "pip install tox"
 
