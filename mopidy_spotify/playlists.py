@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import logging
 
-from mopidy import backend, models
+from mopidy import backend
 
 import spotify
 
@@ -35,33 +35,19 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return []
 
         result = []
-        folder = []
+        folders = []
 
         for sp_playlist in self._backend._session.playlist_container:
             if isinstance(sp_playlist, spotify.PlaylistFolder):
                 if sp_playlist.type is spotify.PlaylistType.START_FOLDER:
-                    folder.append(sp_playlist.name)
+                    folders.append(sp_playlist.name)
                 elif sp_playlist.type is spotify.PlaylistType.END_FOLDER:
-                    folder.pop()
+                    folders.pop()
                 continue
 
-            if not sp_playlist.is_loaded:
-                continue
-
-            name = '/'.join(folder + [sp_playlist.name])
-            # TODO Add "by <playlist owner>" to name
-
-            tracks = [
-                translator.to_track(sp_track)
-                for sp_track in sp_playlist.tracks
-            ]
-            tracks = filter(None, tracks)
-
-            playlist = models.Playlist(
-                uri=sp_playlist.link.uri,
-                name=name,
-                tracks=tracks)
-            result.append(playlist)
+            playlist = translator.to_playlist(sp_playlist, folders=folders)
+            if playlist is not None:
+                result.append(playlist)
 
         # TODO Add starred playlist
 
