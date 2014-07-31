@@ -22,3 +22,25 @@ def to_track(sp_track):
         name=sp_track.name,
         length=sp_track.duration,
         track_no=sp_track.index)
+
+
+def to_playlist(sp_playlist, folders=None, username=None):
+    if not isinstance(sp_playlist, spotify.Playlist):
+        return
+
+    if not sp_playlist.is_loaded:
+        return
+
+    name = sp_playlist.name
+    if folders is not None:
+        name = '/'.join(folders + [name])
+    if username is not None and sp_playlist.owner.canonical_name != username:
+        name = '%s by %s' % (name, sp_playlist.owner.canonical_name)
+
+    tracks = [to_track(sp_track) for sp_track in sp_playlist.tracks]
+    tracks = filter(None, tracks)
+
+    return models.Playlist(
+        uri=sp_playlist.link.uri,
+        name=name,
+        tracks=tracks)

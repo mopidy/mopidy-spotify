@@ -12,40 +12,34 @@ from mopidy_spotify import backend, playlists
 
 
 @pytest.fixture
-def session_mock(sp_track_mock):
-    playlist1_mock = mock.Mock(spec=spotify.Playlist)
-    playlist1_mock.is_loaded = True
-    playlist1_mock.link.uri = 'spotify:playlist:alice:foo'
-    playlist1_mock.name = 'Foo'
-    playlist1_mock.tracks = [sp_track_mock]
+def session_mock(sp_playlist_mock):
+    sp_playlist_folder_start_mock = mock.Mock(spec=spotify.PlaylistFolder)
+    sp_playlist_folder_start_mock.type = spotify.PlaylistType.START_FOLDER
+    sp_playlist_folder_start_mock.name = 'Bar'
+    sp_playlist_folder_start_mock.id = 17
 
-    playlist_folder_start_mock = mock.Mock(spec=spotify.PlaylistFolder)
-    playlist_folder_start_mock.type = spotify.PlaylistType.START_FOLDER
-    playlist_folder_start_mock.name = 'Bar'
-    playlist_folder_start_mock.id = 17
+    sp_playlist2_mock = mock.Mock(spec=spotify.Playlist)
+    sp_playlist2_mock.is_loaded = True
+    sp_playlist2_mock.link.uri = 'spotify:playlist:alice:baz'
+    sp_playlist2_mock.name = 'Baz'
+    sp_playlist2_mock.tracks = []
 
-    playlist2_mock = mock.Mock(spec=spotify.Playlist)
-    playlist2_mock.is_loaded = True
-    playlist2_mock.link.uri = 'spotify:playlist:alice:baz'
-    playlist2_mock.name = 'Baz'
-    playlist2_mock.tracks = []
+    sp_playlist_folder_end_mock = mock.Mock(spec=spotify.PlaylistFolder)
+    sp_playlist_folder_end_mock.type = spotify.PlaylistType.END_FOLDER
+    sp_playlist_folder_end_mock.id = 17
 
-    playlist_folder_end_mock = mock.Mock(spec=spotify.PlaylistFolder)
-    playlist_folder_end_mock.type = spotify.PlaylistType.END_FOLDER
-    playlist_folder_end_mock.id = 17
+    sp_playlist3_mock = mock.Mock(spec=spotify.Playlist)
+    sp_playlist3_mock.is_loaded = False
 
-    playlist3_mock = mock.Mock(spec=spotify.Playlist)
-    playlist3_mock.is_loaded = False
-
-    session_mock = mock.Mock(spec=spotify.Session)
-    session_mock.playlist_container = [
-        playlist1_mock,
-        playlist_folder_start_mock,
-        playlist2_mock,
-        playlist_folder_end_mock,
-        playlist3_mock,
+    sp_session_mock = mock.Mock(spec=spotify.Session)
+    sp_session_mock.playlist_container = [
+        sp_playlist_mock,
+        sp_playlist_folder_start_mock,
+        sp_playlist2_mock,
+        sp_playlist_folder_end_mock,
+        sp_playlist3_mock,
     ]
-    return session_mock
+    return sp_session_mock
 
 
 @pytest.fixture
