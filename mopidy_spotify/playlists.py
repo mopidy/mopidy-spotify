@@ -34,6 +34,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if self._backend._session.playlist_container is None:
             return []
 
+        username = self._backend._session.user_name
         result = []
         folders = []
 
@@ -45,7 +46,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                     folders.pop()
                 continue
 
-            playlist = translator.to_playlist(sp_playlist, folders=folders)
+            playlist = translator.to_playlist(
+                sp_playlist, folders=folders, username=username)
             if playlist is not None:
                 result.append(playlist)
 

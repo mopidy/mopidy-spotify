@@ -12,7 +12,7 @@ from mopidy_spotify import backend, playlists
 
 
 @pytest.fixture
-def session_mock(sp_playlist_mock):
+def session_mock(sp_playlist_mock, sp_user_mock):
     sp_playlist_folder_start_mock = mock.Mock(spec=spotify.PlaylistFolder)
     sp_playlist_folder_start_mock.type = spotify.PlaylistType.START_FOLDER
     sp_playlist_folder_start_mock.name = 'Bar'
@@ -20,7 +20,9 @@ def session_mock(sp_playlist_mock):
 
     sp_playlist2_mock = mock.Mock(spec=spotify.Playlist)
     sp_playlist2_mock.is_loaded = True
-    sp_playlist2_mock.link.uri = 'spotify:playlist:alice:baz'
+    sp_playlist2_mock.owner = mock.Mock(spec=spotify.User)
+    sp_playlist2_mock.owner.canonical_name = 'bob'
+    sp_playlist2_mock.link.uri = 'spotify:playlist:bob:baz'
     sp_playlist2_mock.name = 'Baz'
     sp_playlist2_mock.tracks = []
 
@@ -39,6 +41,8 @@ def session_mock(sp_playlist_mock):
         sp_playlist_folder_end_mock,
         sp_playlist3_mock,
     ]
+    sp_session_mock.user = sp_user_mock
+    sp_session_mock.user_name = 'alice'
     return sp_session_mock
 
 
@@ -77,7 +81,7 @@ def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
                     track_no=7)
             ]),
         models.Playlist(
-            name='Bar/Baz',
-            uri='spotify:playlist:alice:baz',
+            name='Bar/Baz by bob',
+            uri='spotify:playlist:bob:baz',
             tracks=[]),
     ]
