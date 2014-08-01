@@ -24,7 +24,19 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         pass  # TODO
 
     def lookup(self, uri):
-        pass  # TODO
+        try:
+            sp_playlist = self._backend._session.get_playlist(uri)
+        except spotify.Error as exc:
+            logger.debug('Failed to lookup Spotify URI %s: %s', uri, exc)
+            return
+
+        if not sp_playlist.is_loaded:
+            logger.debug(
+                'Waiting for Spotify playlist to load: %s', sp_playlist)
+            sp_playlist.load()
+
+        username = self._backend._session.user_name
+        return translator.to_playlist(sp_playlist, username=username)
 
     @property
     def playlists(self):
