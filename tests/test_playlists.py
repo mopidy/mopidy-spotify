@@ -118,6 +118,9 @@ def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
                 models.Track(
                     uri='spotify:track:abc',
                     name='ABC 123',
+                    artists=[
+                        models.Artist(uri='spotify:artist:abba', name='ABBA')
+                    ],
                     length=174300,
                     track_no=7)
             ]),

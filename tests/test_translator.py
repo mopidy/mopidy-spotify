@@ -86,8 +86,17 @@ class TestToTrack(object):
 
         assert track.uri == 'spotify:track:abc'
         assert track.name == 'ABC 123'
+        assert list(track.artists) == [
+            models.Artist(uri='spotify:artist:abba', name='ABBA')]
         assert track.length == 174300
         assert track.track_no == 7
+
+    def test_filters_out_none_artists(self, sp_artist_mock, sp_track_mock):
+        sp_artist_mock.is_loaded = False
+
+        track = translator.to_track(sp_track_mock)
+
+        assert list(track.artists) == []
 
 
 class TestToPlaylist(object):
@@ -141,6 +150,7 @@ class TestToPlaylist(object):
 
     def test_filters_out_none_tracks(self, sp_track_mock, sp_playlist_mock):
         sp_track_mock.is_loaded = False
+
         playlist = translator.to_playlist(sp_playlist_mock)
 
         assert playlist.length == 0

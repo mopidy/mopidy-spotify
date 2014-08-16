@@ -43,7 +43,9 @@ def to_track(sp_track):
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
         return  # TODO Return placeholder "[unavailable]" track?
 
-    # TODO artists
+    artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
+    artists = filter(None, artists)
+
     # TODO album
     # TODO date from album
     # TODO bitrate
@@ -51,6 +53,7 @@ def to_track(sp_track):
     return models.Track(
         uri=sp_track.link.uri,
         name=sp_track.name,
+        artists=artists,
         length=sp_track.duration,
         track_no=sp_track.index)
 

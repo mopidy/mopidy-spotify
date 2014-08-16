@@ -45,13 +45,14 @@ def sp_album_mock(sp_artist_mock):
 
 
 @pytest.fixture
-def sp_track_mock():
+def sp_track_mock(sp_artist_mock):
     sp_track = mock.Mock(spec=spotify.Track)
     sp_track.is_loaded = True
     sp_track.error = spotify.ErrorType.OK
     sp_track.availability = spotify.TrackAvailability.AVAILABLE
     sp_track.link.uri = 'spotify:track:abc'
     sp_track.name = 'ABC 123'
+    sp_track.artists = [sp_artist_mock]
     sp_track.duration = 174300
     sp_track.index = 7
     return sp_track
