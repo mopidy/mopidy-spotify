@@ -63,6 +63,14 @@ def test_to_playlist(sp_track_mock, sp_playlist_mock):
     assert playlist.last_modified is None
 
 
+def test_to_playlist_adds_name_for_starred_playlists(sp_playlist_mock):
+    sp_playlist_mock.name = None
+
+    playlist = translator.to_playlist(sp_playlist_mock)
+
+    assert playlist.name == 'Starred'
+
+
 def test_to_playlist_filters_out_none_tracks(sp_track_mock, sp_playlist_mock):
     sp_track_mock.is_loaded = False
     playlist = translator.to_playlist(sp_playlist_mock)

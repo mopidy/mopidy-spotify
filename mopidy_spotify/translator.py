@@ -32,6 +32,9 @@ def to_playlist(sp_playlist, folders=None, username=None):
         return
 
     name = sp_playlist.name
+    if name is None:
+        name = 'Starred'
+        # TODO Reverse order of tracks in starred playlists?
     if folders is not None:
         name = '/'.join(folders + [name])
     if username is not None and sp_playlist.owner.canonical_name != username:
