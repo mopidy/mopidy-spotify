@@ -94,9 +94,10 @@ class TestToTrack(object):
             artists=[
                 models.Artist(uri='spotify:artist:abba', name='ABBA')],
             date='2001')
+        assert track.track_no == 7
+        assert track.disc_no == 1
         assert track.date == '2001'
         assert track.length == 174300
-        assert track.track_no == 7
 
     def test_filters_out_none_artists(self, sp_artist_mock, sp_track_mock):
         sp_artist_mock.is_loaded = False

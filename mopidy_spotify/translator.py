@@ -48,7 +48,6 @@ def to_track(sp_track):
 
     album = to_album(sp_track.album)
 
-    # TODO disc no
     # TODO bitrate
 
     return models.Track(
@@ -58,6 +57,7 @@ def to_track(sp_track):
         album=album,
         date=album.date,
         length=sp_track.duration,
+        disc_no=sp_track.disc,
         track_no=sp_track.index)
 
 
