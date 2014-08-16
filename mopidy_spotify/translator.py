@@ -9,6 +9,9 @@ def to_track(sp_track):
     if not sp_track.is_loaded:
         return
 
+    if sp_track.error != spotify.ErrorType.OK:
+        return
+
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
         return
 

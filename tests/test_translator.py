@@ -7,21 +7,26 @@ import spotify
 from mopidy_spotify import translator
 
 
-def test_to_track_returns_none_if_unloaded():
-    sp_track = mock.Mock(spec=spotify.Track)
-    sp_track.is_loaded = False
-    sp_track.availability = spotify.TrackAvailability.AVAILABLE
+def test_to_track_returns_none_if_unloaded(sp_track_mock):
+    sp_track_mock.is_loaded = False
 
-    track = translator.to_track(sp_track)
+    track = translator.to_track(sp_track_mock)
 
     assert track is None
 
 
-def test_to_track_returns_none_if_not_available():
-    sp_track = mock.Mock(spec=spotify.Track)
-    sp_track.availability = spotify.TrackAvailability.UNAVAILABLE
+def test_to_track_returns_none_if_error(sp_track_mock):
+    sp_track_mock.error = spotify.ErrorType.OTHER_PERMANENT
 
-    track = translator.to_track(sp_track)
+    track = translator.to_track(sp_track_mock)
+
+    assert track is None
+
+
+def test_to_track_returns_none_if_not_available(sp_track_mock):
+    sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
+
+    track = translator.to_track(sp_track_mock)
 
     assert track is None
 
