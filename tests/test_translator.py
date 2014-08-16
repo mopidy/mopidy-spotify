@@ -88,6 +88,13 @@ class TestToTrack(object):
         assert track.name == 'ABC 123'
         assert list(track.artists) == [
             models.Artist(uri='spotify:artist:abba', name='ABBA')]
+        assert track.album == models.Album(
+            uri='spotify:album:def',
+            name='DEF 456',
+            artists=[
+                models.Artist(uri='spotify:artist:abba', name='ABBA')],
+            date='2001')
+        assert track.date == '2001'
         assert track.length == 174300
         assert track.track_no == 7
 

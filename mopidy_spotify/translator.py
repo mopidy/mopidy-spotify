@@ -46,14 +46,17 @@ def to_track(sp_track):
     artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
     artists = filter(None, artists)
 
-    # TODO album
-    # TODO date from album
+    album = to_album(sp_track.album)
+
+    # TODO disc no
     # TODO bitrate
 
     return models.Track(
         uri=sp_track.link.uri,
         name=sp_track.name,
         artists=artists,
+        album=album,
+        date=album.date,
         length=sp_track.duration,
         track_no=sp_track.index)
 

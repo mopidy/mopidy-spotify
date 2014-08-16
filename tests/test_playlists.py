@@ -121,6 +121,15 @@ def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
                     artists=[
                         models.Artist(uri='spotify:artist:abba', name='ABBA')
                     ],
+                    album=models.Album(
+                        uri='spotify:album:def',
+                        name='DEF 456',
+                        artists=[
+                            models.Artist(
+                                uri='spotify:artist:abba', name='ABBA')
+                        ],
+                        date='2001'),
+                    date='2001',
                     length=174300,
                     track_no=7)
             ]),
