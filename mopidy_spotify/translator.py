@@ -33,7 +33,7 @@ def to_album(sp_album):
         date=date)
 
 
-def to_track(sp_track):
+def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
         return  # TODO Return placeholder "[loading]" track?
 
@@ -48,8 +48,6 @@ def to_track(sp_track):
 
     album = to_album(sp_track.album)
 
-    # TODO bitrate
-
     return models.Track(
         uri=sp_track.link.uri,
         name=sp_track.name,
@@ -58,10 +56,11 @@ def to_track(sp_track):
         date=album.date,
         length=sp_track.duration,
         disc_no=sp_track.disc,
-        track_no=sp_track.index)
+        track_no=sp_track.index,
+        bitrate=bitrate)
 
 
-def to_playlist(sp_playlist, folders=None, username=None):
+def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
     if not isinstance(sp_playlist, spotify.Playlist):
         return
 
@@ -77,7 +76,9 @@ def to_playlist(sp_playlist, folders=None, username=None):
     if username is not None and sp_playlist.owner.canonical_name != username:
         name = '%s by %s' % (name, sp_playlist.owner.canonical_name)
 
-    tracks = [to_track(sp_track) for sp_track in sp_playlist.tracks]
+    tracks = [
+        to_track(sp_track, bitrate=bitrate)
+        for sp_track in sp_playlist.tracks]
     tracks = filter(None, tracks)
 
     return models.Playlist(

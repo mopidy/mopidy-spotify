@@ -82,7 +82,7 @@ class TestToTrack(object):
         assert track is None
 
     def test_successful_translation(self, sp_track_mock):
-        track = translator.to_track(sp_track_mock)
+        track = translator.to_track(sp_track_mock, bitrate=320)
 
         assert track.uri == 'spotify:track:abc'
         assert track.name == 'ABC 123'
@@ -98,6 +98,7 @@ class TestToTrack(object):
         assert track.disc_no == 1
         assert track.date == '2001'
         assert track.length == 174300
+        assert track.bitrate == 320
 
     def test_filters_out_none_artists(self, sp_artist_mock, sp_track_mock):
         sp_artist_mock.is_loaded = False

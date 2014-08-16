@@ -59,7 +59,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 continue
 
             playlist = translator.to_playlist(
-                sp_playlist, folders=folders, username=username)
+                sp_playlist, folders=folders, username=username,
+                bitrate=self._backend.bitrate)
             if playlist is not None:
                 result.append(playlist)
 
