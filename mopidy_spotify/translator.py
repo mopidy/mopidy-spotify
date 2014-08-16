@@ -7,13 +7,13 @@ import spotify
 
 def to_track(sp_track):
     if not sp_track.is_loaded:
-        return
+        return  # TODO Return placeholder "[loading]" track?
 
     if sp_track.error != spotify.ErrorType.OK:
-        return
+        return  # TODO Return placeholder "[error]" track?
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
-        return
+        return  # TODO Return placeholder "[unavailable]" track?
 
     # TODO artists
     # TODO album
@@ -32,7 +32,7 @@ def to_playlist(sp_playlist, folders=None, username=None):
         return
 
     if not sp_playlist.is_loaded:
-        return
+        return  # TODO Return placeholder "[loading]" playlist?
 
     name = sp_playlist.name
     if name is None:
