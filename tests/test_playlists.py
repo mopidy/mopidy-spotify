@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import mock
 
-from mopidy import backend as backend_api, models
+from mopidy import backend as backend_api
 
 import pytest
 
@@ -110,31 +110,12 @@ def test_playlists_when_playlist_container_isnt_loaded(session_mock, provider):
 
 
 def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
-    assert provider.playlists == [
-        models.Playlist(
-            name='Foo',
-            uri='spotify:playlist:alice:foo',
-            tracks=[
-                models.Track(
-                    uri='spotify:track:abc',
-                    name='ABC 123',
-                    artists=[
-                        models.Artist(uri='spotify:artist:abba', name='ABBA')
-                    ],
-                    album=models.Album(
-                        uri='spotify:album:def',
-                        name='DEF 456',
-                        artists=[
-                            models.Artist(
-                                uri='spotify:artist:abba', name='ABBA')
-                        ],
-                        date='2001'),
-                    date='2001',
-                    length=174300,
-                    track_no=7)
-            ]),
-        models.Playlist(
-            name='Bar/Baz by bob',
-            uri='spotify:playlist:bob:baz',
-            tracks=[]),
-    ]
+    assert len(provider.playlists) == 2
+
+    assert provider.playlists[0].name == 'Foo'
+    assert provider.playlists[0].uri == 'spotify:playlist:alice:foo'
+    assert len(provider.playlists[0].tracks) == 1
+
+    assert provider.playlists[1].name == 'Bar/Baz by bob'
+    assert provider.playlists[1].uri == 'spotify:playlist:bob:baz'
+    assert len(provider.playlists[1].tracks) == 0
