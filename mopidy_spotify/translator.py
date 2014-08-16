@@ -12,6 +12,27 @@ def to_artist(sp_artist):
     return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
+def to_album(sp_album):
+    if not sp_album.is_loaded:
+        return  # TODO Return placeholder "[loading]" album?
+
+    if sp_album.artist is not None:
+        artists = [to_artist(sp_album.artist)]
+    else:
+        artists = []
+
+    if sp_album.year is not None:
+        date = '%d' % sp_album.year
+    else:
+        date = None
+
+    return models.Album(
+        uri=sp_album.link.uri,
+        name=sp_album.name,
+        artists=artists,
+        date=date)
+
+
 def to_track(sp_track):
     if not sp_track.is_loaded:
         return  # TODO Return placeholder "[loading]" track?

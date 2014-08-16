@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import mock
 
+from mopidy import models
+
 import spotify
 
 from mopidy_spotify import translator
@@ -21,6 +23,39 @@ class TestToArtist(object):
 
         assert artist.uri == 'spotify:artist:abba'
         assert artist.name == 'ABBA'
+
+
+class TestToAlbum(object):
+
+    def test_returns_none_if_unloaded(self, sp_album_mock):
+        sp_album_mock.is_loaded = False
+
+        album = translator.to_album(sp_album_mock)
+
+        assert album is None
+
+    def test_successful_translation(self, sp_album_mock):
+        album = translator.to_album(sp_album_mock)
+
+        assert album.uri == 'spotify:album:def'
+        assert album.name == 'DEF 456'
+        assert list(album.artists) == [
+            models.Artist(uri='spotify:artist:abba', name='ABBA')]
+        assert album.date == '2001'
+
+    def test_returns_empty_artists_list_if_artist_is_none(self, sp_album_mock):
+        sp_album_mock.artist = None
+
+        album = translator.to_album(sp_album_mock)
+
+        assert list(album.artists) == []
+
+    def test_returns_unknown_date_if_year_is_none(self, sp_album_mock):
+        sp_album_mock.year = None
+
+        album = translator.to_album(sp_album_mock)
+
+        assert album.date is None
 
 
 class TestToTrack(object):
