@@ -4,6 +4,8 @@ import mock
 
 import pytest
 
+import spotify
+
 from mopidy_spotify import backend, playlists
 
 
@@ -13,6 +15,7 @@ def config():
         'spotify': {
             'username': 'alice',
             'password': 'password',
+            'bitrate': 160,
             'cache_dir': '/my/cache/dir',
             'settings_dir': '/my/settings/dir',
             'offline': False,
@@ -55,6 +58,18 @@ def test_init_disallows_network_if_offline_config_is_set(spotify_mock, config):
     get_backend(config)
 
     allow_network_mock.assert_called_once_with(False)
+
+
+def test_init_configures_preferred_bitrate(spotify_mock, config):
+    session = spotify_mock.Session.return_value
+    preferred_bitrate_mock = mock.PropertyMock()
+    type(session).preferred_bitrate = preferred_bitrate_mock
+    config['spotify']['bitrate'] = 320
+
+    get_backend(config)
+
+    preferred_bitrate_mock.assert_called_once_with(
+        spotify.Bitrate.BITRATE_320k)
 
 
 def test_init_adds_connection_state_changed_handler_to_session(

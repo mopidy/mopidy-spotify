@@ -16,6 +16,13 @@ from mopidy_spotify import playlists
 logger = logging.getLogger(__name__)
 
 
+BITRATES = {
+    96: spotify.Bitrate.BITRATE_96k,
+    160: spotify.Bitrate.BITRATE_160k,
+    320: spotify.Bitrate.BITRATE_320k,
+}
+
+
 class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
     _logged_in = threading.Event()
@@ -39,6 +46,9 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         if self._config['spotify']['offline']:
             self._session.connection.allow_network = False
+
+        self.bitrate = self._config['spotify']['bitrate']
+        self._session.preferred_bitrate = BITRATES[self.bitrate]
 
         self._session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
