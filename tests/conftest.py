@@ -25,6 +25,15 @@ def sp_user_mock():
 
 
 @pytest.fixture
+def sp_artist_mock():
+    sp_artist = mock.Mock(spec=spotify.Artist)
+    sp_artist.is_loaded = True
+    sp_artist.link.uri = 'spotify:artist:abba'
+    sp_artist.name = 'ABBA'
+    return sp_artist
+
+
+@pytest.fixture
 def sp_track_mock():
     sp_track = mock.Mock(spec=spotify.Track)
     sp_track.is_loaded = True

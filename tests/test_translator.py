@@ -7,6 +7,22 @@ import spotify
 from mopidy_spotify import translator
 
 
+class TestToArtist(object):
+
+    def test_to_artist_returns_none_if_unloaded(self, sp_artist_mock):
+        sp_artist_mock.is_loaded = False
+
+        artist = translator.to_artist(sp_artist_mock)
+
+        assert artist is None
+
+    def test_to_artist(self, sp_artist_mock):
+        artist = translator.to_artist(sp_artist_mock)
+
+        assert artist.uri == 'spotify:artist:abba'
+        assert artist.name == 'ABBA'
+
+
 class TestToTrack(object):
 
     def test_to_track_returns_none_if_unloaded(self, sp_track_mock):

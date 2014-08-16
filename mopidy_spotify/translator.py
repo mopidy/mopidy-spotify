@@ -5,6 +5,13 @@ from mopidy import models
 import spotify
 
 
+def to_artist(sp_artist):
+    if not sp_artist.is_loaded:
+        return  # TODO Return placeholder "[loading]" artist?
+
+    return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
+
+
 def to_track(sp_track):
     if not sp_track.is_loaded:
         return  # TODO Return placeholder "[loading]" track?
