@@ -177,7 +177,7 @@ class TestToPlaylist(object):
 
         playlist = translator.to_playlist(sp_playlist_mock, username='alice')
 
-        assert playlist.name == 'Foo by bob'
+        assert playlist.name == 'Foo (by bob)'
 
     def test_includes_folders_in_name(self, sp_playlist_mock):
         playlist = translator.to_playlist(

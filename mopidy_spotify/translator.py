@@ -97,7 +97,7 @@ def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
     if folders is not None:
         name = '/'.join(folders + [name])
     if username is not None and sp_playlist.owner.canonical_name != username:
-        name = '%s by %s' % (name, sp_playlist.owner.canonical_name)
+        name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
 
     tracks = [
         to_track(sp_track, bitrate=bitrate)

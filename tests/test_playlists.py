@@ -101,7 +101,7 @@ def test_lookup_of_playlist_with_other_owner(
     playlist = provider.lookup('spotify:playlist:alice:foo')
 
     assert playlist.uri == 'spotify:playlist:alice:foo'
-    assert playlist.name == 'Foo by bob'
+    assert playlist.name == 'Foo (by bob)'
 
 
 def test_playlists_when_playlist_container_isnt_loaded(session_mock, provider):
@@ -117,6 +117,6 @@ def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
     assert provider.playlists[0].uri == 'spotify:playlist:alice:foo'
     assert len(provider.playlists[0].tracks) == 1
 
-    assert provider.playlists[1].name == 'Bar/Baz by bob'
+    assert provider.playlists[1].name == 'Bar/Baz (by bob)'
     assert provider.playlists[1].uri == 'spotify:playlist:bob:baz'
     assert len(provider.playlists[1].tracks) == 0
