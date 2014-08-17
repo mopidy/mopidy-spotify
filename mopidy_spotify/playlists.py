@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import logging
+import time
 
 from mopidy import backend
 
@@ -46,6 +47,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if self._backend._session.playlist_container is None:
             return []
 
+        start = time.time()
+
         username = self._backend._session.user_name
         result = []
         folders = []
@@ -66,6 +69,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         # TODO Add starred playlist
 
+        logger.debug('Playlists fetched in %.3fs', time.time() - start)
         return result
 
     def refresh(self):
