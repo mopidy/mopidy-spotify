@@ -24,6 +24,12 @@ class TestToArtist(object):
         assert artist.uri == 'spotify:artist:abba'
         assert artist.name == 'ABBA'
 
+    def test_caches_results(self, sp_artist_mock):
+        artist1 = translator.to_artist(sp_artist_mock)
+        artist2 = translator.to_artist(sp_artist_mock)
+
+        assert artist1 is artist2
+
 
 class TestToAlbum(object):
 
@@ -56,6 +62,12 @@ class TestToAlbum(object):
         album = translator.to_album(sp_album_mock)
 
         assert album.date is None
+
+    def test_caches_results(self, sp_album_mock):
+        album1 = translator.to_album(sp_album_mock)
+        album2 = translator.to_album(sp_album_mock)
+
+        assert album1 is album2
 
 
 class TestToTrack(object):
@@ -106,6 +118,12 @@ class TestToTrack(object):
         track = translator.to_track(sp_track_mock)
 
         assert list(track.artists) == []
+
+    def test_caches_results(self, sp_track_mock):
+        track1 = translator.to_track(sp_track_mock)
+        track2 = translator.to_track(sp_track_mock)
+
+        assert track1 is track2
 
 
 class TestToPlaylist(object):

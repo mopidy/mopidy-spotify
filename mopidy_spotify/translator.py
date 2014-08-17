@@ -1,10 +1,30 @@
 from __future__ import unicode_literals
 
+import collections
+
 from mopidy import models
 
 import spotify
 
 
+class memoized(object):
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+
+    def __call__(self, *args, **kwargs):
+        # NOTE Only args, not kwargs, are part of the memoization key.
+        if not isinstance(args, collections.Hashable):
+            return self.func(*args, **kwargs)
+        if args in self.cache:
+            return self.cache[args]
+        else:
+            value = self.func(*args, **kwargs)
+            self.cache[args] = value
+            return value
+
+
+@memoized
 def to_artist(sp_artist):
     if not sp_artist.is_loaded:
         return  # TODO Return placeholder "[loading]" artist?
@@ -12,6 +32,7 @@ def to_artist(sp_artist):
     return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
+@memoized
 def to_album(sp_album):
     if not sp_album.is_loaded:
         return  # TODO Return placeholder "[loading]" album?
@@ -33,6 +54,7 @@ def to_album(sp_album):
         date=date)
 
 
+@memoized
 def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
         return  # TODO Return placeholder "[loading]" track?
