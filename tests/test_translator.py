@@ -30,6 +30,16 @@ class TestToArtist(object):
 
         assert artist1 is artist2
 
+    def test_does_not_cache_none_results(self, sp_artist_mock):
+        sp_artist_mock.is_loaded = False
+        artist1 = translator.to_artist(sp_artist_mock)
+
+        sp_artist_mock.is_loaded = True
+        artist2 = translator.to_artist(sp_artist_mock)
+
+        assert artist1 is None
+        assert artist2 is not None
+
 
 class TestToAlbum(object):
 

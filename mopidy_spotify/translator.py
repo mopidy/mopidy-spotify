@@ -20,7 +20,8 @@ class memoized(object):
             return self.cache[args]
         else:
             value = self.func(*args, **kwargs)
-            self.cache[args] = value
+            if value is not None:
+                self.cache[args] = value
             return value
 
 
