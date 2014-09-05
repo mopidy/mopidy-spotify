@@ -104,7 +104,9 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
         else:
             logger.error('Spotify connection error: %s', error)
             if self.audio.state.get() == audio.PlaybackState.PLAYING:
-                self.backend.playback.pause()
+                from .backend import SpotifyBackend
+                if isinstance(self.backend, SpotifyBackend):
+                    self.backend.playback.pause()
 
     def message_to_user(self, session, message):
         """Callback used by pyspotify"""
