@@ -9,6 +9,21 @@ import spotify
 from mopidy_spotify import backend
 
 
+@pytest.fixture
+def config():
+    return {
+        'spotify': {
+            'username': 'alice',
+            'password': 'password',
+            'bitrate': 160,
+            'timeout': 10,
+            'cache_dir': '/my/cache/dir',
+            'settings_dir': '/my/settings/dir',
+            'offline': False,
+        }
+    }
+
+
 @pytest.yield_fixture
 def spotify_mock():
     patcher = mock.patch.object(backend, 'spotify', spec=spotify)

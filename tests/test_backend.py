@@ -2,25 +2,9 @@ from __future__ import unicode_literals
 
 import mock
 
-import pytest
-
 import spotify
 
 from mopidy_spotify import backend, playlists
-
-
-@pytest.fixture
-def config():
-    return {
-        'spotify': {
-            'username': 'alice',
-            'password': 'password',
-            'bitrate': 160,
-            'cache_dir': '/my/cache/dir',
-            'settings_dir': '/my/settings/dir',
-            'offline': False,
-        }
-    }
 
 
 def get_backend(config):
