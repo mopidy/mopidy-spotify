@@ -78,8 +78,10 @@ def test_init_adds_connection_state_changed_handler_to_session(
 
     get_backend(config)
 
-    session.on.assert_called_once_with(
-        spotify_mock.SessionEvent.CONNECTION_STATE_UPDATED, mock.ANY)
+    assert (mock.call(
+        spotify_mock.SessionEvent.CONNECTION_STATE_UPDATED,
+        backend.SpotifyBackend.on_connection_state_changed)
+        in session.on.call_args_list)
 
 
 def test_init_sets_up_the_providers(spotify_mock, config):
