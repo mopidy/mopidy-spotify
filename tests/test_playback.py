@@ -55,6 +55,23 @@ def test_init_adds_music_delivery_handler_to_session(
         in session_mock.on.call_args_list)
 
 
+def test_init_adds_end_of_track_handler_to_session(
+        session_mock, audio_mock, backend_mock):
+
+    provider(audio_mock, backend_mock)
+
+    assert (mock.call(
+        spotify.SessionEvent.END_OF_TRACK,
+        playback.end_of_track_callback, audio_mock)
+        in session_mock.on.call_args_list)
+
+
+def test_end_of_track_callback(session_mock, audio_mock):
+    playback.end_of_track_callback(session_mock, audio_mock)
+
+    audio_mock.emit_end_of_stream.assert_called_once_with()
+
+
 def test_buffer_timestamp_wrapper():
     wrapper = playback.BufferTimestamp(0)
     assert wrapper.get() == 0

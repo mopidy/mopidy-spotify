@@ -23,6 +23,9 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self.backend._session.on(
             spotify.SessionEvent.MUSIC_DELIVERY, music_delivery_callback,
             self.audio, self._push_audio_data_event, self._buffer_timestamp)
+        self.backend._session.on(
+            spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
+            self.audio)
 
 
 def music_delivery_callback(
@@ -32,6 +35,13 @@ def music_delivery_callback(
     # Ideally, nothing here should block.
 
     return 0  # TODO Implement
+
+
+def end_of_track_callback(session, audio_actor):
+    # This callback is called from the pyspotify event loop.
+
+    logger.debug('End of track reached')
+    audio_actor.emit_end_of_stream()
 
 
 class BufferTimestamp(object):
