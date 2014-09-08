@@ -5,6 +5,8 @@ import threading
 
 from mopidy import backend
 
+import spotify
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +15,23 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
     def __init__(self, *args, **kwargs):
         super(SpotifyPlaybackProvider, self).__init__(*args, **kwargs)
+
+        self._buffer_timestamp = BufferTimestamp(0)
+        self._push_audio_data_event = threading.Event()
+        self._push_audio_data_event.set()
+
+        self.backend._session.on(
+            spotify.SessionEvent.MUSIC_DELIVERY, music_delivery_callback,
+            self.audio, self._push_audio_data_event, self._buffer_timestamp)
+
+
+def music_delivery_callback(
+        session, audio_format, frames, num_frames,
+        audio_actor, push_audio_data_event, buffer_timestamp):
+    # This is called from an internal libspotify thread.
+    # Ideally, nothing here should block.
+
+    return 0  # TODO Implement
 
 
 class BufferTimestamp(object):

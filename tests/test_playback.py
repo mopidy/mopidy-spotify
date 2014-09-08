@@ -41,6 +41,20 @@ def test_is_a_playback_provider(provider):
     assert isinstance(provider, backend_api.PlaybackProvider)
 
 
+def test_init_adds_music_delivery_handler_to_session(
+        session_mock, audio_mock, backend_mock):
+
+    playback_provider = provider(audio_mock, backend_mock)
+
+    assert (mock.call(
+        spotify.SessionEvent.MUSIC_DELIVERY,
+        playback.music_delivery_callback,
+        audio_mock,
+        playback_provider._push_audio_data_event,
+        playback_provider._buffer_timestamp)
+        in session_mock.on.call_args_list)
+
+
 def test_buffer_timestamp_wrapper():
     wrapper = playback.BufferTimestamp(0)
     assert wrapper.get() == 0
