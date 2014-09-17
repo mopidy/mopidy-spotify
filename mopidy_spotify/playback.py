@@ -26,6 +26,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._timeout = self.backend._config['spotify']['timeout']
 
         self._buffer_timestamp = BufferTimestamp(0)
+        self._first_seek = False
         self._push_audio_data_event = threading.Event()
         self._push_audio_data_event.set()
 
@@ -48,6 +49,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         spotify_backend = self.backend.actor_ref.proxy()
         seek_data_callback_bound = functools.partial(
             seek_data_callback, spotify_backend)
+
+        self._first_seek = True
 
         try:
             sp_track = self.backend._session.get_track(track.uri)
@@ -80,6 +83,11 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
     def on_seek_data(self, time_position):
         logger.debug('Audio asked us to seek to %d', time_position)
+
+        if time_position == 0 and self._first_seek:
+            self._first_seek = False
+            logger.debug('Skipping seek due to issue mopidy/mopidy#300')
+            return
 
         self._buffer_timestamp.set(
             audio.millisecond_to_clocktime(time_position))

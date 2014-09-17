@@ -128,6 +128,16 @@ def test_on_seek_data_updates_timestamp_and_seeks_in_spotify(
     session_mock.player.seek.assert_called_once_with(1780)
 
 
+def test_on_seek_data_ignores_first_seek_to_zero_on_every_play(
+        session_mock, provider):
+    track = models.Track(uri='spotfy:track:test')
+
+    provider.play(track)
+    provider.on_seek_data(0)
+
+    assert session_mock.player.seek.call_count == 0
+
+
 def test_need_data_callback():
     event = threading.Event()
     assert not event.is_set()
