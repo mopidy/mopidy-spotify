@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import threading
+
 import mock
 
 from mopidy import audio, backend as backend_api, models
@@ -99,7 +101,9 @@ def test_play_sets_up_appsrc(audio_mock, provider):
 
     assert provider._buffer_timestamp.get() == 0
     audio_mock.prepare_change.assert_called_once_with()
-    audio_mock.set_appsrc.assert_called_once_with(playback.LIBSPOTIFY_GST_CAPS)
+    audio_mock.set_appsrc.assert_called_once_with(
+        playback.LIBSPOTIFY_GST_CAPS,
+        need_data=mock.ANY, enough_data=mock.ANY)
     audio_mock.start_playback.assert_called_once_with()
     audio_mock.set_metadata.assert_called_once_with(track)
 
@@ -114,6 +118,25 @@ def test_stop_pauses_spotify_playback(session_mock, provider):
     provider.stop()
 
     session_mock.player.pause.assert_called_once_with()
+
+
+def test_need_data_callback():
+    event = threading.Event()
+    assert not event.is_set()
+
+    playback.need_data_callback(event, 100)
+
+    assert event.is_set()
+
+
+def test_enough_data_callback():
+    event = threading.Event()
+    event.set()
+    assert event.is_set()
+
+    playback.enough_data_callback(event)
+
+    assert not event.is_set()
 
 
 def test_end_of_track_callback(session_mock, audio_mock):

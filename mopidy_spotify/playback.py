@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import functools
 import logging
 import threading
 
@@ -39,6 +40,11 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         if track.uri is None:
             return False
 
+        need_data_callback_bound = functools.partial(
+            need_data_callback, self._push_audio_data_event)
+        enough_data_callback_bound = functools.partial(
+            enough_data_callback, self._push_audio_data_event)
+
         try:
             sp_track = self.backend._session.get_track(track.uri)
             sp_track.load(self._timeout)
@@ -47,7 +53,10 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
             self._buffer_timestamp.set(0)
             self.audio.prepare_change()
-            self.audio.set_appsrc(LIBSPOTIFY_GST_CAPS)
+            self.audio.set_appsrc(
+                LIBSPOTIFY_GST_CAPS,
+                need_data=need_data_callback_bound,
+                enough_data=enough_data_callback_bound)
             self.audio.start_playback()
             self.audio.set_metadata(track)
 
@@ -63,6 +72,19 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def stop(self):
         self.backend._session.player.pause()
         return super(SpotifyPlaybackProvider, self).stop()
+
+def need_data_callback(push_audio_data_event, length_hint):
+    # This callback is called from GStreamer/the GObject event loop.
+    logger.debug(
+        'Audio asked for more data (hint=%d); accepting deliveries',
+        length_hint)
+    push_audio_data_event.set()
+
+
+def enough_data_callback(push_audio_data_event):
+    # This callback is called from GStreamer/the GObject event loop.
+    logger.debug('Audio says it has enough data; rejecting deliveries')
+    push_audio_data_event.clear()
 
 
 def music_delivery_callback(
