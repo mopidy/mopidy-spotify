@@ -27,6 +27,12 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
             self.audio)
 
+    def play(self, track):
+        if track.uri is None:
+            return False
+
+        # TODO
+
     def resume(self):
         self.backend._session.player.play()
         return super(SpotifyPlaybackProvider, self).resume()

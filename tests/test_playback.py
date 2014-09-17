@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import mock
 
-from mopidy import audio, backend as backend_api
+from mopidy import audio, backend as backend_api, models
 
 import pytest
 
@@ -64,6 +64,12 @@ def test_init_adds_end_of_track_handler_to_session(
         spotify.SessionEvent.END_OF_TRACK,
         playback.end_of_track_callback, audio_mock)
         in session_mock.on.call_args_list)
+
+
+def test_play_aborts_if_no_track_uri(provider):
+    track = models.Track()
+
+    assert provider.play(track) is False
 
 
 def test_resume_starts_spotify_playback(session_mock, provider):
