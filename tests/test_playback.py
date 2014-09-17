@@ -103,7 +103,7 @@ def test_play_sets_up_appsrc(audio_mock, provider):
     audio_mock.prepare_change.assert_called_once_with()
     audio_mock.set_appsrc.assert_called_once_with(
         playback.LIBSPOTIFY_GST_CAPS,
-        need_data=mock.ANY, enough_data=mock.ANY)
+        need_data=mock.ANY, enough_data=mock.ANY, seek_data=mock.ANY)
     audio_mock.start_playback.assert_called_once_with()
     audio_mock.set_metadata.assert_called_once_with(track)
 
@@ -137,6 +137,14 @@ def test_enough_data_callback():
     playback.enough_data_callback(event)
 
     assert not event.is_set()
+
+
+def test_seek_data_callback():
+    backend_mock = mock.Mock()
+
+    playback.seek_data_callback(backend_mock, 1340)
+
+    backend_mock.playback.on_seek_data.assert_called_once_with(1340)
 
 
 def test_end_of_track_callback(session_mock, audio_mock):
