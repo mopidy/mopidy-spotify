@@ -165,6 +165,23 @@ def test_seek_data_callback():
     backend_mock.playback.on_seek_data.assert_called_once_with(1340)
 
 
+def test_music_delivery_rejects_data_depending_on_push_audio_data_event(
+        session_mock):
+
+    audio_format = mock.Mock()
+    frames = b''
+    num_frames = 0
+    push_audio_data_event = threading.Event()
+    buffer_timestamp = mock.Mock()
+    assert not push_audio_data_event.is_set()
+
+    result = playback.music_delivery_callback(
+        session_mock, audio_format, frames, num_frames,
+        audio_mock, push_audio_data_event, buffer_timestamp)
+
+    assert result == 0
+
+
 def test_end_of_track_callback(session_mock, audio_mock):
     playback.end_of_track_callback(session_mock, audio_mock)
 

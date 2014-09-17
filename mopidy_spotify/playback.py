@@ -120,7 +120,10 @@ def music_delivery_callback(
     # This is called from an internal libspotify thread.
     # Ideally, nothing here should block.
 
-    return 0  # TODO Implement
+    if not push_audio_data_event.is_set():
+        return 0
+
+    # TODO Implement
 
 
 def end_of_track_callback(session, audio_actor):
