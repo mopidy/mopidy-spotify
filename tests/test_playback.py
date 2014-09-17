@@ -92,6 +92,18 @@ def test_play_aborts_on_spotify_error(session_mock, provider):
     assert provider.play(track) is False
 
 
+def test_play_sets_up_appsrc(audio_mock, provider):
+    track = models.Track(uri='spotfy:track:test')
+
+    assert provider.play(track) is True
+
+    assert provider._buffer_timestamp.get() == 0
+    audio_mock.prepare_change.assert_called_once_with()
+    audio_mock.set_appsrc.assert_called_once_with(playback.LIBSPOTIFY_GST_CAPS)
+    audio_mock.start_playback.assert_called_once_with()
+    audio_mock.set_metadata.assert_called_once_with(track)
+
+
 def test_resume_starts_spotify_playback(session_mock, provider):
     provider.resume()
 

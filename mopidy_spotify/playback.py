@@ -11,6 +11,13 @@ import spotify
 logger = logging.getLogger(__name__)
 
 
+# These GStreamer caps matches the audio data provided by libspotify
+LIBSPOTIFY_GST_CAPS = (
+    'audio/x-raw-int, endianness=(int)1234, channels=(int)2, '
+    'width=(int)16, depth=(int)16, signed=(boolean)true, '
+    'rate=(int)44100')
+
+
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
     def __init__(self, *args, **kwargs):
@@ -38,7 +45,11 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             self.backend._session.player.load(sp_track)
             self.backend._session.player.play()
 
-            # TODO Audio setup
+            self._buffer_timestamp.set(0)
+            self.audio.prepare_change()
+            self.audio.set_appsrc(LIBSPOTIFY_GST_CAPS)
+            self.audio.start_playback()
+            self.audio.set_metadata(track)
 
             return True
         except spotify.Error as exc:
