@@ -72,6 +72,12 @@ def test_resume_starts_spotify_playback(session_mock, provider):
     session_mock.player.play.assert_called_once_with()
 
 
+def test_stop_pauses_spotify_playback(session_mock, provider):
+    provider.stop()
+
+    session_mock.player.pause.assert_called_once_with()
+
+
 def test_end_of_track_callback(session_mock, audio_mock):
     playback.end_of_track_callback(session_mock, audio_mock)
 

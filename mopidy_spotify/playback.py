@@ -31,6 +31,10 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self.backend._session.player.play()
         return super(SpotifyPlaybackProvider, self).resume()
 
+    def stop(self):
+        self.backend._session.player.pause()
+        return super(SpotifyPlaybackProvider, self).stop()
+
 
 def music_delivery_callback(
         session, audio_format, frames, num_frames,
