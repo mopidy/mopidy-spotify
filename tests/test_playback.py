@@ -182,6 +182,25 @@ def test_music_delivery_rejects_data_depending_on_push_audio_data_event(
     assert result == 0
 
 
+def test_music_delivery_rejects_unknown_audio_formats(
+        session_mock, audio_mock):
+
+    audio_format = mock.Mock()
+    audio_format.sample_type = 17
+    frames = b''
+    num_frames = 0
+    push_audio_data_event = threading.Event()
+    push_audio_data_event.set()
+    buffer_timestamp = mock.Mock()
+
+    with pytest.raises(AssertionError) as excinfo:
+        playback.music_delivery_callback(
+            session_mock, audio_format, frames, num_frames,
+            audio_mock, push_audio_data_event, buffer_timestamp)
+
+    assert 'Expects 16-bit signed integer samples' in str(excinfo.value)
+
+
 def test_end_of_track_callback(session_mock, audio_mock):
     playback.end_of_track_callback(session_mock, audio_mock)
 
