@@ -66,6 +66,12 @@ def test_init_adds_end_of_track_handler_to_session(
         in session_mock.on.call_args_list)
 
 
+def test_resume_starts_spotify_playback(session_mock, provider):
+    provider.resume()
+
+    session_mock.player.play.assert_called_once_with()
+
+
 def test_end_of_track_callback(session_mock, audio_mock):
     playback.end_of_track_callback(session_mock, audio_mock)
 
