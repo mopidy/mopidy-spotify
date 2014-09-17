@@ -15,6 +15,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
     def __init__(self, *args, **kwargs):
         super(SpotifyPlaybackProvider, self).__init__(*args, **kwargs)
+        self._timeout = self.backend._config['spotify']['timeout']
 
         self._buffer_timestamp = BufferTimestamp(0)
         self._push_audio_data_event = threading.Event()
@@ -31,7 +32,18 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         if track.uri is None:
             return False
 
-        # TODO
+        try:
+            sp_track = self.backend._session.get_track(track.uri)
+            sp_track.load(self._timeout)
+            self.backend._session.player.load(sp_track)
+            self.backend._session.player.play()
+
+            # TODO Audio setup
+
+            return True
+        except spotify.Error as exc:
+            logger.info('Playback of %s failed: %s', track.uri, exc)
+            return False
 
     def resume(self):
         self.backend._session.player.play()

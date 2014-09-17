@@ -72,6 +72,26 @@ def test_play_aborts_if_no_track_uri(provider):
     assert provider.play(track) is False
 
 
+def test_play_loads_and_plays_spotify_track(session_mock, provider):
+    uri = 'spotify:track:test'
+    track = models.Track(uri=uri)
+
+    assert provider.play(track) is True
+
+    session_mock.get_track.assert_called_once_with(uri)
+    sp_track_mock = session_mock.get_track.return_value
+    sp_track_mock.load.assert_called_once_with(10)
+    session_mock.player.load.assert_called_once_with(sp_track_mock)
+    session_mock.player.play.assert_called_once_with()
+
+
+def test_play_aborts_on_spotify_error(session_mock, provider):
+    track = models.Track(uri='spotfy:track:test')
+    session_mock.get_track.side_effect = spotify.Error
+
+    assert provider.play(track) is False
+
+
 def test_resume_starts_spotify_playback(session_mock, provider):
     provider.resume()
 
