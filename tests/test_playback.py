@@ -39,3 +39,14 @@ def provider(audio_mock, backend_mock):
 
 def test_is_a_playback_provider(provider):
     assert isinstance(provider, backend_api.PlaybackProvider)
+
+
+def test_buffer_timestamp_wrapper():
+    wrapper = playback.BufferTimestamp(0)
+    assert wrapper.get() == 0
+
+    wrapper.set(17)
+    assert wrapper.get() == 17
+
+    wrapper.increase(3)
+    assert wrapper.get() == 20
