@@ -120,6 +120,14 @@ def test_stop_pauses_spotify_playback(session_mock, provider):
     session_mock.player.pause.assert_called_once_with()
 
 
+def test_on_seek_data_updates_timestamp_and_seeks_in_spotify(
+        session_mock, provider):
+    provider.on_seek_data(1780)
+
+    assert provider._buffer_timestamp.get() == 1780000000
+    session_mock.player.seek.assert_called_once_with(1780)
+
+
 def test_need_data_callback():
     event = threading.Event()
     assert not event.is_set()

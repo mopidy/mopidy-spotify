@@ -4,7 +4,7 @@ import functools
 import logging
 import threading
 
-from mopidy import backend
+from mopidy import audio, backend
 
 import spotify
 
@@ -81,7 +81,9 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def on_seek_data(self, time_position):
         logger.debug('Audio asked us to seek to %d', time_position)
 
-        # TODO
+        self._buffer_timestamp.set(
+            audio.millisecond_to_clocktime(time_position))
+        self.backend._session.player.seek(time_position)
 
 
 def need_data_callback(push_audio_data_event, length_hint):
