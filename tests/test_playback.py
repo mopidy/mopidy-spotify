@@ -19,6 +19,13 @@ def audio_mock():
     return audio_mock
 
 
+@pytest.yield_fixture
+def audio_lib_mock():
+    patcher = mock.patch.object(playback, 'audio', spec=audio)
+    yield patcher.start()
+    patcher.stop()
+
+
 @pytest.fixture
 def session_mock():
     sp_session_mock = mock.Mock(spec=spotify.Session)
@@ -185,8 +192,7 @@ def test_music_delivery_rejects_data_depending_on_push_audio_data_event(
 def test_music_delivery_rejects_unknown_audio_formats(
         session_mock, audio_mock):
 
-    audio_format = mock.Mock()
-    audio_format.sample_type = 17
+    audio_format = mock.Mock(sample_type=17)
     frames = b''
     num_frames = 0
     push_audio_data_event = threading.Event()
@@ -199,6 +205,53 @@ def test_music_delivery_rejects_unknown_audio_formats(
             audio_mock, push_audio_data_event, buffer_timestamp)
 
     assert 'Expects 16-bit signed integer samples' in str(excinfo.value)
+
+
+def test_music_delivery_creates_gstreamer_buffer_and_gives_it_to_audio(
+        session_mock, audio_mock, audio_lib_mock):
+
+    audio_lib_mock.calculate_duration.return_value = mock.sentinel.duration
+    audio_lib_mock.create_buffer.return_value = mock.sentinel.gst_buffer
+
+    audio_format = mock.Mock(channels=2, sample_rate=44100, sample_type=0)
+    frames = b'\x00\x00'
+    num_frames = 1
+    push_audio_data_event = threading.Event()
+    push_audio_data_event.set()
+    buffer_timestamp = mock.Mock()
+    buffer_timestamp.get.return_value = mock.sentinel.timestamp
+
+    result = playback.music_delivery_callback(
+        session_mock, audio_format, frames, num_frames,
+        audio_mock, push_audio_data_event, buffer_timestamp)
+
+    audio_lib_mock.calculate_duration.assert_called_once_with(1, 44100)
+    audio_lib_mock.create_buffer.assert_called_once_with(
+        frames, capabilites=mock.ANY, timestamp=mock.sentinel.timestamp,
+        duration=mock.sentinel.duration)
+    buffer_timestamp.increase.assert_called_once_with(mock.sentinel.duration)
+    audio_mock.emit_data.assert_called_once_with(mock.sentinel.gst_buffer)
+    assert result == num_frames
+
+
+def test_music_delivery_consumes_zero_frames_if_audio_fails(
+        session_mock, audio_mock, audio_lib_mock):
+
+    audio_mock.emit_data.return_value.get.return_value = False
+
+    audio_format = mock.Mock(channels=2, sample_rate=44100, sample_type=0)
+    frames = b'\x00\x00'
+    num_frames = 1
+    push_audio_data_event = threading.Event()
+    push_audio_data_event.set()
+    buffer_timestamp = mock.Mock()
+    buffer_timestamp.get.return_value = mock.sentinel.timestamp
+
+    result = playback.music_delivery_callback(
+        session_mock, audio_format, frames, num_frames,
+        audio_mock, push_audio_data_event, buffer_timestamp)
+
+    assert result == 0
 
 
 def test_end_of_track_callback(session_mock, audio_mock):

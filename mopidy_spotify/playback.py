@@ -127,7 +127,32 @@ def music_delivery_callback(
         audio_format.sample_type == spotify.SampleType.INT16_NATIVE_ENDIAN)
     assert known_format, 'Expects 16-bit signed integer samples'
 
-    # TODO Implement
+    capabilites = """
+        audio/x-raw-int,
+        endianness=(int)1234,
+        channels=(int)%(channels)d,
+        width=(int)16,
+        depth=(int)16,
+        signed=(boolean)true,
+        rate=(int)%(sample_rate)d
+    """ % {
+        'channels': audio_format.channels,
+        'sample_rate': audio_format.sample_rate,
+    }
+
+    duration = audio.calculate_duration(
+        num_frames, audio_format.sample_rate)
+    buffer_ = audio.create_buffer(
+        bytes(frames), capabilites=capabilites,
+        timestamp=buffer_timestamp.get(), duration=duration)
+
+    buffer_timestamp.increase(duration)
+
+    # We must block here to know if the buffer was consumed successfully.
+    if audio_actor.emit_data(buffer_).get():
+        return num_frames
+    else:
+        return 0
 
 
 def end_of_track_callback(session, audio_actor):
