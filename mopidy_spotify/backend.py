@@ -52,7 +52,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         self._session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
-            SpotifyBackend.on_connection_state_changed)
+            on_connection_state_changed, self._logged_in, self._logged_out)
 
         self._event_loop = spotify.EventLoop(self._session)
 
@@ -76,19 +76,19 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._logged_out.wait()
         self._event_loop.stop()
 
-    @classmethod
-    def on_connection_state_changed(cls, session):
-        if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
-            logger.debug('Logged out of Spotify')
-            cls._logged_in.clear()
-            cls._logged_out.set()
-        elif session.connection.state is spotify.ConnectionState.LOGGED_IN:
-            logger.info('Logged in to Spotify in online mode')
-            cls._logged_in.set()
-            cls._logged_out.clear()
-        elif session.connection.state is spotify.ConnectionState.DISCONNECTED:
-            logger.info('Disconnected from Spotify')
-        elif session.connection.state is spotify.ConnectionState.OFFLINE:
-            logger.info('Logged in to Spotify in offline mode')
-            cls._logged_in.set()
-            cls._logged_out.clear()
+
+def on_connection_state_changed(session, logged_in_event, logged_out_event):
+    if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
+        logger.debug('Logged out of Spotify')
+        logged_in_event.clear()
+        logged_out_event.set()
+    elif session.connection.state is spotify.ConnectionState.LOGGED_IN:
+        logger.info('Logged in to Spotify in online mode')
+        logged_in_event.set()
+        logged_out_event.clear()
+    elif session.connection.state is spotify.ConnectionState.DISCONNECTED:
+        logger.info('Disconnected from Spotify')
+    elif session.connection.state is spotify.ConnectionState.OFFLINE:
+        logger.info('Logged in to Spotify in offline mode')
+        logged_in_event.set()
+        logged_out_event.clear()
