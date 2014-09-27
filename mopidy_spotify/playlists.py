@@ -18,8 +18,21 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def __init__(self, backend):
         self._backend = backend
 
+        # TODO Listen to playlist events
+
     def create(self, name):
-        pass  # TODO
+        try:
+            sp_playlist = (
+                self._backend._session.playlist_container
+                .add_new_playlist(name))
+        except ValueError as exc:
+            logger.warning(
+                'Failed creating new Spotify playlist "%s": %s', name, exc)
+        except spotify.Error:
+            logger.warning('Failed creating new Spotify playlist "%s"', name)
+        else:
+            username = self._backend._session.user_name
+            return translator.to_playlist(sp_playlist, username=username)
 
     def delete(self, uri):
         pass  # TODO

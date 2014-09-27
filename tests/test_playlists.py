@@ -63,6 +63,46 @@ def test_is_a_playlists_provider(provider):
     assert isinstance(provider, backend_api.PlaylistsProvider)
 
 
+def test_create(session_mock, sp_playlist_mock, provider):
+    session_mock.playlist_container = mock.Mock(
+        spec=spotify.PlaylistContainer)
+    session_mock.playlist_container.add_new_playlist.return_value = (
+        sp_playlist_mock)
+
+    playlist = provider.create('Foo')
+
+    session_mock.playlist_container.add_new_playlist.assert_called_once_with(
+        'Foo')
+    assert playlist.uri == 'spotify:playlist:alice:foo'
+    assert playlist.name == 'Foo'
+
+
+def test_create_with_invalid_name(session_mock, provider, caplog):
+    session_mock.playlist_container = mock.Mock(
+        spec=spotify.PlaylistContainer)
+    session_mock.playlist_container.add_new_playlist.side_effect = ValueError(
+        'Too long name')
+
+    playlist = provider.create('Foo')
+
+    assert playlist is None
+    assert (
+        'Failed creating new Spotify playlist "Foo": Too long name'
+        in caplog.text())
+
+
+def test_create_fails_in_libspotify(session_mock, provider, caplog):
+    session_mock.playlist_container = mock.Mock(
+        spec=spotify.PlaylistContainer)
+    session_mock.playlist_container.add_new_playlist.side_effect = (
+        spotify.Error)
+
+    playlist = provider.create('Foo')
+
+    assert playlist is None
+    assert 'Failed creating new Spotify playlist "Foo"' in caplog.text()
+
+
 def test_lookup(session_mock, sp_playlist_mock, provider):
     session_mock.get_playlist.return_value = sp_playlist_mock
 
