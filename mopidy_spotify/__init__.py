@@ -20,14 +20,29 @@ class Extension(ext.Extension):
 
     def get_config_schema(self):
         schema = super(Extension, self).get_config_schema()
+
         schema['username'] = config.String()
         schema['password'] = config.Secret()
+
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
+
         schema['timeout'] = config.Integer(minimum=0)
+
         schema['cache_dir'] = config.Path(optional=True)
         schema['settings_dir'] = config.Path()
+
         schema['toplist_countries'] = config.List(optional=True)
+
+        # TODO New in 2.0. Consider renaming/removing. Useful for forcing
+        # pyspotify offline, so the offline behavior can be tested. Does not
+        # affect what music is available offline, like many users seems to
+        # believe.
         schema['offline'] = config.Boolean()
+
+        # TODO Add more configrations:
+        # - show_playlists = true/false, requested in #25
+        # - volume_normalization = true/false, requested in #13
+
         return schema
 
     def setup(self, registry):
