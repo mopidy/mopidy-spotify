@@ -86,7 +86,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         return result
 
     def refresh(self):
-        pass  # TODO
+        pass  # Not needed as long as we don't cache anything.
 
     def save(self, playlist):
         pass  # TODO
