@@ -79,6 +79,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
 
 def on_connection_state_changed(session, logged_in_event, logged_out_event):
+    # NOTE Called from the pyspotify event loop, and not in an actor context.
     if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
         logger.debug('Logged out of Spotify')
         logged_in_event.clear()
