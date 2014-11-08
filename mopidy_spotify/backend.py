@@ -35,14 +35,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._config = config
         self._audio = audio
 
-        spotify_config = spotify.Config()
-        spotify_config.load_application_key_file(
-            os.path.join(os.path.dirname(__file__), 'spotify_appkey.key'))
-        spotify_config.cache_location = self._config['spotify']['cache_dir']
-        spotify_config.settings_location = (
-            self._config['spotify']['settings_dir'])
-
-        self._session = spotify.Session(spotify_config)
+        self._session = spotify.Session(self._get_spotify_config(config))
 
         if self._config['spotify']['offline']:
             self._session.connection.allow_network = False
@@ -62,6 +55,14 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self.playlists = playlists.SpotifyPlaylistsProvider(backend=self)
 
         self.uri_schemes = ['spotify']
+
+    def _get_spotify_config(self, config):
+        spotify_config = spotify.Config()
+        spotify_config.load_application_key_file(
+            os.path.join(os.path.dirname(__file__), 'spotify_appkey.key'))
+        spotify_config.cache_location = config['spotify']['cache_dir']
+        spotify_config.settings_location = config['spotify']['settings_dir']
+        return spotify_config
 
     def on_start(self):
         self._event_loop.start()
