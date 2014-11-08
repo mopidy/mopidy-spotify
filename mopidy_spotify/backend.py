@@ -47,6 +47,9 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             on_connection_state_changed, self._logged_in, self._logged_out)
 
+        # TODO Pause on PLAY_TOKEN_LOST, but only if this backend is currently
+        # playing.
+
         self._event_loop = spotify.EventLoop(self._session)
 
         self.library = None
