@@ -110,6 +110,7 @@ def test_lookup(session_mock, sp_playlist_mock, provider):
 
     assert playlist.uri == 'spotify:playlist:alice:foo'
     assert playlist.name == 'Foo'
+    assert playlist.tracks[0].bitrate == 160
 
 
 def test_lookup_loads_playlist_when_a_playlist_isnt_loaded(

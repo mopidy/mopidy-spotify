@@ -50,7 +50,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             sp_playlist.load()
 
         username = self._backend._session.user_name
-        return translator.to_playlist(sp_playlist, username=username)
+        return translator.to_playlist(
+            sp_playlist, username=username, bitrate=self._backend.bitrate)
 
     @property
     def playlists(self):
