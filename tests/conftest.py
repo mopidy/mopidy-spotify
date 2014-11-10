@@ -65,13 +65,19 @@ def sp_track_mock(sp_artist_mock, sp_album_mock):
     sp_track.is_loaded = True
     sp_track.error = spotify.ErrorType.OK
     sp_track.availability = spotify.TrackAvailability.AVAILABLE
-    sp_track.link.uri = 'spotify:track:abc'
     sp_track.name = 'ABC 123'
     sp_track.artists = [sp_artist_mock]
     sp_track.album = sp_album_mock
     sp_track.duration = 174300
     sp_track.disc = 1
     sp_track.index = 7
+
+    sp_link = mock.Mock(spec=spotify.Link)
+    sp_link.uri = 'spotify:track:abc'
+    sp_link.type = spotify.LinkType.TRACK
+    sp_link.as_track.return_value = sp_track
+    sp_track.link = sp_link
+
     return sp_track
 
 

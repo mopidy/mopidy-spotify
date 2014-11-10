@@ -32,3 +32,19 @@ def provider(backend_mock):
 
 def test_is_a_playlists_provider(provider):
     assert isinstance(provider, backend_api.LibraryProvider)
+
+
+def test_lookup_of_track_uri(session_mock, sp_track_mock, provider):
+    session_mock.get_link.return_value = sp_track_mock.link
+
+    results = provider.lookup('spotify:track:abc')
+
+    session_mock.get_link.assert_called_once_with('spotify:track:abc')
+    sp_track_mock.link.as_track.assert_called_once_with()
+    sp_track_mock.load.assert_called_once_with()
+
+    assert len(results) == 1
+    track = results[0]
+    assert track.uri == 'spotify:track:abc'
+    assert track.name == 'ABC 123'
+    assert track.bitrate == 160
