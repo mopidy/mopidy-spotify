@@ -121,7 +121,13 @@ def sp_playlist_mock(sp_user_mock, sp_track_mock):
     sp_playlist = mock.Mock(spec=spotify.Playlist)
     sp_playlist.is_loaded = True
     sp_playlist.owner = sp_user_mock
-    sp_playlist.link.uri = 'spotify:playlist:alice:foo'
     sp_playlist.name = 'Foo'
     sp_playlist.tracks = [sp_track_mock]
+
+    sp_link = mock.Mock(spec=spotify.Link)
+    sp_link.uri = 'spotify:playlist:alice:foo'
+    sp_link.type = spotify.LinkType.PLAYLIST
+    sp_link.as_playlist.return_value = sp_playlist
+    sp_playlist.link = sp_link
+
     return sp_playlist

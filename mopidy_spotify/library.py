@@ -45,6 +45,12 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 translator.to_track(sp_track, bitrate=self._backend.bitrate)
                 for sp_album in sp_artist_browser.albums
                 for sp_track in sp_album.browse().load().tracks]
+        elif sp_link.type is spotify.LinkType.PLAYLIST:
+            sp_playlist = sp_link.as_playlist()
+            sp_playlist.load()
+            return [
+                translator.to_track(sp_track, bitrate=self._backend.bitrate)
+                for sp_track in sp_playlist.tracks]
         else:
             logger.info(
                 'Failed to lookup "%s": Cannot handle %r', uri, sp_link.type)

@@ -114,3 +114,19 @@ def test_lookup_of_artist_uri(
     assert track.uri == 'spotify:track:abc'
     assert track.name == 'ABC 123'
     assert track.bitrate == 160
+
+
+def test_lookup_of_playlist_uri(session_mock, sp_playlist_mock, provider):
+    session_mock.get_link.return_value = sp_playlist_mock.link
+
+    results = provider.lookup('spotify:playlist:alice:foo')
+
+    session_mock.get_link.assert_called_once_with('spotify:playlist:alice:foo')
+    sp_playlist_mock.link.as_playlist.assert_called_once_with()
+    sp_playlist_mock.load.assert_called_once_with()
+
+    assert len(results) == 1
+    track = results[0]
+    assert track.uri == 'spotify:track:abc'
+    assert track.name == 'ABC 123'
+    assert track.bitrate == 160
