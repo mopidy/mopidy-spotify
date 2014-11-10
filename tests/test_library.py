@@ -34,6 +34,15 @@ def test_is_a_playlists_provider(provider):
     assert isinstance(provider, backend_api.LibraryProvider)
 
 
+def test_lookup_of_invalid_uri(session_mock, provider, caplog):
+    session_mock.get_link.side_effect = ValueError('an error message')
+
+    results = provider.lookup('invalid')
+
+    assert len(results) == 0
+    assert 'Failed to lookup "invalid": an error message' in caplog.text()
+
+
 def test_lookup_of_track_uri(session_mock, sp_track_mock, provider):
     session_mock.get_link.return_value = sp_track_mock.link
 

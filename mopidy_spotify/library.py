@@ -1,10 +1,15 @@
 from __future__ import unicode_literals
 
+import logging
+
 from mopidy import backend
 
 import spotify
 
 from mopidy_spotify import translator
+
+
+logger = logging.getLogger(__name__)
 
 
 class SpotifyLibraryProvider(backend.LibraryProvider):
@@ -13,7 +18,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         self._backend = backend
 
     def lookup(self, uri):
-        sp_link = self._backend._session.get_link(uri)
+        try:
+            sp_link = self._backend._session.get_link(uri)
+        except ValueError as exc:
+            logger.info('Failed to lookup "%s": %s', uri, exc)
+            return []
 
         if sp_link.type is spotify.LinkType.TRACK:
             sp_track = sp_link.as_track()
