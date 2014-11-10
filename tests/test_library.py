@@ -43,6 +43,19 @@ def test_lookup_of_invalid_uri(session_mock, provider, caplog):
     assert 'Failed to lookup "invalid": an error message' in caplog.text()
 
 
+def test_lookup_of_unhandled_uri(session_mock, provider, caplog):
+    sp_link_mock = mock.Mock(spec=spotify.Link)
+    sp_link_mock.type = spotify.LinkType.INVALID
+    session_mock.get_link.return_value = sp_link_mock
+
+    results = provider.lookup('something')
+
+    assert len(results) == 0
+    assert (
+        'Failed to lookup "something": Cannot handle <LinkType.INVALID: 0>'
+        in caplog.text())
+
+
 def test_lookup_of_track_uri(session_mock, sp_track_mock, provider):
     session_mock.get_link.return_value = sp_track_mock.link
 

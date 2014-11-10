@@ -46,4 +46,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 for sp_album in sp_artist_browser.albums
                 for sp_track in sp_album.browse().load().tracks]
         else:
+            logger.info(
+                'Failed to lookup "%s": Cannot handle %r', uri, sp_link.type)
             return []
