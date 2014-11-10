@@ -20,5 +20,12 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             sp_track.load()
             return [
                 translator.to_track(sp_track, bitrate=self._backend.bitrate)]
+        elif sp_link.type is spotify.LinkType.ALBUM:
+            sp_album = sp_link.as_album()
+            sp_album_browser = sp_album.browse()
+            sp_album_browser.load()
+            return [
+                translator.to_track(sp_track, bitrate=self._backend.bitrate)
+                for sp_track in sp_album_browser.tracks]
         else:
             return []

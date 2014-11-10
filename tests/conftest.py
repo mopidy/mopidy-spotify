@@ -52,11 +52,28 @@ def sp_artist_mock():
 def sp_album_mock(sp_artist_mock):
     sp_album = mock.Mock(spec=spotify.Album)
     sp_album.is_loaded = True
-    sp_album.link.uri = 'spotify:album:def'
     sp_album.name = 'DEF 456'
     sp_album.artist = sp_artist_mock
     sp_album.year = 2001
+
+    sp_link = mock.Mock(spec=spotify.Link)
+    sp_link.uri = 'spotify:album:def'
+    sp_link.type = spotify.LinkType.ALBUM
+    sp_link.as_album.return_value = sp_album
+    sp_album.link = sp_link
+
     return sp_album
+
+
+@pytest.fixture
+def sp_album_browser_mock(sp_album_mock, sp_track_mock):
+    sp_album_browser = mock.Mock(spec=spotify.AlbumBrowser)
+    sp_album_browser.album = sp_album_mock
+    sp_album_browser.tracks = [sp_track_mock, sp_track_mock]
+
+    sp_album_mock.browse.return_value = sp_album_browser
+
+    return sp_album_browser
 
 
 @pytest.fixture
