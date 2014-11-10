@@ -116,6 +116,30 @@ def test_lookup_of_artist_uri(
     assert track.bitrate == 160
 
 
+def test_lookup_of_artist_uri_ignores_compilations(
+        session_mock, sp_artist_browser_mock, sp_album_browser_mock, provider):
+    sp_artist_mock = sp_artist_browser_mock.artist
+    session_mock.get_link.return_value = sp_artist_mock.link
+    sp_album_mock = sp_album_browser_mock.album
+    sp_album_mock.type = spotify.AlbumType.COMPILATION
+
+    results = provider.lookup('spotify:artist:abba')
+
+    assert len(results) == 0
+
+
+def test_lookup_of_artist_uri_ignores_various_artists_albums(
+        session_mock, sp_artist_browser_mock, sp_album_browser_mock, provider):
+    sp_artist_mock = sp_artist_browser_mock.artist
+    session_mock.get_link.return_value = sp_artist_mock.link
+    sp_album_browser_mock.album.artist.link.uri = (
+        'spotify:artist:0LyfQWJT6nXafLPZqxe9Of')
+
+    results = provider.lookup('spotify:artist:abba')
+
+    assert len(results) == 0
+
+
 def test_lookup_of_playlist_uri(session_mock, sp_playlist_mock, provider):
     session_mock.get_link.return_value = sp_playlist_mock.link
 

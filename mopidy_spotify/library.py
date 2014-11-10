@@ -12,6 +12,11 @@ from mopidy_spotify import translator
 logger = logging.getLogger(__name__)
 
 
+VARIOUS_ARTISTS_URIS = [
+    'spotify:artist:0LyfQWJT6nXafLPZqxe9Of',
+]
+
+
 class SpotifyLibraryProvider(backend.LibraryProvider):
 
     def __init__(self, backend):
@@ -62,6 +67,10 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         for sp_album in sp_artist_browser.albums:
             sp_album_browser = sp_album.browse()
             sp_album_browser.load()
+            if sp_album.type is spotify.AlbumType.COMPILATION:
+                continue
+            if sp_album.artist.link.uri in VARIOUS_ARTISTS_URIS:
+                continue
             for sp_track in sp_album_browser.tracks:
                 track = translator.to_track(
                     sp_track, bitrate=self._backend.bitrate)
