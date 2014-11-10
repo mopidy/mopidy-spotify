@@ -43,9 +43,26 @@ def sp_user_mock():
 def sp_artist_mock():
     sp_artist = mock.Mock(spec=spotify.Artist)
     sp_artist.is_loaded = True
-    sp_artist.link.uri = 'spotify:artist:abba'
     sp_artist.name = 'ABBA'
+
+    sp_link = mock.Mock(spec=spotify.Link)
+    sp_link.uri = 'spotify:artist:abba'
+    sp_link.type = spotify.LinkType.ARTIST
+    sp_link.as_artist.return_value = sp_artist
+    sp_artist.link = sp_link
+
     return sp_artist
+
+
+@pytest.fixture
+def sp_artist_browser_mock(sp_artist_mock, sp_album_mock):
+    sp_artist_browser = mock.Mock(spec=spotify.ArtistBrowser)
+    sp_artist_browser.artist = sp_artist_mock
+    sp_artist_browser.albums = [sp_album_mock, sp_album_mock]
+
+    sp_artist_mock.browse.return_value = sp_artist_browser
+
+    return sp_artist_browser
 
 
 @pytest.fixture
@@ -70,6 +87,7 @@ def sp_album_browser_mock(sp_album_mock, sp_track_mock):
     sp_album_browser = mock.Mock(spec=spotify.AlbumBrowser)
     sp_album_browser.album = sp_album_mock
     sp_album_browser.tracks = [sp_track_mock, sp_track_mock]
+    sp_album_browser.load.return_value = sp_album_browser
 
     sp_album_mock.browse.return_value = sp_album_browser
 

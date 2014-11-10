@@ -27,5 +27,14 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             return [
                 translator.to_track(sp_track, bitrate=self._backend.bitrate)
                 for sp_track in sp_album_browser.tracks]
+        elif sp_link.type is spotify.LinkType.ARTIST:
+            sp_artist = sp_link.as_artist()
+            sp_artist_browser = sp_artist.browse(
+                type=spotify.ArtistBrowserType.NO_TRACKS)
+            sp_artist_browser.load()
+            return [
+                translator.to_track(sp_track, bitrate=self._backend.bitrate)
+                for sp_album in sp_artist_browser.albums
+                for sp_track in sp_album.browse().load().tracks]
         else:
             return []

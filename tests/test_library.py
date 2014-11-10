@@ -67,3 +67,28 @@ def test_lookup_of_album_uri(session_mock, sp_album_browser_mock, provider):
     assert track.uri == 'spotify:track:abc'
     assert track.name == 'ABC 123'
     assert track.bitrate == 160
+
+
+def test_lookup_of_artist_uri(
+        session_mock, sp_artist_browser_mock, sp_album_browser_mock, provider):
+    sp_artist_mock = sp_artist_browser_mock.artist
+    sp_album_mock = sp_album_browser_mock.album
+    session_mock.get_link.return_value = sp_artist_mock.link
+
+    results = provider.lookup('spotify:artist:abba')
+
+    session_mock.get_link.assert_called_once_with('spotify:artist:abba')
+    sp_artist_mock.link.as_artist.assert_called_once_with()
+
+    sp_artist_mock.browse.assert_called_once_with(
+        type=spotify.ArtistBrowserType.NO_TRACKS)
+    sp_artist_browser_mock.load.assert_called_once_with()
+
+    assert sp_album_mock.browse.call_count == 2
+    assert sp_album_browser_mock.load.call_count == 2
+
+    assert len(results) == 4
+    track = results[0]
+    assert track.uri == 'spotify:track:abc'
+    assert track.name == 'ABC 123'
+    assert track.bitrate == 160
