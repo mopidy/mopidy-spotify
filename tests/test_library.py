@@ -226,3 +226,7 @@ def test_search_returns_albums_and_artists_and_tracks(
 
     assert len(result.tracks) == 2
     assert result.tracks[0].uri == 'spotify:track:abc'
+
+
+def test_find_exact_is_the_same_as_search(provider):
+    assert provider.find_exact == provider.search

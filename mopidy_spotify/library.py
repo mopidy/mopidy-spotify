@@ -130,3 +130,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             uri = query['uri'][0]
 
         return models.SearchResult(uri=uri, tracks=tracks)
+
+    # Spotify doesn't support exact search
+    find_exact = search
