@@ -1,10 +1,14 @@
 from __future__ import unicode_literals
 
 import collections
+import logging
 
 from mopidy import models
 
 import spotify
+
+
+logger = logging.getLogger(__name__)
 
 
 class memoized(object):
@@ -108,3 +112,45 @@ def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
         uri=sp_playlist.link.uri,
         name=name,
         tracks=tracks)
+
+
+# Maps from Mopidy search query field to Spotify search query field.
+# `None` if there is no matching concept.
+SEARCH_FIELD_MAP = {
+    'albumartist': 'artist',
+    'date': 'year',
+    'track_name': 'track',
+    'track_number': None,
+}
+
+
+def sp_search_query(query):
+    """Translate a Mopidy search query to a Spotify search query"""
+
+    result = []
+
+    for (field, values) in query.items():
+        field = SEARCH_FIELD_MAP.get(field, field)
+        if field is None:
+            continue
+
+        for value in values:
+            if field == 'year':
+                value = _transform_year(value)
+                if value is not None:
+                    result.append('%s:%d' % (field, value))
+            elif field == 'any':
+                result.append('"%s"' % value)
+            else:
+                result.append('%s:"%s"' % (field, value))
+
+    return ' '.join(result)
+
+
+def _transform_year(date):
+    try:
+        return int(date.split('-')[0])
+    except ValueError:
+        logger.debug(
+            'Excluded year from search query: '
+            'Cannot parse date "%s"', date)

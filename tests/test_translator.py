@@ -192,3 +192,74 @@ class TestToPlaylist(object):
 
         assert playlist.length == 0
         assert list(playlist.tracks) == []
+
+
+class TestSpotifySearchQuery(object):
+
+    def test_any_maps_to_no_field(self):
+        query = translator.sp_search_query({'any': ['ABC', 'DEF']})
+
+        assert query == '"ABC" "DEF"'
+
+    def test_artist_maps_to_artist(self):
+        query = translator.sp_search_query({'artist': ['ABBA', 'ACDC']})
+
+        assert query == 'artist:"ABBA" artist:"ACDC"'
+
+    def test_albumartist_maps_to_artist(self):
+        # We don't know how to filter by albumartist in Spotify
+
+        query = translator.sp_search_query({'albumartist': ['ABBA', 'ACDC']})
+
+        assert query == 'artist:"ABBA" artist:"ACDC"'
+
+    def test_album_maps_to_album(self):
+        query = translator.sp_search_query({'album': ['Greatest Hits']})
+
+        assert query == 'album:"Greatest Hits"'
+
+    def test_track_name_maps_to_track(self):
+        query = translator.sp_search_query({'track_name': ['ABC']})
+
+        assert query == 'track:"ABC"'
+
+    def test_track_number_is_not_supported(self):
+        # We don't know how to filter by track number in Spotify
+
+        query = translator.sp_search_query({'track_number': ['10']})
+
+        assert query == ''
+
+    def test_date_maps_to_year(self):
+        query = translator.sp_search_query({'date': ['1970']})
+
+        assert query == 'year:1970'
+
+    def test_date_is_transformed_to_just_the_year(self):
+        query = translator.sp_search_query({'date': ['1970-02-01']})
+
+        assert query == 'year:1970'
+
+    def test_date_is_ignored_if_not_parseable(self, caplog):
+        query = translator.sp_search_query({'date': ['abc']})
+
+        assert query == ''
+        assert (
+            'Excluded year from search query: Cannot parse date "abc"'
+            in caplog.text())
+
+    def test_anything_can_be_combined(self):
+        query = translator.sp_search_query({
+            'any': ['ABC', 'DEF'],
+            'artist': ['ABBA'],
+            'album': ['Greatest Hits'],
+            'track_name': ['Dancing Queen'],
+            'year': ['1970-01-02'],
+        })
+
+        assert '"ABC"' in query
+        assert '"DEF"' in query
+        assert 'artist:"ABBA"' in query
+        assert 'album:"Greatest Hits"' in query
+        assert 'track:"Dancing Queen"' in query
+        assert 'year:1970' in query
