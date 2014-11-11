@@ -204,6 +204,18 @@ def test_search_by_multiple_uris(session_mock, sp_track_mock, provider):
     assert track.bitrate == 160
 
 
+def test_search_when_offline_returns_nothing(provider, caplog):
+    provider._backend._online.is_set.return_value = False
+
+    result = provider.search({'any': ['ABBA']})
+
+    assert 'Search aborted: Spotify is offline' in caplog.text()
+
+    assert isinstance(result, models.SearchResult)
+    assert result.uri == 'spotify:search:%22ABBA%22'
+    assert len(result.tracks) == 0
+
+
 def test_search_returns_albums_and_artists_and_tracks(
         session_mock, sp_search_mock, provider, caplog):
     session_mock.search.return_value = sp_search_mock

@@ -102,14 +102,16 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             logger.debug('Ignored search with empty query')
             return models.SearchResult(uri='spotify:search')
 
-        # TODO Check if we are online before searching?
-
+        uri = 'spotify:search:%s' % urllib.quote(sp_query.encode('utf-8'))
         logger.debug('Searching Spotify for: %s', sp_query)
+
+        if not self._backend._online.is_set():
+            logger.info('Search aborted: Spotify is offline')
+            return models.SearchResult(uri=uri)
 
         sp_search = self._backend._session.search(sp_query)
         sp_search.load()
 
-        uri = 'spotify:search:%s' % urllib.quote(sp_query.encode('utf-8'))
         albums = [
             translator.to_album(sp_album) for sp_album in sp_search.albums]
         artists = [
