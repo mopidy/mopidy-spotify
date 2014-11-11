@@ -131,3 +131,13 @@ def sp_playlist_mock(sp_user_mock, sp_track_mock):
     sp_playlist.link = sp_link
 
     return sp_playlist
+
+
+@pytest.fixture
+def sp_search_mock(sp_album_mock, sp_artist_mock, sp_track_mock):
+    sp_search = mock.Mock(spec=spotify.Search)
+    sp_search.is_loaded = True
+    sp_search.albums = [sp_album_mock]
+    sp_search.artists = [sp_artist_mock]
+    sp_search.tracks = [sp_track_mock, sp_track_mock]
+    return sp_search

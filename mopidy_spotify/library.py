@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 
 import logging
+import urllib
 
-from mopidy import backend
+from mopidy import backend, models
 
 import spotify
 
@@ -85,3 +86,47 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 sp_track, bitrate=self._backend.bitrate)
             if track is not None:
                 yield track
+
+    def search(self, query=None, uris=None):
+        # TODO Respect `uris` argument
+
+        if query is None:
+            logger.debug('Ignored search without query')
+            return models.SearchResult(uri='spotify:search')
+
+        if 'uri' in query:
+            return self._search_by_uri(query)
+
+        sp_query = translator.sp_search_query(query)
+        if not sp_query:
+            logger.debug('Ignored search with empty query')
+            return models.SearchResult(uri='spotify:search')
+
+        # TODO Check if we are online before searching?
+
+        logger.debug('Searching Spotify for: %s', sp_query)
+
+        sp_search = self._backend._session.search(sp_query)
+        sp_search.load()
+
+        uri = 'spotify:search:%s' % urllib.quote(sp_query.encode('utf-8'))
+        albums = [
+            translator.to_album(sp_album) for sp_album in sp_search.albums]
+        artists = [
+            translator.to_artist(sp_artist) for sp_artist in sp_search.artists]
+        tracks = [
+            translator.to_track(sp_track) for sp_track in sp_search.tracks]
+
+        return models.SearchResult(
+            uri=uri, albums=albums, artists=artists, tracks=tracks)
+
+    def _search_by_uri(self, query):
+        tracks = []
+        for uri in query['uri']:
+            tracks += self.lookup(uri)
+
+        uri = 'spotify:search'
+        if len(query['uri']) == 1:
+            uri = query['uri'][0]
+
+        return models.SearchResult(uri=uri, tracks=tracks)
