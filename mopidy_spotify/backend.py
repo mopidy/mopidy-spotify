@@ -39,12 +39,12 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._session = spotify.Session(self._get_spotify_config(config))
 
         self._session.connection.allow_network = (
-            self._config['spotify']['allow_network'])
+            config['spotify']['allow_network'])
 
-        self.bitrate = self._config['spotify']['bitrate']
+        self.bitrate = config['spotify']['bitrate']
         self._session.preferred_bitrate = BITRATES[self.bitrate]
         self._session.volume_normalization = (
-            self._config['spotify']['volume_normalization'])
+            config['spotify']['volume_normalization'])
 
         self._session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
