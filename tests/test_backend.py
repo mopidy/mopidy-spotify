@@ -35,11 +35,11 @@ def test_init_creates_configured_session(spotify_mock, config):
     spotify_mock.Session.assert_called_once_with(config_mock)
 
 
-def test_init_disallows_network_if_offline_config_is_set(spotify_mock, config):
+def test_init_disallows_network_if_config_is_set(spotify_mock, config):
     session = spotify_mock.Session.return_value
     allow_network_mock = mock.PropertyMock()
     type(session.connection).allow_network = allow_network_mock
-    config['spotify']['offline'] = True
+    config['spotify']['allow_network'] = False
 
     get_backend(config)
 

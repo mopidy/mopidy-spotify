@@ -38,8 +38,8 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         self._session = spotify.Session(self._get_spotify_config(config))
 
-        if self._config['spotify']['offline']:
-            self._session.connection.allow_network = False
+        self._session.connection.allow_network = (
+            self._config['spotify']['allow_network'])
 
         self.bitrate = self._config['spotify']['bitrate']
         self._session.preferred_bitrate = BITRATES[self.bitrate]

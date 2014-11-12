@@ -19,7 +19,7 @@ def config():
             'timeout': 10,
             'cache_dir': '/my/cache/dir',
             'settings_dir': '/my/settings/dir',
-            'offline': False,
+            'allow_network': True,
         }
     }
 

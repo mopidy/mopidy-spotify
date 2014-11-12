@@ -108,7 +108,8 @@ The following configuration values are available:
   domains to get toplists for. Defaults to a long list of countries which
   Spotify is available in.
 
-- ``spotify/offline``: Whether to stay in offline mode. Defaults to ``false``.
+- ``spotify/allow_network``: Whether to allow network access or not. Defaults
+  to ``true``.
 
 
 Project resources
@@ -126,6 +127,10 @@ v2.0.0 (UNRELEASED)
 -------------------
 
 - Rewrite using pyspotify 2.
+
+- Add ``spotify/allow_network`` config which can be used to force
+  Mopidy-Spotify to stay offline. This is mostly useful for testing during
+  development.
 
 v1.2.0 (2014-07-21)
 -------------------

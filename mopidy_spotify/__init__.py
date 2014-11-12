@@ -33,11 +33,7 @@ class Extension(ext.Extension):
 
         schema['toplist_countries'] = config.List(optional=True)
 
-        # TODO New in 2.0. Consider renaming/removing. Useful for forcing
-        # pyspotify offline, so the offline behavior can be tested. Does not
-        # affect what music is available offline, like many users seems to
-        # believe.
-        schema['offline'] = config.Boolean()
+        schema['allow_network'] = config.Boolean()
 
         # TODO Add more configrations:
         # - show_playlists = true/false, requested in #25
