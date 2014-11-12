@@ -126,11 +126,28 @@ Changelog
 v2.0.0 (UNRELEASED)
 -------------------
 
-- Rewrite using pyspotify 2.
+- Rewrite using pyspotify 2. Still left to reimplement for feature parity with
+  Mopidy-Spotify 1.2.0:
+
+  - Browsing of personal, country, and global top tracks.
+  - Update playlists when they are changed by other clients.
+  - Pause playback when play token is lost.
+
+**Config**
 
 - Add ``spotify/allow_network`` config which can be used to force
   Mopidy-Spotify to stay offline. This is mostly useful for testing during
   development.
+
+**Lookup**
+
+- Adding an artist by URI will now first find all albums by the artist and
+  then all tracks in the albums. This way, the returned tracks are grouped by
+  album and they are sorted by track number. (Fixes: #7)
+
+- When adding an artist by URI, all albums that are marked as "compilations"
+  or where the album artist is "Various Artists" are now ignored. (Fixes: #5)
+
 
 v1.2.0 (2014-07-21)
 -------------------
