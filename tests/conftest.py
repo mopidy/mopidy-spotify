@@ -21,6 +21,7 @@ def config():
             'cache_dir': '/my/cache/dir',
             'settings_dir': '/my/settings/dir',
             'allow_network': True,
+            'allow_playlists': True,
         }
     }
 

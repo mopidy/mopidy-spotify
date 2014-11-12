@@ -26,6 +26,7 @@ def test_get_config_schema():
     assert 'settings_dir' in schema
     assert 'toplist_countries' in schema
     assert 'allow_network' in schema
+    assert 'allow_playlists' in schema
 
 
 def test_setup():

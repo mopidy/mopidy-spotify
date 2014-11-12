@@ -59,7 +59,11 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self.library = library.SpotifyLibraryProvider(backend=self)
         self.playback = playback.SpotifyPlaybackProvider(
             audio=audio, backend=self)
-        self.playlists = playlists.SpotifyPlaylistsProvider(backend=self)
+
+        if config['spotify']['allow_playlists']:
+            self.playlists = playlists.SpotifyPlaylistsProvider(backend=self)
+        else:
+            self.playlists = None
 
         self.uri_schemes = ['spotify']
 

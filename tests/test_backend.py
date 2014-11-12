@@ -92,6 +92,14 @@ def test_init_sets_up_the_providers(spotify_mock, config):
     assert isinstance(backend.playlists, playlists.SpotifyPlaylistsProvider)
 
 
+def test_init_disables_playlists_provider_if_not_allowed(spotify_mock, config):
+    config['spotify']['allow_playlists'] = False
+
+    backend = get_backend(config)
+
+    assert backend.playlists is None
+
+
 def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
     backend = get_backend(config)
     backend.on_start()

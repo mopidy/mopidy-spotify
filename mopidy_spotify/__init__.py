@@ -35,9 +35,7 @@ class Extension(ext.Extension):
         schema['toplist_countries'] = config.List(optional=True)
 
         schema['allow_network'] = config.Boolean()
-
-        # TODO Add more configrations:
-        # - show_playlists = true/false, requested in #25
+        schema['allow_playlists'] = config.Boolean()
 
         return schema
 

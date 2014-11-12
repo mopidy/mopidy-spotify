@@ -114,6 +114,9 @@ The following configuration values are available:
 - ``spotify/allow_network``: Whether to allow network access or not. Defaults
   to ``true``.
 
+- ``spotify/allow_playlists``: Whether or not playlists should be exposed.
+  Defaults to ``true``.
+
 
 Project resources
 =================
@@ -143,6 +146,10 @@ v2.0.0 (UNRELEASED)
 - Add ``spotify/allow_network`` config which can be used to force
   Mopidy-Spotify to stay offline. This is mostly useful for testing during
   development.
+
+- Add ``spotify/allow_playlists`` config which can be used to disable all
+  access to playlists on the Spotify account. Useful where Mopidy is shared by
+  multiple users. (Fixes: #25)
 
 **Lookup**
 
