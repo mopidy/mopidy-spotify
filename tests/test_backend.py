@@ -6,7 +6,7 @@ import mock
 
 import spotify
 
-from mopidy_spotify import backend, playlists
+from mopidy_spotify import backend, library, playback, playlists
 
 
 def get_backend(config):
@@ -87,8 +87,9 @@ def test_init_adds_connection_state_changed_handler_to_session(
 def test_init_sets_up_the_providers(spotify_mock, config):
     backend = get_backend(config)
 
+    assert isinstance(backend.library, library.SpotifyLibraryProvider)
+    assert isinstance(backend.playback, playback.SpotifyPlaybackProvider)
     assert isinstance(backend.playlists, playlists.SpotifyPlaylistsProvider)
-    # TODO The remaining providers
 
 
 def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
