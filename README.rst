@@ -107,15 +107,24 @@ The following configuration values are available:
   libspotify settings. Defaults to ``$XDG_CONFIG_DIR/mopidy/spotify``, which
   usually means ``~/.config/mopidy/spotify``.
 
-- ``spotify/toplist_countries``: Comma separated list of two letter country
-  domains to get toplists for. Defaults to a long list of countries which
-  Spotify is available in.
-
 - ``spotify/allow_network``: Whether to allow network access or not. Defaults
   to ``true``.
 
 - ``spotify/allow_playlists``: Whether or not playlists should be exposed.
   Defaults to ``true``.
+
+- ``spotify/search_album_count``: Maximum number of albums returned in search
+  results. Number between 0 and 200. Defaults to 20.
+
+- ``spotify/search_artist_count``: Maximum number of artists returned in search
+  results. Number between 0 and 200. Defaults to 10.
+
+- ``spotify/search_track_count``: Maximum number of tracks returned in search
+  results. Number between 0 and 200. Defaults to 50.
+
+- ``spotify/toplist_countries``: Comma separated list of two letter country
+  domains to get toplists for. Defaults to a long list of countries which
+  Spotify is available in.
 
 
 Project resources
@@ -150,6 +159,10 @@ v2.0.0 (UNRELEASED)
 - Add ``spotify/allow_playlists`` config which can be used to disable all
   access to playlists on the Spotify account. Useful where Mopidy is shared by
   multiple users. (Fixes: #25)
+
+- Make maximum number of returned results configurable through
+  ``spotify/search_album_count``, ``spotify/search_artist_count``, and
+  ``spotify/search_track_count``.
 
 **Lookup**
 

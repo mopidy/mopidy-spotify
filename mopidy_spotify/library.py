@@ -109,7 +109,12 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             logger.info('Search aborted: Spotify is offline')
             return models.SearchResult(uri=uri)
 
-        sp_search = self._backend._session.search(sp_query)
+        spotify_config = self._backend._config['spotify']
+        sp_search = self._backend._session.search(
+            sp_query,
+            album_count=spotify_config['search_album_count'],
+            artist_count=spotify_config['search_artist_count'],
+            track_count=spotify_config['search_track_count'])
         sp_search.load()
 
         albums = [

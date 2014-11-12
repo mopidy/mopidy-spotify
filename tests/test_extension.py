@@ -24,9 +24,12 @@ def test_get_config_schema():
     assert 'timeout' in schema
     assert 'cache_dir' in schema
     assert 'settings_dir' in schema
-    assert 'toplist_countries' in schema
     assert 'allow_network' in schema
     assert 'allow_playlists' in schema
+    assert 'search_album_count' in schema
+    assert 'search_artist_count' in schema
+    assert 'search_track_count' in schema
+    assert 'toplist_countries' in schema
 
 
 def test_setup():

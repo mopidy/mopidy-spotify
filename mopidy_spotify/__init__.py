@@ -32,10 +32,14 @@ class Extension(ext.Extension):
         schema['cache_dir'] = config.Path(optional=True)
         schema['settings_dir'] = config.Path()
 
-        schema['toplist_countries'] = config.List(optional=True)
-
         schema['allow_network'] = config.Boolean()
         schema['allow_playlists'] = config.Boolean()
+
+        schema['search_album_count'] = config.Integer(minimum=0, maximum=200)
+        schema['search_artist_count'] = config.Integer(minimum=0, maximum=200)
+        schema['search_track_count'] = config.Integer(minimum=0, maximum=200)
+
+        schema['toplist_countries'] = config.List(optional=True)
 
         return schema
 

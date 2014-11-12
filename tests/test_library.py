@@ -18,8 +18,9 @@ def session_mock():
 
 
 @pytest.fixture
-def backend_mock(session_mock):
+def backend_mock(session_mock, config):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
+    backend_mock._config = config
     backend_mock._session = session_mock
     backend_mock.bitrate = 160
     return backend_mock
@@ -222,7 +223,8 @@ def test_search_returns_albums_and_artists_and_tracks(
 
     result = provider.search({'any': ['ABBA']})
 
-    session_mock.search.assert_called_once_with('"ABBA"')
+    session_mock.search.assert_called_once_with(
+        '"ABBA"', album_count=20, artist_count=10, track_count=50)
     sp_search_mock.load.assert_called_once_with()
 
     assert 'Searching Spotify for: "ABBA"' in caplog.text()
