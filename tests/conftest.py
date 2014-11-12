@@ -16,6 +16,7 @@ def config():
             'username': 'alice',
             'password': 'password',
             'bitrate': 160,
+            'volume_normalization': True,
             'timeout': 10,
             'cache_dir': '/my/cache/dir',
             'settings_dir': '/my/settings/dir',

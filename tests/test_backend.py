@@ -58,6 +58,17 @@ def test_init_configures_preferred_bitrate(spotify_mock, config):
         spotify.Bitrate.BITRATE_320k)
 
 
+def test_init_configures_volume_normalization(spotify_mock, config):
+    session = spotify_mock.Session.return_value
+    volume_normalization_mock = mock.PropertyMock()
+    type(session).volume_normalization = volume_normalization_mock
+    config['spotify']['volume_normalization'] = False
+
+    get_backend(config)
+
+    volume_normalization_mock.assert_called_once_with(False)
+
+
 def test_init_adds_connection_state_changed_handler_to_session(
         spotify_mock, config):
     session = spotify_mock.Session.return_value

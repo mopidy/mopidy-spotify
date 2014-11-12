@@ -25,6 +25,7 @@ class Extension(ext.Extension):
         schema['password'] = config.Secret()
 
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
+        schema['volume_normalization'] = config.Boolean()
 
         schema['timeout'] = config.Integer(minimum=0)
 
@@ -37,7 +38,6 @@ class Extension(ext.Extension):
 
         # TODO Add more configrations:
         # - show_playlists = true/false, requested in #25
-        # - volume_normalization = true/false, requested in #13
 
         return schema
 

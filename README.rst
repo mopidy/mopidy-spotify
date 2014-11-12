@@ -93,6 +93,9 @@ The following configuration values are available:
 - ``spotify/bitrate``: Audio bitrate in kbps. ``96``, ``160``, or ``320``.
   Defaults to ``160``.
 
+- ``spotify/volume_normalization``: Whether volume normalization is active or
+  not. Defaults to ``true``.
+
 - ``spotify/timeout``: Seconds before giving up waiting for search results,
   etc. Defaults to ``10``.
 
@@ -134,6 +137,8 @@ v2.0.0 (UNRELEASED)
   - Pause playback when play token is lost.
 
 **Config**
+
+- Add ``spotify/volume_normalization`` config. (Fixes: #13)
 
 - Add ``spotify/allow_network`` config which can be used to force
   Mopidy-Spotify to stay offline. This is mostly useful for testing during

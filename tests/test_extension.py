@@ -20,6 +20,7 @@ def test_get_config_schema():
     assert 'username' in schema
     assert 'password' in schema
     assert 'bitrate' in schema
+    assert 'volume_normalization' in schema
     assert 'timeout' in schema
     assert 'cache_dir' in schema
     assert 'settings_dir' in schema
