@@ -10,12 +10,12 @@ Mopidy-Spotify
     :target: https://pypi.python.org/pypi/Mopidy-Spotify/
     :alt: Number of PyPI downloads
 
-.. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/master.png?style=flat
+.. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/develop.png?style=flat
     :target: https://travis-ci.org/mopidy/mopidy-spotify
     :alt: Travis CI build status
 
-.. image:: https://img.shields.io/coveralls/mopidy/mopidy-spotify/master.svg?style=flat
-   :target: https://coveralls.io/r/mopidy/mopidy-spotify?branch=master
+.. image:: https://img.shields.io/coveralls/mopidy/mopidy-spotify/develop.svg?style=flat
+   :target: https://coveralls.io/r/mopidy/mopidy-spotify?branch=develop
    :alt: Test coverage
 
 `Mopidy <http://www.mopidy.com/>`_ extension for playing music from
@@ -105,7 +105,7 @@ Project resources
 
 - `Source code <https://github.com/mopidy/mopidy-spotify>`_
 - `Issue tracker <https://github.com/mopidy/mopidy-spotify/issues>`_
-- `Download development snapshot <https://github.com/mopidy/mopidy-spotify/tarball/master#egg=Mopidy-Spotify-dev>`_
+- `Download development snapshot <https://github.com/mopidy/mopidy-spotify/tarball/develop#egg=Mopidy-Spotify-dev>`_
 
 
 Changelog
