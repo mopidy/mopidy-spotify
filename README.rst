@@ -84,19 +84,30 @@ to your Mopidy configuration file::
 The following configuration values are available:
 
 - ``spotify/enabled``: If the Spotify extension should be enabled or not.
-- ``spotify/username``: Your Spotify Premium username.
-- ``spotify/password``: Your Spotify Premium password.
-- ``spotify/bitrate``: Audio bitrate in kbps. 96, 160 or 320. Defaults to 160.
+  Defaults to ``true``.
+
+- ``spotify/username``: Your Spotify Premium username. You *must* provide this.
+
+- ``spotify/password``: Your Spotify Premium password. You *must* provide this.
+
+- ``spotify/bitrate``: Audio bitrate in kbps. ``96``, ``160``, or ``320``.
+  Defaults to ``160``.
+
 - ``spotify/timeout``: Seconds before giving up waiting for search results,
-  etc. Defaults to 10 seconds.
+  etc. Defaults to ``10``.
+
 - ``spotify/cache_dir``: The dir where the Spotify extension caches data.
   Defaults to ``$XDG_CACHE_DIR/mopidy/spotify``, which usually means
   ``~/.cache/mopidy/spotify``. If set to an empty string, caching is disabled.
+
 - ``spotify/settings_dir``: The dir where the Spotify extension stores
   libspotify settings. Defaults to ``$XDG_CONFIG_DIR/mopidy/spotify``, which
   usually means ``~/.config/mopidy/spotify``.
+
 - ``spotify/toplist_countries``: Comma separated list of two letter country
-  domains to get toplists for.
+  domains to get toplists for. Defaults to a long list of countries which
+  Spotify is available in.
+
 - ``spotify/offline``: Whether to stay in offline mode. Defaults to ``false``.
 
 
