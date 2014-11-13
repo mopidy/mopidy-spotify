@@ -37,8 +37,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._audio = audio
         self._session = None
         self._event_loop = None
-        # TODO Make `birate` private?
-        self.bitrate = None
+        self._bitrate = None
 
         self.library = library.SpotifyLibraryProvider(backend=self)
         self.playback = playback.SpotifyPlaybackProvider(
@@ -70,8 +69,8 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         session.connection.allow_network = config['spotify']['allow_network']
 
-        self.bitrate = config['spotify']['bitrate']
-        session.preferred_bitrate = BITRATES[self.bitrate]
+        self._bitrate = config['spotify']['bitrate']
+        session.preferred_bitrate = BITRATES[self._bitrate]
         session.volume_normalization = (
             config['spotify']['volume_normalization'])
 

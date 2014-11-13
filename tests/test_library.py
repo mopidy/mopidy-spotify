@@ -22,7 +22,7 @@ def backend_mock(session_mock, config):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
     backend_mock._session = session_mock
-    backend_mock.bitrate = 160
+    backend_mock._bitrate = 160
     return backend_mock
 
 

@@ -46,7 +46,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def _lookup_track(self, sp_link):
         sp_track = sp_link.as_track()
         sp_track.load()
-        track = translator.to_track(sp_track, bitrate=self._backend.bitrate)
+        track = translator.to_track(sp_track, bitrate=self._backend._bitrate)
         if track is not None:
             yield track
 
@@ -56,7 +56,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         sp_album_browser.load()
         for sp_track in sp_album_browser.tracks:
             track = translator.to_track(
-                sp_track, bitrate=self._backend.bitrate)
+                sp_track, bitrate=self._backend._bitrate)
             if track is not None:
                 yield track
 
@@ -74,7 +74,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 continue
             for sp_track in sp_album_browser.tracks:
                 track = translator.to_track(
-                    sp_track, bitrate=self._backend.bitrate)
+                    sp_track, bitrate=self._backend._bitrate)
                 if track is not None:
                     yield track
 
@@ -83,7 +83,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         sp_playlist.load()
         for sp_track in sp_playlist.tracks:
             track = translator.to_track(
-                sp_track, bitrate=self._backend.bitrate)
+                sp_track, bitrate=self._backend._bitrate)
             if track is not None:
                 yield track
 

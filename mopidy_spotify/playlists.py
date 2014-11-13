@@ -51,7 +51,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         username = self._backend._session.user_name
         return translator.to_playlist(
-            sp_playlist, username=username, bitrate=self._backend.bitrate)
+            sp_playlist, username=username, bitrate=self._backend._bitrate)
 
     @property
     def playlists(self):
@@ -80,7 +80,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
             playlist = translator.to_playlist(
                 sp_playlist, folders=folders, username=username,
-                bitrate=self._backend.bitrate)
+                bitrate=self._backend._bitrate)
             if playlist is not None:
                 result.append(playlist)
 
