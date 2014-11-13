@@ -58,6 +58,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # XXX We should just return light-weight Ref objects here, but Mopidy's
         # core and backend APIs must be changed first.
 
+        if self._backend._session is None:
+            return []
+
         if self._backend._session.playlist_container is None:
             return []
 

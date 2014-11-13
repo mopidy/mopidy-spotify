@@ -10,7 +10,10 @@ from mopidy_spotify import backend, library, playback, playlists
 
 
 def get_backend(config):
-    return backend.SpotifyBackend(config=config, audio=None)
+    obj = backend.SpotifyBackend(config=config, audio=None)
+    obj._session = mock.Mock()
+    obj._event_loop = mock.Mock()
+    return obj
 
 
 def test_uri_schemes(spotify_mock, config):
@@ -19,14 +22,14 @@ def test_uri_schemes(spotify_mock, config):
     assert 'spotify' in backend.uri_schemes
 
 
-def test_init_creates_configured_session(spotify_mock, config):
+def test_on_start_creates_configured_session(spotify_mock, config):
     cache_location_mock = mock.PropertyMock()
     settings_location_mock = mock.PropertyMock()
     config_mock = spotify_mock.Config.return_value
     type(config_mock).cache_location = cache_location_mock
     type(config_mock).settings_location = settings_location_mock
 
-    get_backend(config)
+    get_backend(config).on_start()
 
     spotify_mock.Config.assert_called_once_with()
     config_mock.load_application_key_file.assert_called_once_with(mock.ANY)
@@ -35,45 +38,45 @@ def test_init_creates_configured_session(spotify_mock, config):
     spotify_mock.Session.assert_called_once_with(config_mock)
 
 
-def test_init_disallows_network_if_config_is_set(spotify_mock, config):
+def test_on_start_disallows_network_if_config_is_set(spotify_mock, config):
     session = spotify_mock.Session.return_value
     allow_network_mock = mock.PropertyMock()
     type(session.connection).allow_network = allow_network_mock
     config['spotify']['allow_network'] = False
 
-    get_backend(config)
+    get_backend(config).on_start()
 
     allow_network_mock.assert_called_once_with(False)
 
 
-def test_init_configures_preferred_bitrate(spotify_mock, config):
+def test_on_start_configures_preferred_bitrate(spotify_mock, config):
     session = spotify_mock.Session.return_value
     preferred_bitrate_mock = mock.PropertyMock()
     type(session).preferred_bitrate = preferred_bitrate_mock
     config['spotify']['bitrate'] = 320
 
-    get_backend(config)
+    get_backend(config).on_start()
 
     preferred_bitrate_mock.assert_called_once_with(
         spotify.Bitrate.BITRATE_320k)
 
 
-def test_init_configures_volume_normalization(spotify_mock, config):
+def test_on_start_configures_volume_normalization(spotify_mock, config):
     session = spotify_mock.Session.return_value
     volume_normalization_mock = mock.PropertyMock()
     type(session).volume_normalization = volume_normalization_mock
     config['spotify']['volume_normalization'] = False
 
-    get_backend(config)
+    get_backend(config).on_start()
 
     volume_normalization_mock.assert_called_once_with(False)
 
 
-def test_init_adds_connection_state_changed_handler_to_session(
+def test_on_start_adds_connection_state_changed_handler_to_session(
         spotify_mock, config):
     session = spotify_mock.Session.return_value
 
-    get_backend(config)
+    get_backend(config).on_start()
 
     assert (mock.call(
         spotify_mock.SessionEvent.CONNECTION_STATE_UPDATED,
@@ -124,9 +127,9 @@ def test_on_stop_logs_out_and_waits_for_logout_to_complete(
     backend.on_stop()
 
     assert 'Logging out of Spotify' in caplog.text()
-    spotify_mock.Session.return_value.logout.assert_called_once_with()
+    backend._session.logout.assert_called_once_with()
     backend._logged_out.wait.assert_called_once_with()
-    spotify_mock.EventLoop.return_value.stop.assert_called_once_with()
+    backend._event_loop.stop.assert_called_once_with()
 
 
 def test_on_connection_state_changed_when_logged_out(spotify_mock, caplog):

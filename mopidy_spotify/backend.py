@@ -35,47 +35,24 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         self._config = config
         self._audio = audio
-
-        self._session = spotify.Session(self._get_spotify_config(config))
-
-        self._session.connection.allow_network = (
-            config['spotify']['allow_network'])
-
-        self.bitrate = config['spotify']['bitrate']
-        self._session.preferred_bitrate = BITRATES[self.bitrate]
-        self._session.volume_normalization = (
-            config['spotify']['volume_normalization'])
-
-        self._session.on(
-            spotify.SessionEvent.CONNECTION_STATE_UPDATED,
-            on_connection_state_changed,
-            self._logged_in, self._logged_out, self._online)
-
-        # TODO Pause on PLAY_TOKEN_LOST, but only if this backend is currently
-        # playing.
-
-        self._event_loop = spotify.EventLoop(self._session)
+        self._session = None
+        self._event_loop = None
+        # TODO Make `birate` private?
+        self.bitrate = None
 
         self.library = library.SpotifyLibraryProvider(backend=self)
         self.playback = playback.SpotifyPlaybackProvider(
             audio=audio, backend=self)
-
         if config['spotify']['allow_playlists']:
             self.playlists = playlists.SpotifyPlaylistsProvider(backend=self)
         else:
             self.playlists = None
-
         self.uri_schemes = ['spotify']
 
-    def _get_spotify_config(self, config):
-        spotify_config = spotify.Config()
-        spotify_config.load_application_key_file(
-            os.path.join(os.path.dirname(__file__), 'spotify_appkey.key'))
-        spotify_config.cache_location = config['spotify']['cache_dir']
-        spotify_config.settings_location = config['spotify']['settings_dir']
-        return spotify_config
-
     def on_start(self):
+        self._session = self._get_session(self._config)
+
+        self._event_loop = spotify.EventLoop(self._session)
         self._event_loop.start()
 
         self._session.login(
@@ -87,6 +64,34 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._session.logout()
         self._logged_out.wait()
         self._event_loop.stop()
+
+    def _get_session(self, config):
+        session = spotify.Session(self._get_spotify_config(config))
+
+        session.connection.allow_network = config['spotify']['allow_network']
+
+        self.bitrate = config['spotify']['bitrate']
+        session.preferred_bitrate = BITRATES[self.bitrate]
+        session.volume_normalization = (
+            config['spotify']['volume_normalization'])
+
+        session.on(
+            spotify.SessionEvent.CONNECTION_STATE_UPDATED,
+            on_connection_state_changed,
+            self._logged_in, self._logged_out, self._online)
+
+        # TODO Pause on PLAY_TOKEN_LOST, but only if this backend is currently
+        # playing.
+
+        return session
+
+    def _get_spotify_config(self, config):
+        spotify_config = spotify.Config()
+        spotify_config.load_application_key_file(
+            os.path.join(os.path.dirname(__file__), 'spotify_appkey.key'))
+        spotify_config.cache_location = config['spotify']['cache_dir']
+        spotify_config.settings_location = config['spotify']['settings_dir']
+        return spotify_config
 
 
 def on_connection_state_changed(

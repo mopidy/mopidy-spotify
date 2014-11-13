@@ -29,15 +29,22 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._first_seek = False
         self._push_audio_data_event = threading.Event()
         self._push_audio_data_event.set()
+        self._events_connected = False
 
-        self.backend._session.on(
-            spotify.SessionEvent.MUSIC_DELIVERY, music_delivery_callback,
-            self.audio, self._push_audio_data_event, self._buffer_timestamp)
-        self.backend._session.on(
-            spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
-            self.audio)
+    def _connect_events(self):
+        if not self._events_connected:
+            self._events_connected = True
+            self.backend._session.on(
+                spotify.SessionEvent.MUSIC_DELIVERY, music_delivery_callback,
+                self.audio, self._push_audio_data_event,
+                self._buffer_timestamp)
+            self.backend._session.on(
+                spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
+                self.audio)
 
     def play(self, track):
+        self._connect_events()
+
         if track.uri is None:
             return False
 
