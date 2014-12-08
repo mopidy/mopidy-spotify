@@ -58,7 +58,7 @@ Debian/Ubuntu/Raspbian: Install the ``mopidy-spotify`` package from
 Arch Linux: Install the ``mopidy-spotify`` package from
 `AUR <https://aur.archlinux.org/packages/mopidy-spotify/>`_::
 
-    sudo yaourt -S mopidy-spotify
+    yaourt -S mopidy-spotify
 
 OS X: Install the ``mopidy-spotify`` package from the
 `mopidy/mopidy <https://github.com/mopidy/homebrew-mopidy>`_ Homebrew tap::
