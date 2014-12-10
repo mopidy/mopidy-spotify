@@ -172,6 +172,13 @@ v2.0.0 (UNRELEASED)
 - When adding an artist by URI, all albums that are marked as "compilations"
   or where the album artist is "Various Artists" are now ignored. (Fixes: #5)
 
+**Playback**
+
+- If another Spotify client starts playback with the same account, we get a
+  "play token lost" event. Previously, Mopidy-Spotify would unconditionally
+  pause Mopidy playback if this happened. Now, we only pause playback if we're
+  currently playing music from Spotify. (Fixes: #1)
+
 
 v1.2.0 (2014-07-21)
 -------------------
