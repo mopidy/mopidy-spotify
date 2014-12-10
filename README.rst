@@ -146,7 +146,6 @@ v2.0.0 (UNRELEASED)
 
   - Browsing of personal, country, and global top tracks.
   - Update playlists when they are changed by other clients.
-  - Pause playback when play token is lost.
 
 **Config**
 

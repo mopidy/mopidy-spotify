@@ -4,14 +4,19 @@ import threading
 
 import mock
 
+import pykka
+
 import spotify
 
 from mopidy_spotify import backend, library, playback, playlists
 
 
-def get_backend(config):
+def get_backend(config, session_mock=None):
     obj = backend.SpotifyBackend(config=config, audio=None)
-    obj._session = mock.Mock()
+    if session_mock:
+        obj._session = session_mock
+    else:
+        obj._session = mock.Mock()
     obj._event_loop = mock.Mock()
     return obj
 
@@ -84,6 +89,19 @@ def test_on_start_adds_connection_state_changed_handler_to_session(
         backend.SpotifyBackend._logged_in,
         backend.SpotifyBackend._logged_out,
         backend.SpotifyBackend._online)
+        in session.on.call_args_list)
+
+
+def test_on_start_adds_play_token_lost_handler_to_session(
+        spotify_mock, config):
+    session = spotify_mock.Session.return_value
+
+    obj = get_backend(config)
+    obj.on_start()
+
+    assert (mock.call(
+        spotify_mock.SessionEvent.PLAY_TOKEN_LOST,
+        backend.on_play_token_lost, obj.actor_ref)
         in session.on.call_args_list)
 
 
@@ -192,3 +210,40 @@ def test_on_connection_state_changed_when_offline(spotify_mock, caplog):
     assert logged_in_event.is_set()
     assert not logged_out_event.is_set()
     assert not online_event.is_set()
+
+
+def test_on_play_token_lost_messages_the_actor(spotify_mock, caplog):
+    session_mock = spotify_mock.Session.return_value
+    actor_ref_mock = mock.Mock(spec=pykka.ActorRef)
+
+    backend.on_play_token_lost(session_mock, actor_ref_mock)
+
+    assert 'Spotify play token lost' in caplog.text()
+    actor_ref_mock.tell.assert_called_once_with({'event': 'play_token_lost'})
+
+
+def test_on_play_token_lost_event_when_playing(spotify_mock, config, caplog):
+    session_mock = spotify_mock.Session.return_value
+    session_mock.player.state = spotify_mock.PlayerState.PLAYING
+    backend = get_backend(config, session_mock)
+    backend.playback = mock.Mock(spec=playback.SpotifyPlaybackProvider)
+
+    backend.on_receive({'event': 'play_token_lost'})
+
+    assert (
+        'Spotify has been paused because your account is '
+        'being used somewhere else.' in caplog.text())
+    backend.playback.pause.assert_called_once_with()
+
+
+def test_on_play_token_lost_event_when_not_playing(
+        spotify_mock, config, caplog):
+    session_mock = spotify_mock.Session.return_value
+    session_mock.player.state = spotify_mock.PlayerState.UNLOADED
+    backend = get_backend(config, session_mock)
+    backend.playback = mock.Mock(spec=playback.SpotifyPlaybackProvider)
+
+    backend.on_receive({'event': 'play_token_lost'})
+
+    assert 'Spotify has been paused' not in caplog.text()
+    assert backend.playback.pause.call_count == 0

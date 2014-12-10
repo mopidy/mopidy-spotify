@@ -78,9 +78,9 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             on_connection_state_changed,
             self._logged_in, self._logged_out, self._online)
-
-        # TODO Pause on PLAY_TOKEN_LOST, but only if this backend is currently
-        # playing.
+        session.on(
+            spotify.SessionEvent.PLAY_TOKEN_LOST,
+            on_play_token_lost, self.actor_ref)
 
         return session
 
@@ -91,6 +91,17 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         spotify_config.cache_location = config['spotify']['cache_dir']
         spotify_config.settings_location = config['spotify']['settings_dir']
         return spotify_config
+
+    def on_receive(self, message):
+        if message.get('event') == 'play_token_lost':
+            self._on_play_token_lost()
+
+    def _on_play_token_lost(self):
+        if self._session.player.state == spotify.PlayerState.PLAYING:
+            self.playback.pause()
+            logger.warning(
+                'Spotify has been paused because your account is '
+                'being used somewhere else.')
 
 
 def on_connection_state_changed(
@@ -115,3 +126,9 @@ def on_connection_state_changed(
         logged_in_event.set()
         logged_out_event.clear()
         online_event.clear()
+
+
+def on_play_token_lost(session, actor_ref):
+    # Called from the pyspotify event loop, and not in an actor context.
+    logger.debug('Spotify play token lost')
+    actor_ref.tell({'event': 'play_token_lost'})
