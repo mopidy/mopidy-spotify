@@ -17,6 +17,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def __init__(self, backend):
         self._backend = backend
+        self.cachedResult=None
 
         # TODO Listen to playlist events
 
@@ -63,8 +64,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         if self._backend._session.playlist_container is None:
             return []
-
+        
         start = time.time()
+        
+        dontcache = self._backend._config['spotify']['dontcache']
+
+        if not dontcache and self.cachedResult:
+            logger.info("Playlists.. returned cache result")
+            return self.cachedResult;
+        
 
         username = self._backend._session.user_name
         result = []
@@ -87,10 +95,11 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # TODO Add starred playlist
 
         logger.debug('Playlists fetched in %.3fs', time.time() - start)
+        self.cachedResult=result
         return result
 
     def refresh(self):
-        pass  # Not needed as long as we don't cache anything.
+        self.cachedResult=None
 
     def save(self, playlist):
         pass  # TODO
