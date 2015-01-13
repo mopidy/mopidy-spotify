@@ -81,6 +81,12 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         session.on(
             spotify.SessionEvent.PLAY_TOKEN_LOST,
             on_play_token_lost, self.actor_ref)
+        session.on(
+            spotify.SessionEvent.MESSAGE_TO_USER,
+            on_msg_to_user)
+        session.on(
+            spotify.SessionEvent.LOG_MESSAGE,
+            on_logmessage)
 
         return session
 
@@ -132,3 +138,10 @@ def on_play_token_lost(session, actor_ref):
     # Called from the pyspotify event loop, and not in an actor context.
     logger.debug('Spotify play token lost')
     actor_ref.tell({'event': 'play_token_lost'})
+def on_msg_to_user(session, data):
+    # Called from the pyspotify event loop, and not in an actor context.
+    logger.info('Spotify message to user:'+`data`)
+
+def on_logmessage(session, data):
+    # Called from the pyspotify event loop, and not in an actor context.
+    logger.debug('Spotify:'+`data`)
