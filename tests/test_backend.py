@@ -77,6 +77,17 @@ def test_on_start_configures_volume_normalization(spotify_mock, config):
     volume_normalization_mock.assert_called_once_with(False)
 
 
+def test_on_start_configures_private_session(spotify_mock, config):
+    session = spotify_mock.Session.return_value
+    private_session_mock = mock.PropertyMock()
+    type(session.social).private_session = private_session_mock
+    config['spotify']['private_session'] = True
+
+    get_backend(config).on_start()
+
+    private_session_mock.assert_called_once_with(True)
+
+
 def test_on_start_adds_connection_state_changed_handler_to_session(
         spotify_mock, config):
     session = spotify_mock.Session.return_value

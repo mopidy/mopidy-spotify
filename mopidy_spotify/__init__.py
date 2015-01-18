@@ -26,6 +26,7 @@ class Extension(ext.Extension):
 
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
         schema['volume_normalization'] = config.Boolean()
+        schema['private_session'] = config.Boolean()
 
         schema['timeout'] = config.Integer(minimum=0)
 

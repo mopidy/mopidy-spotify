@@ -73,6 +73,8 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         session.preferred_bitrate = BITRATES[self._bitrate]
         session.volume_normalization = (
             config['spotify']['volume_normalization'])
+        session.social.private_session = (
+            config['spotify']['private_session'])
 
         session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
