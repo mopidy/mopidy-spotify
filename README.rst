@@ -126,7 +126,10 @@ The following configuration values are available:
   domains to get toplists for. Defaults to a long list of countries which
   Spotify is available in.
 
-- ``spotify/private_session``: Whether to use a private Spotify session.
+- ``spotify/private_session``: Whether to use a private Spotify session. Turn
+  on private session to disable sharing of played tracks with friends through
+  the Spotify activity feed, Last.fm scrobbling, and Facebook. This only
+  affects social sharing done by Spotify, not by other Mopidy extensions.
   Defaults to ``false``.
 
 
