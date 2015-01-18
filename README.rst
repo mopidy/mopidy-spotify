@@ -126,6 +126,9 @@ The following configuration values are available:
   domains to get toplists for. Defaults to a long list of countries which
   Spotify is available in.
 
+- ``spotify/private_session``: Whether to use a private Spotify session.
+  Defaults to ``false``.
+
 
 Project resources
 =================
@@ -162,6 +165,8 @@ v2.0.0 (UNRELEASED)
 - Make maximum number of returned results configurable through
   ``spotify/search_album_count``, ``spotify/search_artist_count``, and
   ``spotify/search_track_count``.
+
+- Add ``spotify/private_session`` config.
 
 **Lookup**
 
