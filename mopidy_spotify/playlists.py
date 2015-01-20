@@ -79,8 +79,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
             seconds = offlineS.time_left
             logger.info(
-                "Time (hours) left until user must go online %d:",
-                int(seconds) / 3600)
+                "Time until user must go online %d hours",
+                seconds / 3600)
 
         if self._backend._session.playlist_container is None:
             return []
