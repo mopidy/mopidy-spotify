@@ -1,8 +1,8 @@
 from __future__ import unicode_literals
 
 import logging
-import time
 import re
+import time
 
 from mopidy import backend
 
