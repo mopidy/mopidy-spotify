@@ -118,7 +118,6 @@ def on_connection_state_changed(
         logged_in_event.set()
         logged_out_event.clear()
         online_event.set()
-        logger.info("Setting private session")
         session.social.private_session = (
             config['spotify']['private_session'])
     elif session.connection.state is spotify.ConnectionState.DISCONNECTED:

@@ -99,7 +99,7 @@ def test_on_start_adds_connection_state_changed_handler_to_session(
         backend.on_connection_state_changed,
         backend.SpotifyBackend._logged_in,
         backend.SpotifyBackend._logged_out,
-        backend.SpotifyBackend._online)
+        backend.SpotifyBackend._online, config)
         in session.on.call_args_list)
 
 
@@ -161,7 +161,7 @@ def test_on_stop_logs_out_and_waits_for_logout_to_complete(
     backend._event_loop.stop.assert_called_once_with()
 
 
-def test_on_connection_state_changed_when_logged_out(spotify_mock, caplog):
+def test_on_connection_state_changed_when_logged_out(spotify_mock, caplog, config):
     session_mock = spotify_mock.Session.return_value
     session_mock.connection.state = spotify_mock.ConnectionState.LOGGED_OUT
     logged_in_event = threading.Event()
@@ -169,7 +169,7 @@ def test_on_connection_state_changed_when_logged_out(spotify_mock, caplog):
     online_event = threading.Event()
 
     backend.on_connection_state_changed(
-        session_mock, logged_in_event, logged_out_event, online_event)
+        session_mock, logged_in_event, logged_out_event, online_event, config)
 
     assert 'Logged out of Spotify' in caplog.text()
     assert not logged_in_event.is_set()
