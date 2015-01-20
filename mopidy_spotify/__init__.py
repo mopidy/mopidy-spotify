@@ -29,6 +29,7 @@ class Extension(ext.Extension):
         schema['private_session'] = config.Boolean()
 
         schema['timeout'] = config.Integer(minimum=0)
+        schema['offlinepl'] = config.List(optional=True)
 
         schema['cache_dir'] = config.Path(optional=True)
         schema['settings_dir'] = config.Path()
