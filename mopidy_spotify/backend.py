@@ -73,13 +73,11 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         session.preferred_bitrate = BITRATES[self._bitrate]
         session.volume_normalization = (
             config['spotify']['volume_normalization'])
-        session.social.private_session = (
-            config['spotify']['private_session'])
 
         session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             on_connection_state_changed,
-            self._logged_in, self._logged_out, self._online)
+            self._logged_in, self._logged_out, self._online, self.actor_ref)
         session.on(
             spotify.SessionEvent.PLAY_TOKEN_LOST,
             on_play_token_lost, self.actor_ref)
@@ -95,8 +93,15 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         return spotify_config
 
     def on_receive(self, message):
-        if message.get('event') == 'play_token_lost':
+        if message.get('event') == 'logged_in':
+            self._on_logged_in()
+        elif message.get('event') == 'play_token_lost':
             self._on_play_token_lost()
+
+    def _on_logged_in(self):
+        if self._config['spotify']['private_session']:
+            logger.info('Spotify private session activated')
+            self._session.social.private_session = True
 
     def _on_play_token_lost(self):
         if self._session.player.state == spotify.PlayerState.PLAYING:
@@ -107,7 +112,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
 
 def on_connection_state_changed(
-        session, logged_in_event, logged_out_event, online_event):
+        session, logged_in_event, logged_out_event, online_event, actor_ref):
 
     # Called from the pyspotify event loop, and not in an actor context.
     if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
@@ -120,6 +125,7 @@ def on_connection_state_changed(
         logged_in_event.set()
         logged_out_event.clear()
         online_event.set()
+        actor_ref.tell({'event': 'logged_in'})
     elif session.connection.state is spotify.ConnectionState.DISCONNECTED:
         logger.info('Disconnected from Spotify')
         online_event.clear()
