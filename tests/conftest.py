@@ -25,6 +25,7 @@ def config():
             'search_album_count': 20,
             'search_artist_count': 10,
             'search_track_count': 50,
+            'offline_playlist': 'Playlist1, Playlist2, Regex.*',
         }
     }
 
