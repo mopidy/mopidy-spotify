@@ -30,17 +30,22 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             logger.info('Failed to lookup "%s": %s', uri, exc)
             return []
 
-        if sp_link.type is spotify.LinkType.TRACK:
-            return list(self._lookup_track(sp_link))
-        elif sp_link.type is spotify.LinkType.ALBUM:
-            return list(self._lookup_album(sp_link))
-        elif sp_link.type is spotify.LinkType.ARTIST:
-            return list(self._lookup_artist(sp_link))
-        elif sp_link.type is spotify.LinkType.PLAYLIST:
-            return list(self._lookup_playlist(sp_link))
-        else:
-            logger.info(
-                'Failed to lookup "%s": Cannot handle %r', uri, sp_link.type)
+        try:
+            if sp_link.type is spotify.LinkType.TRACK:
+                return list(self._lookup_track(sp_link))
+            elif sp_link.type is spotify.LinkType.ALBUM:
+                return list(self._lookup_album(sp_link))
+            elif sp_link.type is spotify.LinkType.ARTIST:
+                return list(self._lookup_artist(sp_link))
+            elif sp_link.type is spotify.LinkType.PLAYLIST:
+                return list(self._lookup_playlist(sp_link))
+            else:
+                logger.info(
+                    'Failed to lookup "%s": Cannot handle %r',
+                    uri, sp_link.type)
+                return []
+        except RuntimeError as exc:
+            logger.info('Failed to lookup "%s": %s', uri, exc)
             return []
 
     def _lookup_track(self, sp_link):

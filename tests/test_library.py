@@ -57,6 +57,19 @@ def test_lookup_of_unhandled_uri(session_mock, provider, caplog):
         in caplog.text())
 
 
+def test_lookup_when_offline(session_mock, sp_track_mock, provider, caplog):
+    session_mock.get_link.return_value = sp_track_mock.link
+    sp_track_mock.link.as_track.return_value.load.side_effect = RuntimeError(
+        'Must be online to load objects')
+
+    results = provider.lookup('spotify:track:abc')
+
+    assert len(results) == 0
+    assert (
+        'Failed to lookup "spotify:track:abc": Must be online to load objects'
+        in caplog.text())
+
+
 def test_lookup_of_track_uri(session_mock, sp_track_mock, provider):
     session_mock.get_link.return_value = sp_track_mock.link
 
