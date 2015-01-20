@@ -22,6 +22,7 @@ def session_mock(sp_playlist_mock, sp_user_mock, sp_starred_mock):
     sp_playlist2_mock.is_loaded = True
     sp_playlist2_mock.owner = mock.Mock(spec=spotify.User)
     sp_playlist2_mock.owner.canonical_name = 'bob'
+    sp_playlist2_mock.offline_status = spotify.PlaylistOfflineStatus.NO
     sp_playlist2_mock.link.uri = 'spotify:playlist:bob:baz'
     sp_playlist2_mock.name = 'Baz'
     sp_playlist2_mock.tracks = []
@@ -146,18 +147,20 @@ def test_lookup_of_playlist_with_other_owner(
     assert playlist.name == 'Foo (by bob)'
 
 
-def test_playlists_when_not_logged_in(
-        session_mock, provider):
+def test_playlists_when_not_logged_in(session_mock, provider, config):
     session_mock.get_starred.return_value = None
     session_mock.playlist_container = None
+    session_mock.offline.time_left = 3600
+    provider._backend._config = config
 
     assert len(provider.playlists) == 0
 
 
 def test_playlists_when_playlist_container_isnt_loaded(
-        session_mock, provider):
+        session_mock, provider, config):
     session_mock.playlist_container = None
-
+    session_mock.offline.time_left = 3600
+    provider._backend._config = config
     assert len(provider.playlists) == 1
 
     assert provider.playlists[0].name == 'Starred'
@@ -165,7 +168,10 @@ def test_playlists_when_playlist_container_isnt_loaded(
     assert len(provider.playlists[0].tracks) == 2
 
 
-def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
+def test_playlists_with_folders_and_ignored_unloaded_playlist(
+        session_mock, provider, config):
+    session_mock.offline.time_left = 3600
+    provider._backend._config = config
     assert len(provider.playlists) == 3
 
     assert provider.playlists[0].name == 'Starred'

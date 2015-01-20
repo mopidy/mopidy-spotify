@@ -19,6 +19,8 @@ def get_backend(config, session_mock=None):
         obj._session = mock.Mock()
         obj._session.playlist_container = None
     obj._event_loop = mock.Mock()
+    obj._config = config
+    obj._session.offline.time_left = 3600
     return obj
 
 

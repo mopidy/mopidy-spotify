@@ -31,6 +31,7 @@ def test_get_config_schema():
     assert 'search_artist_count' in schema
     assert 'search_track_count' in schema
     assert 'toplist_countries' in schema
+    assert 'offline_playlists' in schema
 
 
 def test_setup():
