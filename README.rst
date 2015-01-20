@@ -112,7 +112,17 @@ The following configuration values are available:
 
 - ``spotify/allow_playlists``: Whether or not playlists should be exposed.
   Defaults to ``true``.
+  
+- ``spotify/offline_playlists``: Specify which playlists from spotify you wish
+  to mark as 'Available offline'. The tracks for these playlists will be downloaded and available for play back when mopidy is unable to connect to spotify. The option takes a comma separated list of playlists to mark as offline. Items can be regular expression. Examples::
 
+   - offline_playlists = My play list, My list2 
+       My play list and My list2 playlists will be marked offline
+   - offline_playlists = Foo.*  
+       Match any playlist beginning with Foo   (.* is a wild card)
+   - offline_playlists =  
+       Empty list, no items will be marked offline
+   
 - ``spotify/search_album_count``: Maximum number of albums returned in search
   results. Number between 0 and 200. Defaults to 20.
 
