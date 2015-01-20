@@ -38,11 +38,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         pass  # TODO
 
     def lookup(self, uri):
-        try:
-            sp_playlist = self._backend._session.get_playlist(uri)
-        except spotify.Error as exc:
-            logger.debug('Failed to lookup Spotify URI %s: %s', uri, exc)
-            return
+        if(uri.endswith("starred") ):
+            sp_playlist=self._backend._session.get_starred()
+        else:    
+            try:
+                sp_playlist = self._backend._session.get_playlist(uri)
+            except spotify.Error as exc:
+                logger.debug('Failed to lookup Spotify URI %s: %s', uri, exc)
+                return
 
         if not sp_playlist.is_loaded:
             logger.debug(
@@ -84,8 +87,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             if playlist is not None:
                 result.append(playlist)
 
-        # TODO Add starred playlist
-
+        # Add the Starred items as a playlist
+        sp_playlist=self._backend._session.get_starred()
+        playlist = translator.to_playlist(
+            sp_playlist, folders=folders, username=username,
+            bitrate=self._backend._bitrate)
+        if playlist is not None:
+            result.append(playlist)
+            
         logger.debug('Playlists fetched in %.3fs', time.time() - start)
         return result
 
