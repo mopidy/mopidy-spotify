@@ -72,14 +72,12 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._bitrate = config['spotify']['bitrate']
         session.preferred_bitrate = BITRATES[self._bitrate]
         session.volume_normalization = (
-            config['spotify']['volume_normalization'])
-        session.social.private_session = (
-            config['spotify']['private_session'])
+            config['spotify']['volume_normalization'])            
 
         session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             on_connection_state_changed,
-            self._logged_in, self._logged_out, self._online)
+            self._logged_in, self._logged_out, self._online, config)
         session.on(
             spotify.SessionEvent.PLAY_TOKEN_LOST,
             on_play_token_lost, self.actor_ref)
@@ -107,7 +105,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
 
 def on_connection_state_changed(
-        session, logged_in_event, logged_out_event, online_event):
+        session, logged_in_event, logged_out_event, online_event, config):
 
     # Called from the pyspotify event loop, and not in an actor context.
     if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
@@ -120,6 +118,9 @@ def on_connection_state_changed(
         logged_in_event.set()
         logged_out_event.clear()
         online_event.set()
+        logger.info("Setting private session")
+        session.social.private_session = (
+            config['spotify']['private_session'])
     elif session.connection.state is spotify.ConnectionState.DISCONNECTED:
         logger.info('Disconnected from Spotify')
         online_event.clear()
