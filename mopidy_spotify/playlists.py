@@ -61,35 +61,37 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         if self._backend._session is None:
             return []
-        
-        offlinecount=self._backend._session.offline.num_playlists
-        logger.info("offline playlist count:"+`offlinecount`)
-        if offlinecount>0:
-	        syncstatus = self._backend._session.offline.sync_status;
-		if syncstatus:
-		        queued = self._backend._session.offline.sync_status.queued_tracks;
-       	 		done = self._backend._session.offline.sync_status.done_tracks;
-       	 		errored = self._backend._session.offline.sync_status.error_tracks;
-        		logger.info("Offline sync status: Queued= %d, Done=%d, Error=%d",queued,done,errored);
-                else:
-                      	logger.info("Offline sync status: Not syncing")
 
-	        seconds = self._backend._session.offline.time_left;
-       	 	logger.info("Time (hours) left until user must go online %d:",int(seconds)/3600); 
-                
+        offlinecount = self._backend._session.offline.num_playlists
+        logger.info("offline playlist count:%d", offlinecount)
+        if offlinecount > 0:
+            syncstatus = self._backend._session.offline.sync_status
+            if syncstatus:
+                queued = self._backend._session.offline.sync_status.queued_tracks
+                done = self._backend._session.offline.sync_status.done_tracks
+                errored = self._backend._session.offline.sync_status.error_tracks
+                logger.info(
+                    "Offline sync status: Queued= %d, Done=%d, Error=%d",
+                    queued, done, errored)
+            else:
+                logger.info("Offline sync status: Not syncing")
+
+            seconds = self._backend._session.offline.time_left
+            logger.info(
+                "Time (hours) left until user must go online %d:",
+                int(seconds) / 3600)
+
         if self._backend._session.playlist_container is None:
             return []
-        
+
         start = time.time()
-        
-      
+
         offlineplaylists = self._backend._config['spotify']['offline_playlists']
-        trackcounting={}
 
         username = self._backend._session.user_name
         result = []
         folders = []
-	
+
         for sp_playlist in self._backend._session.playlist_container:
             if isinstance(sp_playlist, spotify.PlaylistFolder):
                 if sp_playlist.type is spotify.PlaylistType.START_FOLDER:
@@ -103,33 +105,31 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 bitrate=self._backend._bitrate)
             if playlist is not None:
                 result.append(playlist)
-	        logger.info("loaded playlist:%s offline status=%s tracks:%d",playlist.name,sp_playlist.offline_status,len(sp_playlist.tracks))
-                counting={}
-                for track in sp_playlist.tracks:     
-                    if not track.offline_status in counting:
-                        counting[track.offline_status]=1
-                    else:
-                        counting[track.offline_status]+=1
-                    if not track.offline_status in trackcounting:
-                        trackcounting[track.offline_status]=1
-                    else:
-                        trackcounting[track.offline_status]+=1
-                        
-                offline=False
-		for pl in offlineplaylists:
-			p = re.compile(pl);
-			if p.match(sp_playlist.name):
-				offline=True		
 
-		if offline and sp_playlist.offline_status==spotify.PlaylistOfflineStatus.NO:
-			logger.info("Offline playlist:"+`sp_playlist.name`+`sp_playlist.offline_status`);
-			sp_playlist.set_offline_mode(offline=True);		
-		if not offline and sp_playlist.offline_status!=spotify.PlaylistOfflineStatus.NO:
-			logger.info("Online playlist:"+`sp_playlist.name`+`sp_playlist.offline_status`);
-			sp_playlist.set_offline_mode(offline=False);
+            logger.info("loaded playlist:%s offline status=%s tracks:%d",
+                        playlist.name,
+                        sp_playlist.offline_status,
+                        len(sp_playlist.tracks))
 
-        logger.info("Track totals: %d",trackcounting)
-        info = self._backend._session.offline.tracks_to_sync;
+            offline = False
+            for pl in offlineplaylists:
+                p = re.compile(pl)
+                if p.match(sp_playlist.name):
+                    offline = True
+
+            if offline and sp_playlist.offline_status == spotify.PlaylistOfflineStatus.NO:
+                logger.info("Offline playlist:%s,%s",
+                            sp_playlist.name,
+                            sp_playlist.offline_status)
+                sp_playlist.set_offline_mode(offline=True)
+            if not offline and sp_playlist.offline_status != spotify.PlaylistOfflineStatus.NO:
+                logger.info("Online playlist:%s,%s",
+                            sp_playlist.name,
+                            sp_playlist.offline_status)
+                sp_playlist.set_offline_mode(offline=False)
+
+        info = self._backend._session.offline.tracks_to_sync
+        logger.info("Offline tracks to sync: %s", info)
         # TODO Add starred playlist
 
         logger.debug('Playlists fetched in %.3fs', time.time() - start)
