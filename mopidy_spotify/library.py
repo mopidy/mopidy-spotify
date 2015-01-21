@@ -29,6 +29,9 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             models.Ref.directory(
                 uri='spotify:toplist:user', name='Your top tracks'),
             models.Ref.directory(
+                uri='spotify:toplist:user_country',
+                name="Your country's top tracks"),
+            models.Ref.directory(
                 uri='spotify:toplist:everywhere', name='Global top tracks'),
         ]
 
@@ -57,6 +60,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             toplist = self._backend._session.get_toplist(
                 type=spotify.ToplistType.TRACKS,
                 region=spotify.ToplistRegion.USER)
+            return list(self._get_toplist_track_refs(toplist))
+        if uri == 'user_country':
+            toplist = self._backend._session.get_toplist(
+                type=spotify.ToplistType.TRACKS,
+                region=self._backend._session.user_country)
             return list(self._get_toplist_track_refs(toplist))
         elif uri == 'everywhere':
             toplist = self._backend._session.get_toplist(
