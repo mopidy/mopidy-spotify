@@ -12,6 +12,18 @@ from mopidy_spotify import countries, translator
 
 logger = logging.getLogger(__name__)
 
+TOPLIST_TYPES = {
+    'albums': spotify.ToplistType.ALBUMS,
+    'artists': spotify.ToplistType.ARTISTS,
+    'tracks': spotify.ToplistType.TRACKS,
+}
+
+TOPLIST_REGIONS = {
+    'everywhere': lambda session: spotify.ToplistRegion.EVERYWHERE,
+    'user': lambda session: spotify.ToplistRegion.USER,
+    'user_country': lambda session: session.user_country,
+}
+
 
 VARIOUS_ARTISTS_URIS = [
     'spotify:artist:0LyfQWJT6nXafLPZqxe9Of',
@@ -54,27 +66,22 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             return []
 
     def _browse_toplist(self, uri):
-        uri = uri.replace('spotify:top:tracks:', '')
+        uri = uri.replace('spotify:top:', '')
 
-        if uri == 'user':
-            toplist = self._backend._session.get_toplist(
-                type=spotify.ToplistType.TRACKS,
-                region=spotify.ToplistRegion.USER)
-            return list(self._get_toplist_track_refs(toplist))
-        if uri == 'user_country':
-            toplist = self._backend._session.get_toplist(
-                type=spotify.ToplistType.TRACKS,
-                region=self._backend._session.user_country)
-            return list(self._get_toplist_track_refs(toplist))
-        elif uri == 'everywhere':
-            toplist = self._backend._session.get_toplist(
-                type=spotify.ToplistType.TRACKS,
-                region=spotify.ToplistRegion.EVERYWHERE)
-            return list(self._get_toplist_track_refs(toplist))
-        elif uri == 'countries':
+        parts = uri.split(':', 1)
+        if len(parts) != 2:
+            return []
+        type, region = parts
+
+        if region == 'countries':
             return self._toplist_countries
-        elif uri.upper() in countries.COUNTRIES.keys():
-            country_code = uri.upper()
+        elif region in ('user', 'user_country', 'everywhere'):
+            toplist = self._backend._session.get_toplist(
+                type=spotify.ToplistType.TRACKS,
+                region=TOPLIST_REGIONS[region](self._backend._session))
+            return list(self._get_toplist_track_refs(toplist))
+        elif region.upper() in countries.COUNTRIES.keys():
+            country_code = region.upper()
             toplist = self._backend._session.get_toplist(
                 type=spotify.ToplistType.TRACKS, region=country_code)
             return list(self._get_toplist_track_refs(toplist))

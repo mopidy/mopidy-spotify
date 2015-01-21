@@ -71,6 +71,12 @@ def test_browse_root_has_no_country_top_tracks_when_configured_off(
         name='Country top tracks') not in results
 
 
+def test_browse_top_tracks_with_too_many_uri_parts(provider):
+    results = provider.browse('spotify:top:tracks:foo:bar')
+
+    assert len(results) == 0
+
+
 def test_browse_your_top_tracks(session_mock, sp_track_mock, provider):
     session_mock.get_toplist.return_value.tracks = [
         sp_track_mock, sp_track_mock]
