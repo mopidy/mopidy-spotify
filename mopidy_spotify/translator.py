@@ -87,6 +87,20 @@ def to_track(sp_track, bitrate=None):
         bitrate=bitrate)
 
 
+@memoized
+def to_track_ref(sp_track):
+    if not sp_track.is_loaded:
+        return  # TODO Return placeholder "[loading]" track?
+
+    if sp_track.error != spotify.ErrorType.OK:
+        return  # TODO Return placeholder "[error]" track?
+
+    if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
+        return  # TODO Return placeholder "[unavailable]" track?
+
+    return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
+
+
 def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
     if not isinstance(sp_playlist, spotify.Playlist):
         return

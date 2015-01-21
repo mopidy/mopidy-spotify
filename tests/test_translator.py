@@ -136,6 +136,43 @@ class TestToTrack(object):
         assert track1 is track2
 
 
+class TestToTrackRef(object):
+
+    def test_returns_none_if_unloaded(self, sp_track_mock):
+        sp_track_mock.is_loaded = False
+
+        ref = translator.to_track_ref(sp_track_mock)
+
+        assert ref is None
+
+    def test_returns_none_if_error(self, sp_track_mock):
+        sp_track_mock.error = spotify.ErrorType.OTHER_PERMANENT
+
+        ref = translator.to_track_ref(sp_track_mock)
+
+        assert ref is None
+
+    def test_returns_none_if_not_available(self, sp_track_mock):
+        sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
+
+        ref = translator.to_track_ref(sp_track_mock)
+
+        assert ref is None
+
+    def test_successful_translation(self, sp_track_mock):
+        ref = translator.to_track_ref(sp_track_mock)
+
+        assert ref.type == models.Ref.TRACK
+        assert ref.uri == 'spotify:track:abc'
+        assert ref.name == 'ABC 123'
+
+    def test_caches_results(self, sp_track_mock):
+        ref1 = translator.to_track_ref(sp_track_mock)
+        ref2 = translator.to_track_ref(sp_track_mock)
+
+        assert ref1 is ref2
+
+
 class TestToPlaylist(object):
 
     def test_returns_none_if_unloaded(self):
