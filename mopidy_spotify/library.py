@@ -27,6 +27,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         self._root_dir_contents = [
             models.Ref.directory(
                 uri='spotify:toplist:user', name='Your top tracks'),
+            models.Ref.directory(
+                uri='spotify:toplist:everywhere', name='Global top tracks'),
         ]
 
     def browse(self, uri):
@@ -37,6 +39,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             toplist = self._backend._session.get_toplist(
                 type=spotify.ToplistType.TRACKS,
                 region=spotify.ToplistRegion.USER)
+            return list(self._browse_toplist(toplist))
+        elif uri == 'spotify:toplist:everywhere':
+            toplist = self._backend._session.get_toplist(
+                type=spotify.ToplistType.TRACKS,
+                region=spotify.ToplistRegion.EVERYWHERE)
             return list(self._browse_toplist(toplist))
 
         return []
