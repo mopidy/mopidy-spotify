@@ -27,12 +27,12 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
         self._root_dir_contents = [
             models.Ref.directory(
-                uri='spotify:toplist:user', name='Your top tracks'),
+                uri='spotify:top:tracks:user', name='Your top tracks'),
             models.Ref.directory(
-                uri='spotify:toplist:user_country',
+                uri='spotify:top:tracks:user_country',
                 name="Your country's top tracks"),
             models.Ref.directory(
-                uri='spotify:toplist:everywhere', name='Global top tracks'),
+                uri='spotify:top:tracks:everywhere', name='Global top tracks'),
         ]
 
         self._toplist_countries = [
@@ -43,18 +43,18 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
         if self._toplist_countries:
             self._root_dir_contents.append(models.Ref.directory(
-                uri='spotify:toplist:countries', name='Country top tracks'))
+                uri='spotify:top:tracks:countries', name='Country top tracks'))
 
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self._root_dir_contents
-        elif uri.startswith('spotify:toplist:'):
+        elif uri.startswith('spotify:top:tracks:'):
             return self._browse_toplist(uri)
         else:
             return []
 
     def _browse_toplist(self, uri):
-        uri = uri.replace('spotify:toplist:', '')
+        uri = uri.replace('spotify:top:tracks:', '')
 
         if uri == 'user':
             toplist = self._backend._session.get_toplist(

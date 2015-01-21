@@ -45,16 +45,19 @@ def test_browse_root_directory(provider):
 
     assert len(results) == 4
     assert models.Ref.directory(
-        uri='spotify:toplist:user', name='Your top tracks') in results
+        uri='spotify:top:tracks:user', name='Your top tracks') in results
     assert models.Ref.directory(
-        uri='spotify:toplist:user_country',
+        uri='spotify:top:tracks:user_country',
         name="Your country's top tracks") in results
     assert models.Ref.directory(
-        uri='spotify:toplist:everywhere', name='Global top tracks') in results
+        uri='spotify:top:tracks:everywhere',
+        name='Global top tracks') in results
     assert models.Ref.directory(
-        uri='spotify:toplist:countries', name='Country top tracks') in results
+        uri='spotify:top:tracks:countries',
+        name='Country top tracks') in results
     assert models.Ref.directory(
-        uri='spotify:toplist:countries', name='Country top tracks') in results
+        uri='spotify:top:tracks:countries',
+        name='Country top tracks') in results
 
 
 def test_browse_root_has_no_country_top_tracks_when_configured_off(
@@ -64,7 +67,7 @@ def test_browse_root_has_no_country_top_tracks_when_configured_off(
     results = provider(backend_mock).browse('spotify:directory')
 
     assert models.Ref.directory(
-        uri='spotify:toplist:countries',
+        uri='spotify:top:tracks:countries',
         name='Country top tracks') not in results
 
 
@@ -72,7 +75,7 @@ def test_browse_your_top_tracks(session_mock, sp_track_mock, provider):
     session_mock.get_toplist.return_value.tracks = [
         sp_track_mock, sp_track_mock]
 
-    results = provider.browse('spotify:toplist:user')
+    results = provider.browse('spotify:top:tracks:user')
 
     session_mock.get_toplist.assert_called_once_with(
         type=spotify.ToplistType.TRACKS, region=spotify.ToplistRegion.USER)
@@ -86,7 +89,7 @@ def test_browse_your_country_top_tracks(session_mock, sp_track_mock, provider):
     session_mock.get_toplist.return_value.tracks = [
         sp_track_mock, sp_track_mock]
 
-    results = provider.browse('spotify:toplist:user_country')
+    results = provider.browse('spotify:top:tracks:user_country')
 
     session_mock.get_toplist.assert_called_once_with(
         type=spotify.ToplistType.TRACKS, region='NO')
@@ -99,7 +102,7 @@ def test_browse_global_top_tracks(session_mock, sp_track_mock, provider):
     session_mock.get_toplist.return_value.tracks = [
         sp_track_mock, sp_track_mock]
 
-    results = provider.browse('spotify:toplist:everywhere')
+    results = provider.browse('spotify:top:tracks:everywhere')
 
     session_mock.get_toplist.assert_called_once_with(
         type=spotify.ToplistType.TRACKS,
@@ -113,20 +116,20 @@ def test_browse_toptrack_countries_list(session_mock, sp_track_mock, provider):
     session_mock.get_toplist.return_value.tracks = [
         sp_track_mock, sp_track_mock]
 
-    results = provider.browse('spotify:toplist:countries')
+    results = provider.browse('spotify:top:tracks:countries')
 
     assert len(results) == 2
     assert models.Ref.directory(
-        uri='spotify:toplist:gb', name='United Kingdom') in results
+        uri='spotify:top:tracks:gb', name='United Kingdom') in results
     assert models.Ref.directory(
-        uri='spotify:toplist:us', name='United States') in results
+        uri='spotify:top:tracks:us', name='United States') in results
 
 
 def test_browse_country_top_tracks(session_mock, sp_track_mock, provider):
     session_mock.get_toplist.return_value.tracks = [
         sp_track_mock, sp_track_mock]
 
-    results = provider.browse('spotify:toplist:us')
+    results = provider.browse('spotify:top:tracks:us')
 
     session_mock.get_toplist.assert_called_once_with(
         type=spotify.ToplistType.TRACKS, region='US')
