@@ -35,6 +35,17 @@ def test_is_a_playlists_provider(provider):
     assert isinstance(provider, backend_api.LibraryProvider)
 
 
+def test_has_a_root_directory(provider):
+    assert provider.root_directory == models.Ref.directory(
+        uri='spotify:directory', name='Spotify')
+
+
+def test_browse_root_directory(provider):
+    results = provider.browse('spotify:directory')
+
+    assert len(results) == 0
+
+
 def test_lookup_of_invalid_uri(session_mock, provider, caplog):
     session_mock.get_link.side_effect = ValueError('an error message')
 

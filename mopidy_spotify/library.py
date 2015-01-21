@@ -19,9 +19,19 @@ VARIOUS_ARTISTS_URIS = [
 
 
 class SpotifyLibraryProvider(backend.LibraryProvider):
+    root_directory = models.Ref.directory(
+        uri='spotify:directory', name='Spotify')
 
     def __init__(self, backend):
         self._backend = backend
+        self._root_dir_contents = [
+        ]
+
+    def browse(self, uri):
+        if uri == self.root_directory.uri:
+            return self._root_dir_contents
+
+        return []
 
     def lookup(self, uri):
         try:
