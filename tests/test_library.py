@@ -43,11 +43,24 @@ def test_has_a_root_directory(provider):
 def test_browse_root_directory(provider):
     results = provider.browse('spotify:directory')
 
-    assert len(results) == 2
+    assert len(results) == 3
     assert models.Ref.directory(
         uri='spotify:toplist:user', name='Your top tracks') in results
     assert models.Ref.directory(
         uri='spotify:toplist:everywhere', name='Global top tracks') in results
+    assert models.Ref.directory(
+        uri='spotify:toplist:countries', name='Country top tracks') in results
+
+
+def test_browse_root_has_no_country_top_tracks_when_configured_off(
+        backend_mock):
+    backend_mock._config['spotify']['toplist_countries'] = []
+
+    results = provider(backend_mock).browse('spotify:directory')
+
+    assert models.Ref.directory(
+        uri='spotify:toplist:countries',
+        name='Country top tracks') not in results
 
 
 def test_browse_your_top_tracks(session_mock, sp_track_mock, provider):
@@ -72,6 +85,32 @@ def test_browse_global_top_tracks(session_mock, sp_track_mock, provider):
     session_mock.get_toplist.assert_called_once_with(
         type=spotify.ToplistType.TRACKS,
         region=spotify.ToplistRegion.EVERYWHERE)
+    assert len(results) == 2
+    assert results[0] == models.Ref.track(
+        uri='spotify:track:abc', name='ABC 123')
+
+
+def test_browse_toptrack_countries_list(session_mock, sp_track_mock, provider):
+    session_mock.get_toplist.return_value.tracks = [
+        sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:toplist:countries')
+
+    assert len(results) == 2
+    assert models.Ref.directory(
+        uri='spotify:toplist:gb', name='United Kingdom') in results
+    assert models.Ref.directory(
+        uri='spotify:toplist:us', name='United States') in results
+
+
+def test_browse_country_top_tracks(session_mock, sp_track_mock, provider):
+    session_mock.get_toplist.return_value.tracks = [
+        sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:toplist:us')
+
+    session_mock.get_toplist.assert_called_once_with(
+        type=spotify.ToplistType.TRACKS, region='US')
     assert len(results) == 2
     assert results[0] == models.Ref.track(
         uri='spotify:track:abc', name='ABC 123')
