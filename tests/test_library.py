@@ -43,7 +43,22 @@ def test_has_a_root_directory(provider):
 def test_browse_root_directory(provider):
     results = provider.browse('spotify:directory')
 
-    assert len(results) == 0
+    assert len(results) == 1
+    assert models.Ref.directory(
+        uri='spotify:toplist:user', name='Your top tracks') in results
+
+
+def test_browse_your_top_tracks(session_mock, sp_track_mock, provider):
+    session_mock.get_toplist.return_value.tracks = [
+        sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:toplist:user')
+
+    session_mock.get_toplist.assert_called_once_with(
+        type=spotify.ToplistType.TRACKS, region=spotify.ToplistRegion.USER)
+    assert len(results) == 2
+    assert results[0] == models.Ref.track(
+        uri='spotify:track:abc', name='ABC 123')
 
 
 def test_lookup_of_invalid_uri(session_mock, provider, caplog):

@@ -25,13 +25,29 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def __init__(self, backend):
         self._backend = backend
         self._root_dir_contents = [
+            models.Ref.directory(
+                uri='spotify:toplist:user', name='Your top tracks'),
         ]
 
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self._root_dir_contents
 
+        if uri == 'spotify:toplist:user':
+            toplist = self._backend._session.get_toplist(
+                type=spotify.ToplistType.TRACKS,
+                region=spotify.ToplistRegion.USER)
+            return list(self._browse_toplist(toplist))
+
         return []
+
+    def _browse_toplist(self, toplist):
+        toplist.load()
+        for sp_track in toplist.tracks:
+            sp_track.load()
+            track = translator.to_track_ref(sp_track)
+            if track is not None:
+                yield track
 
     def lookup(self, uri):
         try:
