@@ -80,6 +80,43 @@ class TestToAlbum(object):
         assert album1 is album2
 
 
+class TestToAlbumRef(object):
+
+    def test_returns_none_if_unloaded(self, sp_album_mock):
+        sp_album_mock.is_loaded = False
+
+        ref = translator.to_album_ref(sp_album_mock)
+
+        assert ref is None
+
+    def test_successful_translation(self, sp_album_mock):
+        ref = translator.to_album_ref(sp_album_mock)
+
+        assert ref.type == 'album'
+        assert ref.uri == 'spotify:album:def'
+        assert ref.name == 'ABBA - DEF 456'
+
+    def test_if_artist_is_none(self, sp_album_mock):
+        sp_album_mock.artist = None
+
+        ref = translator.to_album_ref(sp_album_mock)
+
+        assert ref.name == 'DEF 456'
+
+    def test_if_artist_is_not_loaded(self, sp_album_mock):
+        sp_album_mock.artist.is_loaded = False
+
+        ref = translator.to_album_ref(sp_album_mock)
+
+        assert ref.name == 'DEF 456'
+
+    def test_caches_results(self, sp_album_mock):
+        ref1 = translator.to_album_ref(sp_album_mock)
+        ref2 = translator.to_album_ref(sp_album_mock)
+
+        assert ref1 is ref2
+
+
 class TestToTrack(object):
 
     def test_returns_none_if_unloaded(self, sp_track_mock):

@@ -60,6 +60,19 @@ def to_album(sp_album):
 
 
 @memoized
+def to_album_ref(sp_album):
+    if not sp_album.is_loaded:
+        return  # TODO Return placeholder "[loading]" album?
+
+    if sp_album.artist is None or not sp_album.artist.is_loaded:
+        name = sp_album.name
+    else:
+        name = '%s - %s' % (sp_album.artist.name, sp_album.name)
+
+    return models.Ref.album(uri=sp_album.link.uri, name=name)
+
+
+@memoized
 def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
         return  # TODO Return placeholder "[loading]" track?
