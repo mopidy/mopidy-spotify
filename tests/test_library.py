@@ -66,6 +66,26 @@ def test_browse_album(
         uri='spotify:track:abc', name='ABC 123')
 
 
+def test_browse_artist(
+        session_mock, sp_artist_mock, sp_artist_browser_mock,
+        sp_album_mock, sp_track_mock, provider):
+    session_mock.get_artist.return_value = sp_artist_mock
+    sp_artist_mock.browse.return_value = sp_artist_browser_mock
+    sp_artist_browser_mock.albums = [sp_album_mock, sp_album_mock]
+    sp_artist_browser_mock.tophit_tracks = [sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:artist:abba')
+
+    session_mock.get_artist.assert_called_once_with('spotify:artist:abba')
+    sp_artist_mock.browse.assert_called_once_with(
+        type=spotify.ArtistBrowserType.NO_TRACKS)
+    assert len(results) == 4
+    assert results[0] == models.Ref.track(
+        uri='spotify:track:abc', name='ABC 123')
+    assert results[2] == models.Ref.album(
+        uri='spotify:album:def', name='ABBA - DEF 456')
+
+
 def test_browse_top_tracks(provider):
     results = provider.browse('spotify:top:tracks')
 

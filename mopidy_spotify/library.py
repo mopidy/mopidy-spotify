@@ -55,6 +55,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             return self._root_dir_contents
         elif uri.startswith('spotify:album:'):
             return self._browse_album(uri)
+        elif uri.startswith('spotify:artist:'):
+            return self._browse_artist(uri)
         elif uri.startswith('spotify:top:'):
             parts = uri.replace('spotify:top:', '').split(':')
             if len(parts) == 1:
@@ -70,6 +72,14 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         album_browser = self._backend._session.get_album(uri).browse()
         album_browser.load()
         return list(self._get_track_refs(album_browser.tracks))
+
+    def _browse_artist(self, uri):
+        artist_browser = self._backend._session.get_artist(uri).browse(
+            type=spotify.ArtistBrowserType.NO_TRACKS)
+        artist_browser.load()
+        top_tracks = list(self._get_track_refs(artist_browser.tophit_tracks))
+        albums = list(self._get_album_refs(artist_browser.albums))
+        return top_tracks + albums
 
     def _browse_toplist_regions(self, type):
         result = [
