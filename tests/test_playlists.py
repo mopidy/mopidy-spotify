@@ -73,7 +73,7 @@ def test_create(session_mock, sp_playlist_mock, provider):
 
     session_mock.playlist_container.add_new_playlist.assert_called_once_with(
         'Foo')
-    assert playlist.uri == 'spotify:playlist:alice:foo'
+    assert playlist.uri == 'spotify:user:alice:playlist:foo'
     assert playlist.name == 'Foo'
 
 
@@ -106,9 +106,9 @@ def test_create_fails_in_libspotify(session_mock, provider, caplog):
 def test_lookup(session_mock, sp_playlist_mock, provider):
     session_mock.get_playlist.return_value = sp_playlist_mock
 
-    playlist = provider.lookup('spotify:playlist:alice:foo')
+    playlist = provider.lookup('spotify:user:alice:playlist:foo')
 
-    assert playlist.uri == 'spotify:playlist:alice:foo'
+    assert playlist.uri == 'spotify:user:alice:playlist:foo'
     assert playlist.name == 'Foo'
     assert playlist.tracks[0].bitrate == 160
 
@@ -120,10 +120,10 @@ def test_lookup_loads_playlist_when_a_playlist_isnt_loaded(
     is_loaded_mock.side_effect = [False, True]
     session_mock.get_playlist.return_value = sp_playlist_mock
 
-    playlist = provider.lookup('spotify:playlist:alice:foo')
+    playlist = provider.lookup('spotify:user:alice:playlist:foo')
 
     sp_playlist_mock.load.assert_called_once_with()
-    assert playlist.uri == 'spotify:playlist:alice:foo'
+    assert playlist.uri == 'spotify:user:alice:playlist:foo'
     assert playlist.name == 'Foo'
 
 
@@ -139,9 +139,9 @@ def test_lookup_of_playlist_with_other_owner(
     sp_playlist_mock.owner = sp_user_mock
     session_mock.get_playlist.return_value = sp_playlist_mock
 
-    playlist = provider.lookup('spotify:playlist:alice:foo')
+    playlist = provider.lookup('spotify:user:alice:playlist:foo')
 
-    assert playlist.uri == 'spotify:playlist:alice:foo'
+    assert playlist.uri == 'spotify:user:alice:playlist:foo'
     assert playlist.name == 'Foo (by bob)'
 
 
@@ -155,7 +155,7 @@ def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
     assert len(provider.playlists) == 2
 
     assert provider.playlists[0].name == 'Foo'
-    assert provider.playlists[0].uri == 'spotify:playlist:alice:foo'
+    assert provider.playlists[0].uri == 'spotify:user:alice:playlist:foo'
     assert len(provider.playlists[0].tracks) == 1
 
     assert provider.playlists[1].name == 'Bar/Baz (by bob)'

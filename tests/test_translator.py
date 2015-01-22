@@ -254,7 +254,7 @@ class TestToPlaylist(object):
         track = translator.to_track(sp_track_mock)
         playlist = translator.to_playlist(sp_playlist_mock)
 
-        assert playlist.uri == 'spotify:playlist:alice:foo'
+        assert playlist.uri == 'spotify:user:alice:playlist:foo'
         assert playlist.name == 'Foo'
         assert playlist.length == 1
         assert track in playlist.tracks
