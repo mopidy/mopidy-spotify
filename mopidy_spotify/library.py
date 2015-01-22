@@ -48,6 +48,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self._root_dir_contents
+        elif uri.startswith('spotify:user:'):
+            return self._browse_playlist(uri)
         elif uri.startswith('spotify:album:'):
             return self._browse_album(uri)
         elif uri.startswith('spotify:artist:'):
@@ -65,6 +67,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         else:
             logger.info('Failed to browse "%s": Unknown URI type', uri)
             return []
+
+    def _browse_playlist(self, uri):
+        playlist = self._backend._session.get_playlist(uri)
+        playlist.load()
+        return list(self._get_track_refs(playlist.tracks))
 
     def _browse_album(self, uri):
         album_browser = self._backend._session.get_album(uri).browse()

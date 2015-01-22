@@ -24,6 +24,20 @@ def test_browse_root_directory(provider):
         uri='spotify:top:artists', name='Top artists') in results
 
 
+def test_browse_playlist(
+        session_mock, sp_playlist_mock, sp_track_mock, provider):
+    session_mock.get_playlist.return_value = sp_playlist_mock
+    sp_playlist_mock.tracks = [sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:user:alice:playlist:foo')
+
+    session_mock.get_playlist.assert_called_once_with(
+        'spotify:user:alice:playlist:foo')
+    assert len(results) == 2
+    assert results[0] == models.Ref.track(
+        uri='spotify:track:abc', name='ABC 123')
+
+
 def test_browse_album(
         session_mock, sp_album_mock, sp_album_browser_mock, sp_track_mock,
         provider):
