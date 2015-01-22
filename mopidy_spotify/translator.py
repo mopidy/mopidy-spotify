@@ -38,6 +38,14 @@ def to_artist(sp_artist):
 
 
 @memoized
+def to_artist_ref(sp_artist):
+    if not sp_artist.is_loaded:
+        return  # TODO Return placeholder "[loading]" artist?
+
+    return models.Ref.artist(uri=sp_artist.link.uri, name=sp_artist.name)
+
+
+@memoized
 def to_album(sp_album):
     if not sp_album.is_loaded:
         return  # TODO Return placeholder "[loading]" album?

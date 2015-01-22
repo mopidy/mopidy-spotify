@@ -41,6 +41,29 @@ class TestToArtist(object):
         assert artist2 is not None
 
 
+class TestToArtistRef(object):
+
+    def test_returns_none_if_unloaded(self, sp_artist_mock):
+        sp_artist_mock.is_loaded = False
+
+        ref = translator.to_artist_ref(sp_artist_mock)
+
+        assert ref is None
+
+    def test_successful_translation(self, sp_artist_mock):
+        ref = translator.to_artist_ref(sp_artist_mock)
+
+        assert ref.type == 'artist'
+        assert ref.uri == 'spotify:artist:abba'
+        assert ref.name == 'ABBA'
+
+    def test_caches_results(self, sp_artist_mock):
+        ref1 = translator.to_artist_ref(sp_artist_mock)
+        ref2 = translator.to_artist_ref(sp_artist_mock)
+
+        assert ref1 is ref2
+
+
 class TestToAlbum(object):
 
     def test_returns_none_if_unloaded(self, sp_album_mock):
