@@ -150,8 +150,7 @@ v2.0.0 (UNRELEASED)
 - Rewrite using pyspotify 2. Still left to reimplement for feature parity with
   Mopidy-Spotify 1.2.0:
 
-  - Browsing of personal, country, and global top tracks.
-  - Update playlists when they are changed by other clients.
+  - Emit playlists changed events when playlists are changed by other clients.
 
 **Config**
 
@@ -170,6 +169,17 @@ v2.0.0 (UNRELEASED)
   ``spotify/search_track_count``.
 
 - Add ``spotify/private_session`` config.
+
+**Browse**
+
+- Add browsing of top albums and top artists, in additon to top tracks.
+
+- Add browsing by current user's country, in addition to personal, global and
+  per-country browsing.
+
+- Add browsing of artists, which includes the artist's top tracks and albums.
+
+- Update list of countries Spotify is available in and provides toplists for.
 
 **Lookup**
 
