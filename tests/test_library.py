@@ -43,9 +43,11 @@ def test_has_a_root_directory(provider):
 def test_browse_root_directory(provider):
     results = provider.browse('spotify:directory')
 
-    assert len(results) == 1
+    assert len(results) == 2
     assert models.Ref.directory(
         uri='spotify:top:tracks', name='Top tracks') in results
+    assert models.Ref.directory(
+        uri='spotify:top:albums', name='Top albums') in results
 
 
 def test_browse_album(
@@ -76,6 +78,20 @@ def test_browse_top_tracks(provider):
         uri='spotify:top:tracks:everywhere', name='Global') in results
     assert models.Ref.directory(
         uri='spotify:top:tracks:countries', name='Other countries') in results
+
+
+def test_browse_top_albums(provider):
+    results = provider.browse('spotify:top:albums')
+
+    assert len(results) == 4
+    assert models.Ref.directory(
+        uri='spotify:top:albums:user', name='Personal') in results
+    assert models.Ref.directory(
+        uri='spotify:top:albums:country', name='Country') in results
+    assert models.Ref.directory(
+        uri='spotify:top:albums:everywhere', name='Global') in results
+    assert models.Ref.directory(
+        uri='spotify:top:albums:countries', name='Other countries') in results
 
 
 def test_browse_top_tracks_has_no_countries_when_configured_off(
@@ -162,6 +178,19 @@ def test_browse_other_country_top_tracks(
     assert len(results) == 2
     assert results[0] == models.Ref.track(
         uri='spotify:track:abc', name='ABC 123')
+
+
+def test_browse_personal_top_albums(session_mock, sp_album_mock, provider):
+    session_mock.get_toplist.return_value.albums = [
+        sp_album_mock, sp_album_mock]
+
+    results = provider.browse('spotify:top:albums:user')
+
+    session_mock.get_toplist.assert_called_once_with(
+        type=spotify.ToplistType.ALBUMS, region=spotify.ToplistRegion.USER)
+    assert len(results) == 2
+    assert results[0] == models.Ref.album(
+        uri='spotify:album:def', name='ABBA - DEF 456')
 
 
 def test_lookup_of_invalid_uri(session_mock, provider, caplog):
