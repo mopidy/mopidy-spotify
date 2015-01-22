@@ -4,6 +4,8 @@ import threading
 
 import mock
 
+from mopidy import backend as backend_api
+
 import pykka
 
 import spotify
@@ -110,8 +112,13 @@ def test_init_sets_up_the_providers(spotify_mock, config):
     backend = get_backend(config)
 
     assert isinstance(backend.library, library.SpotifyLibraryProvider)
+    assert isinstance(backend.library, backend_api.LibraryProvider)
+
     assert isinstance(backend.playback, playback.SpotifyPlaybackProvider)
+    assert isinstance(backend.playback, backend_api.PlaybackProvider)
+
     assert isinstance(backend.playlists, playlists.SpotifyPlaylistsProvider)
+    assert isinstance(backend.playlists, backend_api.PlaylistsProvider)
 
 
 def test_init_disables_playlists_provider_if_not_allowed(spotify_mock, config):

@@ -6,7 +6,7 @@ import pytest
 
 import spotify
 
-from mopidy_spotify import backend
+from mopidy_spotify import backend, library
 
 
 @pytest.fixture
@@ -148,3 +148,23 @@ def sp_search_mock(sp_album_mock, sp_artist_mock, sp_track_mock):
     sp_search.artists = [sp_artist_mock]
     sp_search.tracks = [sp_track_mock, sp_track_mock]
     return sp_search
+
+
+@pytest.fixture
+def session_mock():
+    sp_session_mock = mock.Mock(spec=spotify.Session)
+    return sp_session_mock
+
+
+@pytest.fixture
+def backend_mock(session_mock, config):
+    backend_mock = mock.Mock(spec=backend.SpotifyBackend)
+    backend_mock._config = config
+    backend_mock._session = session_mock
+    backend_mock._bitrate = 160
+    return backend_mock
+
+
+@pytest.fixture
+def provider(backend_mock):
+    return library.SpotifyLibraryProvider(backend_mock)
