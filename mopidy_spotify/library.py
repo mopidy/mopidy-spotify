@@ -19,9 +19,9 @@ TOPLIST_TYPES = {
 }
 
 TOPLIST_REGIONS = {
-    'everywhere': lambda session: spotify.ToplistRegion.EVERYWHERE,
     'user': lambda session: spotify.ToplistRegion.USER,
-    'user_country': lambda session: session.user_country,
+    'country': lambda session: session.user_country,
+    'everywhere': lambda session: spotify.ToplistRegion.EVERYWHERE,
 }
 
 
@@ -39,12 +39,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
         self._root_dir_contents = [
             models.Ref.directory(
-                uri='spotify:top:tracks:user', name='Your top tracks'),
-            models.Ref.directory(
-                uri='spotify:top:tracks:user_country',
-                name="Your country's top tracks"),
-            models.Ref.directory(
-                uri='spotify:top:tracks:everywhere', name='Global top tracks'),
+                uri='spotify:top:tracks', name='Top tracks'),
         ]
 
         self._toplist_countries = [
@@ -53,37 +48,47 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 name=countries.COUNTRIES.get(code.upper(), code.upper()))
             for code in self._backend._config['spotify']['toplist_countries']]
 
-        if self._toplist_countries:
-            self._root_dir_contents.append(models.Ref.directory(
-                uri='spotify:top:tracks:countries', name='Country top tracks'))
-
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self._root_dir_contents
-        elif uri.startswith('spotify:top:tracks:'):
-            return self._browse_toplist(uri)
+        elif uri.startswith('spotify:top:'):
+            parts = uri.replace('spotify:top:', '').split(':')
+            if len(parts) == 1:
+                return self._browse_toplist_regions(type=parts[0])
+            elif len(parts) == 2:
+                return self._browse_toplist(type=parts[0], region=parts[1])
+            else:
+                return []
         else:
             return []
 
-    def _browse_toplist(self, uri):
-        uri = uri.replace('spotify:top:', '')
+    def _browse_toplist_regions(self, type):
+        result = [
+            models.Ref.directory(
+                uri='spotify:top:%s:user' % type, name='Personal'),
+            models.Ref.directory(
+                uri='spotify:top:%s:country' % type, name='Country'),
+            models.Ref.directory(
+                uri='spotify:top:%s:everywhere' % type, name='Global'),
+        ]
 
-        parts = uri.split(':', 1)
-        if len(parts) != 2:
-            return []
-        type, region = parts
+        if self._toplist_countries:
+            result.append(models.Ref.directory(
+                uri='spotify:top:%s:countries' % type, name='Other countries'))
 
+        return result
+
+    def _browse_toplist(self, type, region):
         if region == 'countries':
             return self._toplist_countries
-        elif region in ('user', 'user_country', 'everywhere'):
+        elif region in ('user', 'country', 'everywhere'):
             toplist = self._backend._session.get_toplist(
-                type=spotify.ToplistType.TRACKS,
+                type=TOPLIST_TYPES[type],
                 region=TOPLIST_REGIONS[region](self._backend._session))
             return list(self._get_toplist_track_refs(toplist))
         elif region.upper() in countries.COUNTRIES.keys():
-            country_code = region.upper()
             toplist = self._backend._session.get_toplist(
-                type=spotify.ToplistType.TRACKS, region=country_code)
+                type=TOPLIST_TYPES[type], region=region.upper())
             return list(self._get_toplist_track_refs(toplist))
         else:
             return []
