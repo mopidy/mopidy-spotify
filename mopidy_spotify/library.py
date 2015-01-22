@@ -51,6 +51,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self._root_dir_contents
+        elif uri.startswith('spotify:album:'):
+            return self._browse_album(uri)
         elif uri.startswith('spotify:top:'):
             parts = uri.replace('spotify:top:', '').split(':')
             if len(parts) == 1:
@@ -61,6 +63,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 return []
         else:
             return []
+
+    def _browse_album(self, uri):
+        album_browser = self._backend._session.get_album(uri).browse()
+        album_browser.load()
+        return list(self._get_track_refs(album_browser.tracks))
 
     def _browse_toplist_regions(self, type):
         result = [
@@ -81,21 +88,26 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def _browse_toplist(self, type, region):
         if region == 'countries':
             return self._toplist_countries
-        elif region in ('user', 'country', 'everywhere'):
+
+        if region in ('user', 'country', 'everywhere'):
             toplist = self._backend._session.get_toplist(
                 type=TOPLIST_TYPES[type],
                 region=TOPLIST_REGIONS[region](self._backend._session))
-            return list(self._get_toplist_track_refs(toplist))
         elif region.upper() in countries.COUNTRIES.keys():
             toplist = self._backend._session.get_toplist(
                 type=TOPLIST_TYPES[type], region=region.upper())
-            return list(self._get_toplist_track_refs(toplist))
         else:
             return []
 
-    def _get_toplist_track_refs(self, toplist):
         toplist.load()
-        for sp_track in toplist.tracks:
+
+        if type == 'tracks':
+            return list(self._get_track_refs(toplist.tracks))
+        else:
+            return []
+
+    def _get_track_refs(self, tracks):
+        for sp_track in tracks:
             sp_track.load()
             track = translator.to_track_ref(sp_track)
             if track is not None:

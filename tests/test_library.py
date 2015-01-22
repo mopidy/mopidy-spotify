@@ -48,6 +48,22 @@ def test_browse_root_directory(provider):
         uri='spotify:top:tracks', name='Top tracks') in results
 
 
+def test_browse_album(
+        session_mock, sp_album_mock, sp_album_browser_mock, sp_track_mock,
+        provider):
+    session_mock.get_album.return_value = sp_album_mock
+    sp_album_mock.browse.return_value = sp_album_browser_mock
+    sp_album_browser_mock.tracks = [sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:album:def')
+
+    session_mock.get_album.assert_called_once_with('spotify:album:def')
+    sp_album_mock.browse.assert_called_once_with()
+    assert len(results) == 2
+    assert results[0] == models.Ref.track(
+        uri='spotify:track:abc', name='ABC 123')
+
+
 def test_browse_top_tracks(provider):
     results = provider.browse('spotify:top:tracks')
 
