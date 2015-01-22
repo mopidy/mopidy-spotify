@@ -42,6 +42,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 uri='spotify:top:tracks', name='Top tracks'),
             models.Ref.directory(
                 uri='spotify:top:albums', name='Top albums'),
+            models.Ref.directory(
+                uri='spotify:top:artists', name='Top artists'),
         ]
 
         self._toplist_countries = [
@@ -117,6 +119,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             return list(self._get_track_refs(toplist.tracks))
         elif type == 'albums':
             return list(self._get_album_refs(toplist.albums))
+        elif type == 'artists':
+            return list(self._get_artist_refs(toplist.artists))
         else:
             return []
 
@@ -133,6 +137,13 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             album = translator.to_album_ref(sp_album)
             if album is not None:
                 yield album
+
+    def _get_artist_refs(self, artists):
+        for sp_artist in artists:
+            sp_artist.load()
+            artist = translator.to_artist_ref(sp_artist)
+            if artist is not None:
+                yield artist
 
     def lookup(self, uri):
         try:

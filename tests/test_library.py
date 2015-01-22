@@ -43,11 +43,13 @@ def test_has_a_root_directory(provider):
 def test_browse_root_directory(provider):
     results = provider.browse('spotify:directory')
 
-    assert len(results) == 2
+    assert len(results) == 3
     assert models.Ref.directory(
         uri='spotify:top:tracks', name='Top tracks') in results
     assert models.Ref.directory(
         uri='spotify:top:albums', name='Top albums') in results
+    assert models.Ref.directory(
+        uri='spotify:top:artists', name='Top artists') in results
 
 
 def test_browse_album(
@@ -112,6 +114,20 @@ def test_browse_top_albums(provider):
         uri='spotify:top:albums:everywhere', name='Global') in results
     assert models.Ref.directory(
         uri='spotify:top:albums:countries', name='Other countries') in results
+
+
+def test_browse_top_artists(provider):
+    results = provider.browse('spotify:top:artists')
+
+    assert len(results) == 4
+    assert models.Ref.directory(
+        uri='spotify:top:artists:user', name='Personal') in results
+    assert models.Ref.directory(
+        uri='spotify:top:artists:country', name='Country') in results
+    assert models.Ref.directory(
+        uri='spotify:top:artists:everywhere', name='Global') in results
+    assert models.Ref.directory(
+        uri='spotify:top:artists:countries', name='Other countries') in results
 
 
 def test_browse_top_tracks_has_no_countries_when_configured_off(
@@ -211,6 +227,19 @@ def test_browse_personal_top_albums(session_mock, sp_album_mock, provider):
     assert len(results) == 2
     assert results[0] == models.Ref.album(
         uri='spotify:album:def', name='ABBA - DEF 456')
+
+
+def test_browse_personal_top_artists(session_mock, sp_artist_mock, provider):
+    session_mock.get_toplist.return_value.artists = [
+        sp_artist_mock, sp_artist_mock]
+
+    results = provider.browse('spotify:top:artists:user')
+
+    session_mock.get_toplist.assert_called_once_with(
+        type=spotify.ToplistType.ARTISTS, region=spotify.ToplistRegion.USER)
+    assert len(results) == 2
+    assert results[0] == models.Ref.artist(
+        uri='spotify:artist:abba', name='ABBA')
 
 
 def test_lookup_of_invalid_uri(session_mock, provider, caplog):
