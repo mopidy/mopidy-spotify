@@ -24,7 +24,6 @@ TOPLIST_REGIONS = {
     'everywhere': lambda session: spotify.ToplistRegion.EVERYWHERE,
 }
 
-
 VARIOUS_ARTISTS_URIS = [
     'spotify:artist:0LyfQWJT6nXafLPZqxe9Of',
 ]
@@ -60,8 +59,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             elif len(parts) == 2:
                 return self._browse_toplist(type=parts[0], region=parts[1])
             else:
+                logger.info(
+                    'Failed to browse "%s": Toplist URI parsing failed', uri)
                 return []
         else:
+            logger.info('Failed to browse "%s": Unknown URI type', uri)
             return []
 
     def _browse_album(self, uri):
