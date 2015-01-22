@@ -229,6 +229,20 @@ def test_browse_personal_top_albums(session_mock, sp_album_mock, provider):
         uri='spotify:album:def', name='ABBA - DEF 456')
 
 
+def test_browse_top_albums_countries_list(
+        session_mock, sp_track_mock, provider):
+    session_mock.get_toplist.return_value.tracks = [
+        sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:top:albums:countries')
+
+    assert len(results) == 2
+    assert models.Ref.directory(
+        uri='spotify:top:albums:gb', name='United Kingdom') in results
+    assert models.Ref.directory(
+        uri='spotify:top:albums:us', name='United States') in results
+
+
 def test_browse_personal_top_artists(session_mock, sp_artist_mock, provider):
     session_mock.get_toplist.return_value.artists = [
         sp_artist_mock, sp_artist_mock]

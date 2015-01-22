@@ -46,12 +46,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 uri='spotify:top:artists', name='Top artists'),
         ]
 
-        self._toplist_countries = [
-            models.Ref.directory(
-                uri='spotify:top:tracks:%s' % code.lower(),
-                name=countries.COUNTRIES.get(code.upper(), code.upper()))
-            for code in self._backend._config['spotify']['toplist_countries']]
-
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self._root_dir_contents
@@ -93,7 +87,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 uri='spotify:top:%s:everywhere' % type, name='Global'),
         ]
 
-        if self._toplist_countries:
+        if self._backend._config['spotify']['toplist_countries']:
             result.append(models.Ref.directory(
                 uri='spotify:top:%s:countries' % type, name='Other countries'))
 
@@ -101,7 +95,12 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
     def _browse_toplist(self, type, region):
         if region == 'countries':
-            return self._toplist_countries
+            codes = self._backend._config['spotify']['toplist_countries']
+            return [
+                models.Ref.directory(
+                    uri='spotify:top:%s:%s' % (type, code.lower()),
+                    name=countries.COUNTRIES.get(code.upper(), code.upper()))
+                for code in codes]
 
         if region in ('user', 'country', 'everywhere'):
             toplist = self._backend._session.get_toplist(
