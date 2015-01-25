@@ -184,14 +184,18 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             type=spotify.ArtistBrowserType.NO_TRACKS)
         sp_artist_browser.load()
 
+        # Get all album browsers we need first, so they can start retrieving
+        # data in the background.
+        sp_album_browsers = []
         for sp_album in sp_artist_browser.albums:
             sp_album.load()
             if sp_album.type is spotify.AlbumType.COMPILATION:
                 continue
             if sp_album.artist.link.uri in VARIOUS_ARTISTS_URIS:
                 continue
+            sp_album_browsers.append(sp_album.browse())
 
-            sp_album_browser = sp_album.browse()
+        for sp_album_browser in sp_album_browsers:
             sp_album_browser.load()
             for sp_track in sp_album_browser.tracks:
                 track = translator.to_track(
