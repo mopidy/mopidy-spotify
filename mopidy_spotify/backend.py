@@ -74,13 +74,15 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         session.volume_normalization = (
             config['spotify']['volume_normalization'])
 
+        backend_actor_proxy = self.actor_ref.proxy()
         session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             on_connection_state_changed,
-            self._logged_in, self._logged_out, self._online, self.actor_ref)
+            self._logged_in, self._logged_out, self._online,
+            backend_actor_proxy)
         session.on(
             spotify.SessionEvent.PLAY_TOKEN_LOST,
-            on_play_token_lost, self.actor_ref)
+            on_play_token_lost, backend_actor_proxy)
 
         return session
 
@@ -92,18 +94,12 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         spotify_config.settings_location = config['spotify']['settings_dir']
         return spotify_config
 
-    def on_receive(self, message):
-        if message.get('event') == 'logged_in':
-            self._on_logged_in()
-        elif message.get('event') == 'play_token_lost':
-            self._on_play_token_lost()
-
-    def _on_logged_in(self):
+    def on_logged_in(self):
         if self._config['spotify']['private_session']:
             logger.info('Spotify private session activated')
             self._session.social.private_session = True
 
-    def _on_play_token_lost(self):
+    def on_play_token_lost(self):
         if self._session.player.state == spotify.PlayerState.PLAYING:
             self.playback.pause()
             logger.warning(
@@ -112,7 +108,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
 
 def on_connection_state_changed(
-        session, logged_in_event, logged_out_event, online_event, actor_ref):
+        session, logged_in_event, logged_out_event, online_event, backend):
 
     # Called from the pyspotify event loop, and not in an actor context.
     if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
@@ -125,7 +121,7 @@ def on_connection_state_changed(
         logged_in_event.set()
         logged_out_event.clear()
         online_event.set()
-        actor_ref.tell({'event': 'logged_in'})
+        backend.on_logged_in()
     elif session.connection.state is spotify.ConnectionState.DISCONNECTED:
         logger.info('Disconnected from Spotify')
         online_event.clear()
@@ -136,7 +132,7 @@ def on_connection_state_changed(
         online_event.clear()
 
 
-def on_play_token_lost(session, actor_ref):
+def on_play_token_lost(session, backend):
     # Called from the pyspotify event loop, and not in an actor context.
     logger.debug('Spotify play token lost')
-    actor_ref.tell({'event': 'play_token_lost'})
+    backend.on_play_token_lost()
