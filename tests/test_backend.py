@@ -17,7 +17,7 @@ def get_backend(config, session_mock=None):
         obj._session = session_mock
     else:
         obj._session = mock.Mock()
-        obj._session.playlist_container = []
+        obj._session.playlist_container = None
     obj._event_loop = mock.Mock()
     return obj
 
