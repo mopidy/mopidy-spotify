@@ -69,21 +69,22 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             return []
 
     def _browse_playlist(self, uri):
-        playlist = self._backend._session.get_playlist(uri)
-        playlist.load()
-        return list(self._get_track_refs(playlist.tracks))
+        sp_playlist = self._backend._session.get_playlist(uri)
+        sp_playlist.load()
+        return list(translator.to_track_refs(sp_playlist.tracks))
 
     def _browse_album(self, uri):
-        album_browser = self._backend._session.get_album(uri).browse()
-        album_browser.load()
-        return list(self._get_track_refs(album_browser.tracks))
+        sp_album_browser = self._backend._session.get_album(uri).browse()
+        sp_album_browser.load()
+        return list(translator.to_track_refs(sp_album_browser.tracks))
 
     def _browse_artist(self, uri):
-        artist_browser = self._backend._session.get_artist(uri).browse(
+        sp_artist_browser = self._backend._session.get_artist(uri).browse(
             type=spotify.ArtistBrowserType.NO_TRACKS)
-        artist_browser.load()
-        top_tracks = list(self._get_track_refs(artist_browser.tophit_tracks))
-        albums = list(self._get_album_refs(artist_browser.albums))
+        sp_artist_browser.load()
+        top_tracks = list(translator.to_track_refs(
+            sp_artist_browser.tophit_tracks))
+        albums = list(translator.to_album_refs(sp_artist_browser.albums))
         return top_tracks + albums
 
     def _browse_toplist_regions(self, variant):
@@ -111,46 +112,25 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 for code in codes]
 
         if region in ('user', 'country', 'everywhere'):
-            toplist = self._backend._session.get_toplist(
+            sp_toplist = self._backend._session.get_toplist(
                 type=TOPLIST_TYPES[variant],
                 region=TOPLIST_REGIONS[region](self._backend._session))
         elif len(region) == 2:
-            toplist = self._backend._session.get_toplist(
+            sp_toplist = self._backend._session.get_toplist(
                 type=TOPLIST_TYPES[variant], region=region.upper())
         else:
             return []
 
-        toplist.load()
+        sp_toplist.load()
 
         if variant == 'tracks':
-            return list(self._get_track_refs(toplist.tracks))
+            return list(translator.to_track_refs(sp_toplist.tracks))
         elif variant == 'albums':
-            return list(self._get_album_refs(toplist.albums))
+            return list(translator.to_album_refs(sp_toplist.albums))
         elif variant == 'artists':
-            return list(self._get_artist_refs(toplist.artists))
+            return list(translator.to_artist_refs(sp_toplist.artists))
         else:
             return []
-
-    def _get_track_refs(self, tracks):
-        for sp_track in tracks:
-            sp_track.load()
-            track = translator.to_track_ref(sp_track)
-            if track is not None:
-                yield track
-
-    def _get_album_refs(self, albums):
-        for sp_album in albums:
-            sp_album.load()
-            album = translator.to_album_ref(sp_album)
-            if album is not None:
-                yield album
-
-    def _get_artist_refs(self, artists):
-        for sp_artist in artists:
-            sp_artist.load()
-            artist = translator.to_artist_ref(sp_artist)
-            if artist is not None:
-                yield artist
 
     def lookup(self, uri):
         try:

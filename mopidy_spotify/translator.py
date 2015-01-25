@@ -45,6 +45,14 @@ def to_artist_ref(sp_artist):
     return models.Ref.artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
+def to_artist_refs(sp_artists):
+    for sp_artist in sp_artists:
+        sp_artist.load()
+        ref = to_artist_ref(sp_artist)
+        if ref is not None:
+            yield ref
+
+
 @memoized
 def to_album(sp_album):
     if not sp_album.is_loaded:
@@ -78,6 +86,14 @@ def to_album_ref(sp_album):
         name = '%s - %s' % (sp_album.artist.name, sp_album.name)
 
     return models.Ref.album(uri=sp_album.link.uri, name=name)
+
+
+def to_album_refs(sp_albums):
+    for sp_album in sp_albums:
+        sp_album.load()
+        ref = to_album_ref(sp_album)
+        if ref is not None:
+            yield ref
 
 
 @memoized
@@ -120,6 +136,14 @@ def to_track_ref(sp_track):
         return  # TODO Return placeholder "[unavailable]" track?
 
     return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
+
+
+def to_track_refs(sp_tracks):
+    for sp_track in sp_tracks:
+        sp_track.load()
+        ref = to_track_ref(sp_track)
+        if ref is not None:
+            yield ref
 
 
 def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
