@@ -207,6 +207,20 @@ def test_browse_other_country_top_tracks(
         uri='spotify:track:abc', name='ABC 123')
 
 
+def test_browse_unknown_country_top_tracks(
+        session_mock, sp_track_mock, provider):
+    session_mock.get_toplist.return_value.tracks = [
+        sp_track_mock, sp_track_mock]
+
+    results = provider.browse('spotify:top:tracks:aa')
+
+    session_mock.get_toplist.assert_called_once_with(
+        type=spotify.ToplistType.TRACKS, region='AA')
+    assert len(results) == 2
+    assert results[0] == models.Ref.track(
+        uri='spotify:track:abc', name='ABC 123')
+
+
 def test_browse_personal_top_albums(session_mock, sp_album_mock, provider):
     session_mock.get_toplist.return_value.albums = [
         sp_album_mock, sp_album_mock]

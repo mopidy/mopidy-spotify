@@ -113,7 +113,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             toplist = self._backend._session.get_toplist(
                 type=TOPLIST_TYPES[type],
                 region=TOPLIST_REGIONS[region](self._backend._session))
-        elif region.upper() in countries.COUNTRIES.keys():
+        elif len(region) == 2:
             toplist = self._backend._session.get_toplist(
                 type=TOPLIST_TYPES[type], region=region.upper())
         else:
