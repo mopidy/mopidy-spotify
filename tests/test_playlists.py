@@ -146,6 +146,14 @@ def test_lookup_of_playlist_with_other_owner(
     assert playlist.name == 'Foo (by bob)'
 
 
+def test_playlists_when_not_logged_in(
+        session_mock, provider):
+    session_mock.get_starred.return_value = None
+    session_mock.playlist_container = None
+
+    assert len(provider.playlists) == 0
+
+
 def test_playlists_when_playlist_container_isnt_loaded(
         session_mock, provider):
     session_mock.playlist_container = None

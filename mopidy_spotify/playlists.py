@@ -67,11 +67,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         username = self._backend._session.user_name
 
         sp_starred = self._backend._session.get_starred()
-        sp_starred.load()
-        starred = translator.to_playlist(
-            sp_starred, username=username, bitrate=self._backend._bitrate)
-        if starred is not None:
-            result.append(starred)
+        if sp_starred is not None:
+            sp_starred.load()
+            starred = translator.to_playlist(
+                sp_starred, username=username, bitrate=self._backend._bitrate)
+            if starred is not None:
+                result.append(starred)
 
         if self._backend._session.playlist_container is None:
             return result
