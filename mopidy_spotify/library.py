@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import logging
+import time
 import urllib
 
 from mopidy import backend, models
@@ -176,6 +177,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 yield track
 
     def _lookup_artist(self, sp_link):
+        start = time.time()
+
         sp_artist = sp_link.as_artist()
         sp_artist_browser = sp_artist.browse(
             type=spotify.ArtistBrowserType.NO_TRACKS)
@@ -192,6 +195,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                     sp_track, bitrate=self._backend._bitrate)
                 if track is not None:
                     yield track
+
+        logger.debug('Artists looked up in %.3fs', time.time() - start)
 
     def _lookup_playlist(self, sp_link):
         sp_playlist = sp_link.as_playlist()
