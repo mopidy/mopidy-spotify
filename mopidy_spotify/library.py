@@ -178,20 +178,13 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def _lookup_artist(self, sp_link):
         sp_artist = sp_link.as_artist()
         sp_artist_browser = sp_artist.browse(
-            type=spotify.ArtistBrowserType.NO_TRACKS)
+            type=spotify.ArtistBrowserType.FULL)
         sp_artist_browser.load()
-        for sp_album in sp_artist_browser.albums:
-            sp_album_browser = sp_album.browse()
-            sp_album_browser.load()
-            if sp_album.type is spotify.AlbumType.COMPILATION:
-                continue
-            if sp_album.artist.link.uri in VARIOUS_ARTISTS_URIS:
-                continue
-            for sp_track in sp_album_browser.tracks:
-                track = translator.to_track(
-                    sp_track, bitrate=self._backend._bitrate)
-                if track is not None:
-                    yield track
+        for sp_track in sp_artist_browser.tracks:
+            track = translator.to_track(
+                sp_track, bitrate=self._backend._bitrate)
+            if track is not None:
+                yield track
 
     def _lookup_playlist(self, sp_link):
         sp_playlist = sp_link.as_playlist()
