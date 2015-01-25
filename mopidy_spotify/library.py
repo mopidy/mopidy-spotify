@@ -87,24 +87,22 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         return top_tracks + albums
 
     def _browse_toplist_regions(self, type):
-        result = [
+        return [
             models.Ref.directory(
                 uri='spotify:top:%s:user' % type, name='Personal'),
             models.Ref.directory(
                 uri='spotify:top:%s:country' % type, name='Country'),
             models.Ref.directory(
+                uri='spotify:top:%s:countries' % type, name='Other countries'),
+            models.Ref.directory(
                 uri='spotify:top:%s:everywhere' % type, name='Global'),
         ]
-
-        if self._backend._config['spotify']['toplist_countries']:
-            result.append(models.Ref.directory(
-                uri='spotify:top:%s:countries' % type, name='Other countries'))
-
-        return result
 
     def _browse_toplist(self, type, region):
         if region == 'countries':
             codes = self._backend._config['spotify']['toplist_countries']
+            if not codes:
+                codes = countries.COUNTRIES.keys()
             return [
                 models.Ref.directory(
                     uri='spotify:top:%s:%s' % (type, code.lower()),

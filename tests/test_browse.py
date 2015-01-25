@@ -116,17 +116,6 @@ def test_browse_top_artists(provider):
         uri='spotify:top:artists:countries', name='Other countries') in results
 
 
-def test_browse_top_tracks_has_no_countries_when_configured_off(
-        backend_mock):
-    backend_mock._config['spotify']['toplist_countries'] = []
-
-    results = conftest.provider(backend_mock).browse('spotify:top:tracks')
-
-    assert models.Ref.directory(
-        uri='spotify:top:tracks:countries',
-        name='Other countries') not in results
-
-
 def test_browse_top_tracks_with_too_many_uri_parts(provider):
     results = provider.browse('spotify:top:tracks:foo:bar')
 
@@ -174,7 +163,7 @@ def test_browse_global_top_tracks(session_mock, sp_track_mock, provider):
         uri='spotify:track:abc', name='ABC 123')
 
 
-def test_browse_top_track_countries_list(
+def test_browse_top_track_countries_list_limited_by_config(
         session_mock, sp_track_mock, provider):
     session_mock.get_toplist.return_value.tracks = [
         sp_track_mock, sp_track_mock]
@@ -182,6 +171,22 @@ def test_browse_top_track_countries_list(
     results = provider.browse('spotify:top:tracks:countries')
 
     assert len(results) == 2
+    assert models.Ref.directory(
+        uri='spotify:top:tracks:gb', name='United Kingdom') in results
+    assert models.Ref.directory(
+        uri='spotify:top:tracks:us', name='United States') in results
+
+
+def test_browse_top_tracks_countries_unlimited_by_config(
+        backend_mock):
+    backend_mock._config['spotify']['toplist_countries'] = []
+    provider = conftest.provider(backend_mock)
+
+    results = provider.browse('spotify:top:tracks:countries')
+
+    assert len(results) > 50
+    assert models.Ref.directory(
+        uri='spotify:top:tracks:no', name='Norway') in results
     assert models.Ref.directory(
         uri='spotify:top:tracks:gb', name='United Kingdom') in results
     assert models.Ref.directory(

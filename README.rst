@@ -122,9 +122,9 @@ The following configuration values are available:
 - ``spotify/search_track_count``: Maximum number of tracks returned in search
   results. Number between 0 and 200. Defaults to 50.
 
-- ``spotify/toplist_countries``: Comma separated list of two letter country
-  domains to get toplists for. Defaults to a long list of countries which
-  Spotify is available in.
+- ``spotify/toplist_countries``: Comma separated list of two letter ISO country
+  codes to get toplists for. Defaults to blank, which is interpreted as all
+  countries that Spotify is available in.
 
 - ``spotify/private_session``: Whether to use a private Spotify session. Turn
   on private session to disable sharing of played tracks with friends through
@@ -169,6 +169,9 @@ v2.0.0 (UNRELEASED)
   ``spotify/search_track_count``.
 
 - Add ``spotify/private_session`` config.
+
+- Change ``spotify/toplist_countries`` default value to blank, which is now
+  interpreted as all supported countries instead of no countries.
 
 **Browse**
 
