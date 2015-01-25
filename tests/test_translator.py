@@ -260,12 +260,17 @@ class TestToPlaylist(object):
         assert track in playlist.tracks
         assert playlist.last_modified is None
 
-    def test_adds_name_for_starred_playlists(self, sp_playlist_mock):
-        sp_playlist_mock.name = None
-
-        playlist = translator.to_playlist(sp_playlist_mock)
+    def test_adds_name_for_starred_playlists(self, sp_starred_mock):
+        playlist = translator.to_playlist(sp_starred_mock)
 
         assert playlist.name == 'Starred'
+
+    def test_reorders_starred_playlists(self, sp_starred_mock):
+        playlist = translator.to_playlist(sp_starred_mock)
+
+        assert len(playlist.tracks) == 2
+        assert playlist.tracks[0].name == 'Newest'
+        assert playlist.tracks[1].name == 'Oldest'
 
     def test_includes_by_owner_in_name_if_owned_by_another_user(
             self, sp_playlist_mock, sp_user_mock):

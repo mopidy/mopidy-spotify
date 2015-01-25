@@ -153,19 +153,19 @@ def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
     if not sp_playlist.is_loaded:
         return  # TODO Return placeholder "[loading]" playlist?
 
-    name = sp_playlist.name
-    if name is None:
-        name = 'Starred'
-        # TODO Reverse order of tracks in starred playlists?
-    if folders is not None:
-        name = '/'.join(folders + [name])
-    if username is not None and sp_playlist.owner.canonical_name != username:
-        name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
-
     tracks = [
         to_track(sp_track, bitrate=bitrate)
         for sp_track in sp_playlist.tracks]
     tracks = filter(None, tracks)
+
+    name = sp_playlist.name
+    if name is None:
+        name = 'Starred'
+        tracks = reversed(tracks)  # Use same order as the Spotify client
+    if folders is not None:
+        name = '/'.join(folders + [name])
+    if username is not None and sp_playlist.owner.canonical_name != username:
+        name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
 
     return models.Playlist(
         uri=sp_playlist.link.uri,
