@@ -29,6 +29,27 @@ def test_uri_schemes(spotify_mock, config):
     assert 'spotify' in backend.uri_schemes
 
 
+def test_init_sets_up_the_providers(spotify_mock, config):
+    backend = get_backend(config)
+
+    assert isinstance(backend.library, library.SpotifyLibraryProvider)
+    assert isinstance(backend.library, backend_api.LibraryProvider)
+
+    assert isinstance(backend.playback, playback.SpotifyPlaybackProvider)
+    assert isinstance(backend.playback, backend_api.PlaybackProvider)
+
+    assert isinstance(backend.playlists, playlists.SpotifyPlaylistsProvider)
+    assert isinstance(backend.playlists, backend_api.PlaylistsProvider)
+
+
+def test_init_disables_playlists_provider_if_not_allowed(spotify_mock, config):
+    config['spotify']['allow_playlists'] = False
+
+    backend = get_backend(config)
+
+    assert backend.playlists is None
+
+
 def test_on_start_creates_configured_session(spotify_mock, config):
     cache_location_mock = mock.PropertyMock()
     settings_location_mock = mock.PropertyMock()
@@ -106,27 +127,6 @@ def test_on_start_adds_play_token_lost_handler_to_session(
         spotify_mock.SessionEvent.PLAY_TOKEN_LOST,
         backend.on_play_token_lost, obj.actor_ref)
         in session.on.call_args_list)
-
-
-def test_init_sets_up_the_providers(spotify_mock, config):
-    backend = get_backend(config)
-
-    assert isinstance(backend.library, library.SpotifyLibraryProvider)
-    assert isinstance(backend.library, backend_api.LibraryProvider)
-
-    assert isinstance(backend.playback, playback.SpotifyPlaybackProvider)
-    assert isinstance(backend.playback, backend_api.PlaybackProvider)
-
-    assert isinstance(backend.playlists, playlists.SpotifyPlaylistsProvider)
-    assert isinstance(backend.playlists, backend_api.PlaylistsProvider)
-
-
-def test_init_disables_playlists_provider_if_not_allowed(spotify_mock, config):
-    config['spotify']['allow_playlists'] = False
-
-    backend = get_backend(config)
-
-    assert backend.playlists is None
 
 
 def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
@@ -229,7 +229,7 @@ def test_on_connection_state_changed_when_offline(spotify_mock, caplog):
     assert not online_event.is_set()
 
 
-def test_private_session_is_activated_on_logged_in_event(
+def test_on_logged_in_event_activates_private_session(
         spotify_mock, config, caplog):
     session_mock = spotify_mock.Session.return_value
     private_session_mock = mock.PropertyMock()
