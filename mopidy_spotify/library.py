@@ -183,13 +183,16 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         sp_artist_browser = sp_artist.browse(
             type=spotify.ArtistBrowserType.NO_TRACKS)
         sp_artist_browser.load()
+
         for sp_album in sp_artist_browser.albums:
-            sp_album_browser = sp_album.browse()
-            sp_album_browser.load()
+            sp_album.load()
             if sp_album.type is spotify.AlbumType.COMPILATION:
                 continue
             if sp_album.artist.link.uri in VARIOUS_ARTISTS_URIS:
                 continue
+
+            sp_album_browser = sp_album.browse()
+            sp_album_browser.load()
             for sp_track in sp_album_browser.tracks:
                 track = translator.to_track(
                     sp_track, bitrate=self._backend._bitrate)
