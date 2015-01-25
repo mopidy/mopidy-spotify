@@ -58,16 +58,24 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # XXX We should just return light-weight Ref objects here, but Mopidy's
         # core and backend APIs must be changed first.
 
-        if self._backend._session is None:
-            return []
-
-        if self._backend._session.playlist_container is None:
-            return []
-
         start = time.time()
+        result = []
+
+        if self._backend._session is None:
+            return result
 
         username = self._backend._session.user_name
-        result = []
+
+        sp_starred = self._backend._session.get_starred()
+        sp_starred.load()
+        starred = translator.to_playlist(
+            sp_starred, username=username, bitrate=self._backend._bitrate)
+        if starred is not None:
+            result.append(starred)
+
+        if self._backend._session.playlist_container is None:
+            return result
+
         folders = []
 
         for sp_playlist in self._backend._session.playlist_container:
@@ -83,8 +91,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 bitrate=self._backend._bitrate)
             if playlist is not None:
                 result.append(playlist)
-
-        # TODO Add starred playlist
 
         logger.debug('Playlists fetched in %.3fs', time.time() - start)
         return result

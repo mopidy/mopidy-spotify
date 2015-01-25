@@ -124,6 +124,25 @@ def sp_track_mock(sp_artist_mock, sp_album_mock):
 
 
 @pytest.fixture
+def sp_starred_mock(sp_user_mock, sp_artist_mock, sp_album_mock):
+    sp_track_mock1 = sp_track_mock(sp_artist_mock, sp_album_mock)
+    sp_track_mock1.link.uri = 'spotify:track:oldest'
+    sp_track_mock1.name = 'Oldest'
+
+    sp_track_mock2 = sp_track_mock(sp_artist_mock, sp_album_mock)
+    sp_track_mock2.link.uri = 'spotify:track:newest'
+    sp_track_mock2.name = 'Newest'
+
+    sp_starred_mock = mock.Mock(spec=spotify.Playlist)
+    sp_starred_mock.is_loaded = True
+    sp_starred_mock.owner = sp_user_mock
+    sp_starred_mock.link.uri = 'spotify:user:alice:starred'
+    sp_starred_mock.name = None
+    sp_starred_mock.tracks = [sp_track_mock1, sp_track_mock2]
+    return sp_starred_mock
+
+
+@pytest.fixture
 def sp_playlist_mock(sp_user_mock, sp_track_mock):
     sp_playlist = mock.Mock(spec=spotify.Playlist)
     sp_playlist.is_loaded = True

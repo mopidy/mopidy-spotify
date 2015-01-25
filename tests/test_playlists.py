@@ -12,7 +12,7 @@ from mopidy_spotify import backend, playlists
 
 
 @pytest.fixture
-def session_mock(sp_playlist_mock, sp_user_mock):
+def session_mock(sp_playlist_mock, sp_user_mock, sp_starred_mock):
     sp_playlist_folder_start_mock = mock.Mock(spec=spotify.PlaylistFolder)
     sp_playlist_folder_start_mock.type = spotify.PlaylistType.START_FOLDER
     sp_playlist_folder_start_mock.name = 'Bar'
@@ -36,6 +36,7 @@ def session_mock(sp_playlist_mock, sp_user_mock):
     sp_session_mock = mock.Mock(spec=spotify.Session)
     sp_session_mock.user = sp_user_mock
     sp_session_mock.user_name = 'alice'
+    sp_session_mock.get_starred.return_value = sp_starred_mock
     sp_session_mock.playlist_container = [
         sp_playlist_mock,
         sp_playlist_folder_start_mock,
@@ -145,19 +146,28 @@ def test_lookup_of_playlist_with_other_owner(
     assert playlist.name == 'Foo (by bob)'
 
 
-def test_playlists_when_playlist_container_isnt_loaded(session_mock, provider):
+def test_playlists_when_playlist_container_isnt_loaded(
+        session_mock, provider):
     session_mock.playlist_container = None
 
-    assert provider.playlists == []
+    assert len(provider.playlists) == 1
+
+    assert provider.playlists[0].name == 'Starred'
+    assert provider.playlists[0].uri == 'spotify:user:alice:starred'
+    assert len(provider.playlists[0].tracks) == 2
 
 
 def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
-    assert len(provider.playlists) == 2
+    assert len(provider.playlists) == 3
 
-    assert provider.playlists[0].name == 'Foo'
-    assert provider.playlists[0].uri == 'spotify:user:alice:playlist:foo'
-    assert len(provider.playlists[0].tracks) == 1
+    assert provider.playlists[0].name == 'Starred'
+    assert provider.playlists[0].uri == 'spotify:user:alice:starred'
+    assert len(provider.playlists[0].tracks) == 2
 
-    assert provider.playlists[1].name == 'Bar/Baz (by bob)'
-    assert provider.playlists[1].uri == 'spotify:playlist:bob:baz'
-    assert len(provider.playlists[1].tracks) == 0
+    assert provider.playlists[1].name == 'Foo'
+    assert provider.playlists[1].uri == 'spotify:user:alice:playlist:foo'
+    assert len(provider.playlists[1].tracks) == 1
+
+    assert provider.playlists[2].name == 'Bar/Baz (by bob)'
+    assert provider.playlists[2].uri == 'spotify:playlist:bob:baz'
+    assert len(provider.playlists[2].tracks) == 0
