@@ -175,6 +175,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                     uri, sp_link.type)
                 return []
         except RuntimeError as exc:
+            # TODO Raise more specific exception from pyspotify
             logger.info('Failed to lookup "%s": %s', uri, exc)
             return []
 
