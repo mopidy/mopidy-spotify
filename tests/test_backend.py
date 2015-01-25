@@ -6,8 +6,6 @@ import mock
 
 from mopidy import backend as backend_api
 
-import pykka
-
 import spotify
 
 from mopidy_spotify import backend, library, playback, playlists
