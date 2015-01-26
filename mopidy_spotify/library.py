@@ -149,6 +149,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 return list(self._lookup_artist(sp_link))
             elif sp_link.type is spotify.LinkType.PLAYLIST:
                 return list(self._lookup_playlist(sp_link))
+            elif sp_link.type is spotify.LinkType.STARRED:
+                return list(reversed(list(self._lookup_playlist(sp_link))))
             else:
                 logger.info(
                     'Failed to lookup "%s": Cannot handle %r',
