@@ -102,7 +102,9 @@ def to_track(sp_track, bitrate=None):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        return  # TODO Return placeholder "[error]" track?
+        logger.warning(
+            'Error loading %s: %r', sp_track.link.uri, sp_track.error)
+        return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
         return
@@ -130,7 +132,9 @@ def to_track_ref(sp_track):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        return  # TODO Return placeholder "[error]" track?
+        logger.warning(
+            'Error loading %s: %r', sp_track.link.uri, sp_track.error)
+        return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
         return

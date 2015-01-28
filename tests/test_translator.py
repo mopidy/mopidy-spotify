@@ -149,12 +149,15 @@ class TestToTrack(object):
 
         assert track is None
 
-    def test_returns_none_if_error(self, sp_track_mock):
+    def test_returns_none_if_error(self, sp_track_mock, caplog):
         sp_track_mock.error = spotify.ErrorType.OTHER_PERMANENT
 
         track = translator.to_track(sp_track_mock)
 
         assert track is None
+        assert (
+            'Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>'
+            in caplog.text())
 
     def test_returns_none_if_not_available(self, sp_track_mock):
         sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
@@ -205,12 +208,15 @@ class TestToTrackRef(object):
 
         assert ref is None
 
-    def test_returns_none_if_error(self, sp_track_mock):
+    def test_returns_none_if_error(self, sp_track_mock, caplog):
         sp_track_mock.error = spotify.ErrorType.OTHER_PERMANENT
 
         ref = translator.to_track_ref(sp_track_mock)
 
         assert ref is None
+        assert (
+            'Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>'
+            in caplog.text())
 
     def test_returns_none_if_not_available(self, sp_track_mock):
         sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
