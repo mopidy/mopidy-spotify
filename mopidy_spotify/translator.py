@@ -32,7 +32,7 @@ class memoized(object):
 @memoized
 def to_artist(sp_artist):
     if not sp_artist.is_loaded:
-        return  # TODO Return placeholder "[loading]" artist?
+        return
 
     return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
@@ -40,7 +40,7 @@ def to_artist(sp_artist):
 @memoized
 def to_artist_ref(sp_artist):
     if not sp_artist.is_loaded:
-        return  # TODO Return placeholder "[loading]" artist?
+        return
 
     return models.Ref.artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
@@ -56,7 +56,7 @@ def to_artist_refs(sp_artists):
 @memoized
 def to_album(sp_album):
     if not sp_album.is_loaded:
-        return  # TODO Return placeholder "[loading]" album?
+        return
 
     if sp_album.artist is not None:
         artists = [to_artist(sp_album.artist)]
@@ -78,7 +78,7 @@ def to_album(sp_album):
 @memoized
 def to_album_ref(sp_album):
     if not sp_album.is_loaded:
-        return  # TODO Return placeholder "[loading]" album?
+        return
 
     if sp_album.artist is None or not sp_album.artist.is_loaded:
         name = sp_album.name
@@ -99,13 +99,13 @@ def to_album_refs(sp_albums):
 @memoized
 def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
-        return  # TODO Return placeholder "[loading]" track?
+        return
 
     if sp_track.error != spotify.ErrorType.OK:
         return  # TODO Return placeholder "[error]" track?
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
-        return  # TODO Return placeholder "[unavailable]" track?
+        return
 
     artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
     artists = filter(None, artists)
@@ -127,13 +127,13 @@ def to_track(sp_track, bitrate=None):
 @memoized
 def to_track_ref(sp_track):
     if not sp_track.is_loaded:
-        return  # TODO Return placeholder "[loading]" track?
+        return
 
     if sp_track.error != spotify.ErrorType.OK:
         return  # TODO Return placeholder "[error]" track?
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
-        return  # TODO Return placeholder "[unavailable]" track?
+        return
 
     return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
 
@@ -151,7 +151,7 @@ def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
         return
 
     if not sp_playlist.is_loaded:
-        return  # TODO Return placeholder "[loading]" playlist?
+        return
 
     tracks = [
         to_track(sp_track, bitrate=bitrate)
