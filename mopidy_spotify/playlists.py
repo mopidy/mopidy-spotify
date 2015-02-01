@@ -98,14 +98,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             bitrate=self._backend._bitrate)
 
         if starred is not None:
+            self.offlineCheck(sp_starred, starred)
             yield starred
-
+                          
     def _get_flattened_playlists(self):
-        config = self._backend._config
-        offlineplaylists = config['spotify']['offline_playlists']
         if self._backend._session is None:
             return
-
+        
         if self._backend._session.playlist_container is None:
             return
 
@@ -125,33 +124,43 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 bitrate=self._backend._bitrate)
             if playlist is not None:
                 yield playlist
-
-                logger.info("loaded playlist:%s offline status=%s tracks:%d",
-                            playlist.name,
-                            sp_playlist.offline_status,
-                            len(sp_playlist.tracks))
-
-                offline = False
-                for pl in offlineplaylists:
-                    p = re.compile(pl)
-                    if p.match(sp_playlist.name):
-                        offline = True
-                offlineStatus = sp_playlist.offline_status
-                if offline and \
-                        offlineStatus == spotify.PlaylistOfflineStatus.NO:
-                    logger.info("Offline playlist:%s,%s",
-                                sp_playlist.name,
-                                sp_playlist.offline_status)
-                    sp_playlist.set_offline_mode(offline=True)
-                if not offline and \
-                        offlineStatus != spotify.PlaylistOfflineStatus.NO:
-                    logger.info("Online playlist:%s,%s",
-                                sp_playlist.name,
-                                sp_playlist.offline_status)
-                    sp_playlist.set_offline_mode(offline=False)
-
+                self.offlineCheck(sp_playlist, playlist)
+                
         info = self._backend._session.offline.tracks_to_sync
         logger.info("Offline tracks to sync: %s", info)
+        logger.debug('Playlists fetched in %.3fs', time.time() - start)
+        return result
+
+    def offlineCheck(self, sp_playlist, playlist):
+        if sp_playlist is None:
+            return
+        config = self._backend._config
+        offlineplaylists = config['spotify']['offline_playlists']
+
+        logger.info("loaded playlist:%s offline status=%s tracks:%d",
+                playlist.name,
+                sp_playlist.offline_status,
+                len(sp_playlist.tracks))
+
+        offline = False
+        for pl in offlineplaylists:
+            p = re.compile(pl)
+            if p.match(playlist.name):
+                offline = True
+        offlineStatus = sp_playlist.offline_status
+        if offline and \
+                offlineStatus == spotify.PlaylistOfflineStatus.NO:
+            logger.info("Offline playlist:%s,%s",
+                        playlist.name,
+                        sp_playlist.offline_status)
+            sp_playlist.set_offline_mode(offline=True)
+        if not offline and \
+                offlineStatus != spotify.PlaylistOfflineStatus.NO:
+            logger.info("Online playlist:%s,%s",
+                        playlist.name,
+                        sp_playlist.offline_status)
+            sp_playlist.set_offline_mode(offline=False)
+
     def refresh(self):
         pass  # Not needed as long as we don't cache anything.
 
