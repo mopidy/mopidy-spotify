@@ -1,14 +1,13 @@
 from __future__ import unicode_literals
 
 import logging
-import time
 import urllib
 
 from mopidy import backend, models
 
 import spotify
 
-from mopidy_spotify import countries, translator
+from mopidy_spotify import countries, translator, utils
 
 
 logger = logging.getLogger(__name__)
@@ -146,7 +145,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             elif sp_link.type is spotify.LinkType.ALBUM:
                 return list(self._lookup_album(sp_link))
             elif sp_link.type is spotify.LinkType.ARTIST:
-                return list(self._lookup_artist(sp_link))
+                with utils.time_logger('Artist lookup'):
+                    return list(self._lookup_artist(sp_link))
             elif sp_link.type is spotify.LinkType.PLAYLIST:
                 return list(self._lookup_playlist(sp_link))
             elif sp_link.type is spotify.LinkType.STARRED:
@@ -178,8 +178,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 yield track
 
     def _lookup_artist(self, sp_link):
-        start = time.time()
-
         sp_artist = sp_link.as_artist()
         sp_artist_browser = sp_artist.browse(
             type=spotify.ArtistBrowserType.NO_TRACKS)
@@ -203,8 +201,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                     sp_track, bitrate=self._backend._bitrate)
                 if track is not None:
                     yield track
-
-        logger.debug('Artists looked up in %.3fs', time.time() - start)
 
     def _lookup_playlist(self, sp_link):
         sp_playlist = sp_link.as_playlist()

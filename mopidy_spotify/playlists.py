@@ -1,13 +1,12 @@
 from __future__ import unicode_literals
 
 import logging
-import time
 
 from mopidy import backend
 
 import spotify
 
-from mopidy_spotify import translator
+from mopidy_spotify import translator, utils
 
 
 logger = logging.getLogger(__name__)
@@ -58,12 +57,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # XXX We should just return light-weight Ref objects here, but Mopidy's
         # core and backend APIs must be changed first.
 
-        start = time.time()
-        result = (
-            list(self._get_starred_playlist()) +
-            list(self._get_flattened_playlists()))
-        logger.debug('Playlists fetched in %.3fs', time.time() - start)
-        return result
+        with utils.time_logger('Playlist fetch'):
+            return (
+                list(self._get_starred_playlist()) +
+                list(self._get_flattened_playlists()))
 
     def _get_starred_playlist(self):
         if self._backend._session is None:
