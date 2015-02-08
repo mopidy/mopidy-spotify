@@ -59,24 +59,38 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # core and backend APIs must be changed first.
 
         start = time.time()
-        result = []
+        result = (
+            list(self._get_starred_playlist()) +
+            list(self._get_flattened_playlists()))
+        logger.debug('Playlists fetched in %.3fs', time.time() - start)
+        return result
 
+    def _get_starred_playlist(self):
         if self._backend._session is None:
-            return result
-
-        username = self._backend._session.user_name
+            return
 
         sp_starred = self._backend._session.get_starred()
-        if sp_starred is not None:
-            sp_starred.load()
-            starred = translator.to_playlist(
-                sp_starred, username=username, bitrate=self._backend._bitrate)
-            if starred is not None:
-                result.append(starred)
+        if sp_starred is None:
+            return
+
+        sp_starred.load()
+
+        starred = translator.to_playlist(
+            sp_starred,
+            username=self._backend._session.user_name,
+            bitrate=self._backend._bitrate)
+
+        if starred is not None:
+            yield starred
+
+    def _get_flattened_playlists(self):
+        if self._backend._session is None:
+            return
 
         if self._backend._session.playlist_container is None:
-            return result
+            return
 
+        username = self._backend._session.user_name
         folders = []
 
         for sp_playlist in self._backend._session.playlist_container:
@@ -91,10 +105,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 sp_playlist, folders=folders, username=username,
                 bitrate=self._backend._bitrate)
             if playlist is not None:
-                result.append(playlist)
-
-        logger.debug('Playlists fetched in %.3fs', time.time() - start)
-        return result
+                yield playlist
 
     def refresh(self):
         pass  # Not needed as long as we don't cache anything.
