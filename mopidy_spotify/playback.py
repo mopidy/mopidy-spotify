@@ -56,9 +56,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         enough_data_callback_bound = functools.partial(
             enough_data_callback, self._push_audio_data_event)
 
-        spotify_backend = self.backend.actor_ref.proxy()
         seek_data_callback_bound = functools.partial(
-            seek_data_callback, spotify_backend)
+            seek_data_callback, self.backend._actor_proxy)
 
         self._first_seek = True
 

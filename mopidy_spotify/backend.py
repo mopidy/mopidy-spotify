@@ -49,6 +49,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self.uri_schemes = ['spotify']
 
     def on_start(self):
+        self._actor_proxy = self.actor_ref.proxy()
         self._session = self._get_session(self._config)
 
         self._event_loop = spotify.EventLoop(self._session)
@@ -74,7 +75,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         session.volume_normalization = (
             config['spotify']['volume_normalization'])
 
-        backend_actor_proxy = self.actor_ref.proxy()
+        backend_actor_proxy = self._actor_proxy
         session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             on_connection_state_changed,
