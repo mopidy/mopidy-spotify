@@ -36,6 +36,7 @@ def session_mock():
 def backend_mock(config, session_mock):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
+    backend_mock._actor_proxy = None
     backend_mock._session = session_mock
     return backend_mock
 

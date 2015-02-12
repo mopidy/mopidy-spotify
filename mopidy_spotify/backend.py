@@ -35,6 +35,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         self._config = config
         self._audio = audio
+        self._actor_proxy = None
         self._session = None
         self._event_loop = None
         self._bitrate = None
