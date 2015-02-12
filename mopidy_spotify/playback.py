@@ -18,6 +18,9 @@ LIBSPOTIFY_GST_CAPS = (
     'width=(int)16, depth=(int)16, signed=(boolean)true, '
     'rate=(int)44100')
 
+# Extra log level with lower importance than DEBUG=10 for noisy debug logging
+TRACE_LOG_LEVEL = 5
+
 
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
@@ -103,7 +106,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
 def need_data_callback(push_audio_data_event, length_hint):
     # This callback is called from GStreamer/the GObject event loop.
-    logger.debug(
+    logger.log(
+        TRACE_LOG_LEVEL,
         'Audio asked for more data (hint=%d); accepting deliveries',
         length_hint)
     push_audio_data_event.set()
@@ -111,7 +115,8 @@ def need_data_callback(push_audio_data_event, length_hint):
 
 def enough_data_callback(push_audio_data_event):
     # This callback is called from GStreamer/the GObject event loop.
-    logger.debug('Audio says it has enough data; rejecting deliveries')
+    logger.log(
+        TRACE_LOG_LEVEL, 'Audio says it has enough data; rejecting deliveries')
     push_audio_data_event.clear()
 
 
