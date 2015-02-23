@@ -123,13 +123,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 sp_playlist, folders=folders, username=username,
                 bitrate=self._backend._bitrate)
             if playlist is not None:
-                yield playlist
                 self.offlineCheck(sp_playlist, playlist)
-                
-        info = self._backend._session.offline.tracks_to_sync
-        logger.info("Offline tracks to sync: %s", info)
-        logger.debug('Playlists fetched in %.3fs', time.time() - start)
-        return result
+                yield playlist                       
 
     def offlineCheck(self, sp_playlist, playlist):
         if sp_playlist is None:
