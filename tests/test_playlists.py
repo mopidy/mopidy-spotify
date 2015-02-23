@@ -49,10 +49,11 @@ def session_mock(sp_playlist_mock, sp_user_mock, sp_starred_mock):
 
 
 @pytest.fixture
-def backend_mock(session_mock):
+def backend_mock(session_mock, config):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._session = session_mock
     backend_mock._bitrate = 160
+    backend_mock._config = config
     return backend_mock
 
 

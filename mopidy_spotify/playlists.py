@@ -17,6 +17,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def __init__(self, backend):
         self._backend = backend
+        config = self._backend._config
+        self.offlineplaylists = config['spotify']['offline_playlists']
 
         # TODO Listen to playlist events
 
@@ -129,19 +131,18 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def offlineCheck(self, sp_playlist, playlist):
         if sp_playlist is None:
             return
-        config = self._backend._config
-        offlineplaylists = config['spotify']['offline_playlists']
-
+        
         logger.info("loaded playlist:%s offline status=%s tracks:%d",
                 playlist.name,
                 sp_playlist.offline_status,
                 len(sp_playlist.tracks))
 
         offline = False
-        for pl in offlineplaylists:
+        for pl in self.offlineplaylists:
             p = re.compile(pl)
             if p.match(playlist.name):
                 offline = True
+                break
         offlineStatus = sp_playlist.offline_status
         if offline and \
                 offlineStatus == spotify.PlaylistOfflineStatus.NO:
