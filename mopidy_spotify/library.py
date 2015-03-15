@@ -84,6 +84,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         sp_artist_browser.load()
         top_tracks = list(translator.to_track_refs(
             sp_artist_browser.tophit_tracks))
+
         albums = list(translator.to_album_refs(sp_artist_browser.albums))
         return top_tracks + albums
 
@@ -242,11 +243,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         sp_search.load()
 
         albums = [
-            translator.to_album(sp_album) for sp_album in sp_search.albums]
+            translator.to_album(sp_album, sp_album.cover(spotify.ImageSize.NORMAL).load()) for sp_album in sp_search.albums]
         artists = [
             translator.to_artist(sp_artist) for sp_artist in sp_search.artists]
         tracks = [
-            translator.to_track(sp_track) for sp_track in sp_search.tracks]
+            translator.to_track(sp_track, None, sp_track.album.cover(spotify.ImageSize.NORMAL).load()) for sp_track in sp_search.tracks]
 
         return models.SearchResult(
             uri=uri, albums=albums, artists=artists, tracks=tracks)
