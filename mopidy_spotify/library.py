@@ -242,12 +242,23 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             track_count=spotify_config['search_track_count'])
         sp_search.load()
 
-        albums = [
-            translator.to_album(sp_album, sp_album.cover(spotify.ImageSize.NORMAL).load()) for sp_album in sp_search.albums]
+        # Collect albums
+        albums = []
+        for sp_album in sp_search.albums:
+            cover = sp_album.cover(spotify.ImageSize.NORMAL).load()
+            album = translator.to_album(sp_album, cover)
+            albums.append(album)
+
+        # Collect artists
         artists = [
             translator.to_artist(sp_artist) for sp_artist in sp_search.artists]
-        tracks = [
-            translator.to_track(sp_track, None, sp_track.album.cover(spotify.ImageSize.NORMAL).load()) for sp_track in sp_search.tracks]
+
+        # Collect tracks
+        tracks = []
+        for sp_track in sp_search.tracks:
+            cover = sp_track.album.cover(spotify.ImageSize.NORMAL).load()
+            track = translator.to_track(sp_track, None, cover)
+            tracks.append(track)
 
         return models.SearchResult(
             uri=uri, albums=albums, artists=artists, tracks=tracks)
