@@ -144,19 +144,19 @@ Project resources
 Helping out
 ===========
 
-The following commands should get you going.
+The following commands should get you going.::
 
     git clone https://github.com/mopidy/mopidy-spotify.git
     cd mopidy-spotify
 
-    # ### start editing files
+    # start editing files
 
     # install your changes
     sudo python setup.py install
     # restart mopidy service
     sudo service mopidy restart
 
-    # ### test your changes
+    # test your changes
 
     # test the project
     sudo pip install tox
