@@ -152,9 +152,7 @@ The following commands should get you going.
     # ### start editing files
 
     # install your changes
-    sudo python setup.py install
-    # restart mopidy service
-    sudo service mopidy restart
+    sudo python setup.py develop
 
     # ### test your changes
 
