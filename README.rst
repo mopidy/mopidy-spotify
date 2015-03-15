@@ -144,6 +144,8 @@ Project resources
 Helping out
 ===========
 
+The following commands should get you going.
+
     git clone https://github.com/mopidy/mopidy-spotify.git
     cd mopidy-spotify
 
