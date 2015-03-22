@@ -2,19 +2,19 @@
 Mopidy-Spotify
 **************
 
-.. image:: https://pypip.in/v/Mopidy-Spotify/badge.png
+.. image:: https://img.shields.io/pypi/v/Mopidy-Spotify.svg?style=flat
     :target: https://pypi.python.org/pypi/Mopidy-Spotify/
     :alt: Latest PyPI version
 
-.. image:: https://pypip.in/d/Mopidy-Spotify/badge.png
+.. image:: https://img.shields.io/pypi/dm/Mopidy-Spotify.svg?style=flat
     :target: https://pypi.python.org/pypi/Mopidy-Spotify/
     :alt: Number of PyPI downloads
 
-.. image:: https://travis-ci.org/mopidy/mopidy-spotify.png?branch=master
+.. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/master.png?style=flat
     :target: https://travis-ci.org/mopidy/mopidy-spotify
     :alt: Travis CI build status
 
-.. image:: https://coveralls.io/repos/mopidy/mopidy-spotify/badge.png?branch=master
+.. image:: https://img.shields.io/coveralls/mopidy/mopidy-spotify/master.svg?style=flat
    :target: https://coveralls.io/r/mopidy/mopidy-spotify?branch=master
    :alt: Test coverage
 
