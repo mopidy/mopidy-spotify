@@ -45,7 +45,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
                 spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
                 self.audio)
 
-    def play(self, track):
+    def change_track(self, track):
         self._connect_events()
 
         if track.uri is None:
@@ -68,13 +68,11 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             self.backend._session.player.play()
 
             self._buffer_timestamp.set(0)
-            self.audio.prepare_change()
             self.audio.set_appsrc(
                 LIBSPOTIFY_GST_CAPS,
                 need_data=need_data_callback_bound,
                 enough_data=enough_data_callback_bound,
                 seek_data=seek_data_callback_bound)
-            self.audio.start_playback()
             self.audio.set_metadata(track)
 
             return True

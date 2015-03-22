@@ -25,7 +25,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'setuptools',
-        'Mopidy >= 0.18',
+        'Mopidy >= 1.0',
         'Pykka >= 1.1',
         'pyspotify >= 2.0.0b4',
     ],

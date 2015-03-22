@@ -78,17 +78,17 @@ def test_connect_events_adds_end_of_track_handler_to_session(
         in session_mock.on.call_args_list)
 
 
-def test_play_aborts_if_no_track_uri(provider):
+def test_change_track_aborts_if_no_track_uri(provider):
     track = models.Track()
 
-    assert provider.play(track) is False
+    assert provider.change_track(track) is False
 
 
-def test_play_loads_and_plays_spotify_track(session_mock, provider):
+def test_change_track_loads_and_plays_spotify_track(session_mock, provider):
     uri = 'spotify:track:test'
     track = models.Track(uri=uri)
 
-    assert provider.play(track) is True
+    assert provider.change_track(track) is True
 
     session_mock.get_track.assert_called_once_with(uri)
     sp_track_mock = session_mock.get_track.return_value
@@ -97,24 +97,24 @@ def test_play_loads_and_plays_spotify_track(session_mock, provider):
     session_mock.player.play.assert_called_once_with()
 
 
-def test_play_aborts_on_spotify_error(session_mock, provider):
+def test_change_track_aborts_on_spotify_error(session_mock, provider):
     track = models.Track(uri='spotfy:track:test')
     session_mock.get_track.side_effect = spotify.Error
 
-    assert provider.play(track) is False
+    assert provider.change_track(track) is False
 
 
-def test_play_sets_up_appsrc(audio_mock, provider):
+def test_change_track_sets_up_appsrc(audio_mock, provider):
     track = models.Track(uri='spotfy:track:test')
 
-    assert provider.play(track) is True
+    assert provider.change_track(track) is True
 
     assert provider._buffer_timestamp.get() == 0
-    audio_mock.prepare_change.assert_called_once_with()
+    assert audio_mock.prepare_change.call_count == 0
     audio_mock.set_appsrc.assert_called_once_with(
         playback.LIBSPOTIFY_GST_CAPS,
         need_data=mock.ANY, enough_data=mock.ANY, seek_data=mock.ANY)
-    audio_mock.start_playback.assert_called_once_with()
+    assert audio_mock.start_playback.call_count == 0
     audio_mock.set_metadata.assert_called_once_with(track)
 
 
@@ -142,7 +142,7 @@ def test_on_seek_data_ignores_first_seek_to_zero_on_every_play(
         session_mock, provider):
     track = models.Track(uri='spotfy:track:test')
 
-    provider.play(track)
+    provider.change_track(track)
     provider.on_seek_data(0)
 
     assert session_mock.player.seek.call_count == 0
