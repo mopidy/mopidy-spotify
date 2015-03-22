@@ -110,6 +110,13 @@ Project resources
 Changelog
 =========
 
+v1.3.0 (UNRELEASED)
+-------------------
+
+- Require Mopidy >= 1.0.
+
+- Update to work with new playback API in Mopidy 1.0.
+
 v1.2.0 (2014-07-21)
 -------------------
 
