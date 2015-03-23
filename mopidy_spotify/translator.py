@@ -150,31 +150,43 @@ def to_track_refs(sp_tracks):
             yield ref
 
 
-def to_playlist(sp_playlist, folders=None, username=None, bitrate=None):
+def to_playlist(
+        sp_playlist, folders=None, username=None, bitrate=None, as_ref=False):
     if not isinstance(sp_playlist, spotify.Playlist):
         return
 
     if not sp_playlist.is_loaded:
         return
 
-    tracks = [
-        to_track(sp_track, bitrate=bitrate)
-        for sp_track in sp_playlist.tracks]
-    tracks = filter(None, tracks)
 
     name = sp_playlist.name
+
+    if not as_ref:
+        tracks = [
+            to_track(sp_track, bitrate=bitrate)
+            for sp_track in sp_playlist.tracks]
+        tracks = filter(None, tracks)
+        if name is None:
+            # Use same starred order as the Spotify client
+            tracks = reversed(tracks)
+
     if name is None:
         name = 'Starred'
-        tracks = reversed(tracks)  # Use same order as the Spotify client
     if folders is not None:
         name = '/'.join(folders + [name])
     if username is not None and sp_playlist.owner.canonical_name != username:
         name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
 
-    return models.Playlist(
-        uri=sp_playlist.link.uri,
-        name=name,
-        tracks=tracks)
+    if as_ref:
+        return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
+    else:
+        return models.Playlist(
+            uri=sp_playlist.link.uri, name=name, tracks=tracks)
+
+
+def to_playlist_ref(sp_playlist, folders=None, username=None):
+    return to_playlist(
+        sp_playlist, folders=folders, username=username, as_ref=True)
 
 
 # Maps from Mopidy search query field to Spotify search query field.

@@ -302,6 +302,50 @@ class TestToPlaylist(object):
         assert list(playlist.tracks) == []
 
 
+class TestToPlaylistRef(object):
+
+    def test_returns_none_if_unloaded(self):
+        sp_playlist = mock.Mock(spec=spotify.Playlist)
+        sp_playlist.is_loaded = False
+
+        ref = translator.to_playlist_ref(sp_playlist)
+
+        assert ref is None
+
+    def test_returns_none_if_playlist_folder(self):
+        sp_playlist_folder = mock.Mock(spec=spotify.PlaylistFolder)
+
+        ref = translator.to_playlist_ref(sp_playlist_folder)
+
+        assert ref is None
+
+    def test_successful_translation(self, sp_track_mock, sp_playlist_mock):
+        ref = translator.to_playlist_ref(sp_playlist_mock)
+
+        assert ref.uri == 'spotify:user:alice:playlist:foo'
+        assert ref.name == 'Foo'
+
+    def test_adds_name_for_starred_playlists(self, sp_starred_mock):
+        ref = translator.to_playlist_ref(sp_starred_mock)
+
+        assert ref.name == 'Starred'
+
+    def test_includes_by_owner_in_name_if_owned_by_another_user(
+            self, sp_playlist_mock, sp_user_mock):
+        sp_user_mock.canonical_name = 'bob'
+        sp_playlist_mock.user = sp_user_mock
+
+        ref = translator.to_playlist_ref(sp_playlist_mock, username='alice')
+
+        assert ref.name == 'Foo (by bob)'
+
+    def test_includes_folders_in_name(self, sp_playlist_mock):
+        ref = translator.to_playlist_ref(
+            sp_playlist_mock, folders=['Bar', 'Baz'])
+
+        assert ref.name == 'Bar/Baz/Foo'
+
+
 class TestSpotifySearchQuery(object):
 
     def test_any_maps_to_no_field(self):
