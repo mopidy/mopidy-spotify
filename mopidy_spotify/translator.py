@@ -54,7 +54,11 @@ def to_artist_refs(sp_artists):
 
 
 @memoized
-def to_album(sp_album):
+def to_album(sp_album, sp_image=None):
+    images = []
+    if sp_image is not None:
+        images = [sp_image.data_uri]
+
     if not sp_album.is_loaded:
         return
 
@@ -71,6 +75,7 @@ def to_album(sp_album):
     return models.Album(
         uri=sp_album.link.uri,
         name=sp_album.name,
+        images=images,
         artists=artists,
         date=date)
 
@@ -97,7 +102,7 @@ def to_album_refs(sp_albums):
 
 
 @memoized
-def to_track(sp_track, bitrate=None):
+def to_track(sp_track, bitrate=None, image=None):
     if not sp_track.is_loaded:
         return
 
@@ -112,7 +117,7 @@ def to_track(sp_track, bitrate=None):
     artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
     artists = filter(None, artists)
 
-    album = to_album(sp_track.album)
+    album = to_album(sp_track.album, image)
 
     return models.Track(
         uri=sp_track.link.uri,
