@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import mock
 
 from mopidy import backend as backend_api
+from mopidy.models import Ref
 
 import pytest
 
@@ -64,6 +65,58 @@ def test_is_a_playlists_provider(provider):
     assert isinstance(provider, backend_api.PlaylistsProvider)
 
 
+def test_as_list_when_not_logged_in(
+        session_mock, provider):
+    session_mock.get_starred.return_value = None
+    session_mock.playlist_container = None
+
+    result = provider.as_list()
+
+    assert len(result) == 0
+
+
+def test_as_list_when_playlist_container_isnt_loaded(
+        session_mock, provider):
+    session_mock.playlist_container = None
+
+    result = provider.as_list()
+
+    assert len(result) == 1
+
+    assert result[0] == Ref.playlist(
+        uri='spotify:user:alice:starred', name='Starred')
+
+
+def test_as_list_with_folders_and_ignored_unloaded_playlist(provider):
+    result = provider.as_list()
+
+    assert len(result) == 3
+
+    assert result[0] == Ref.playlist(
+        uri='spotify:user:alice:starred', name='Starred')
+    assert result[1] == Ref.playlist(
+        uri='spotify:user:alice:playlist:foo', name='Foo')
+    assert result[2] == Ref.playlist(
+        uri='spotify:playlist:bob:baz', name='Bar/Baz (by bob)')
+
+
+def test_get_items_when_playlist_exists(
+        session_mock, sp_playlist_mock, provider):
+    session_mock.get_playlist.return_value = sp_playlist_mock
+
+    result = provider.get_items('spotify:user:alice:playlist:foo')
+
+    assert len(result) == 1
+
+    assert result[0] == Ref.track(uri='spotify:track:abc', name='ABC 123')
+
+
+def test_get_items_when_playlist_is_unknown(provider):
+    result = provider.get_items('spotify:user:alice:playlist:unknown')
+
+    assert result is None
+
+
 def test_lookup(session_mock, sp_playlist_mock, provider):
     session_mock.get_playlist.return_value = sp_playlist_mock
 
@@ -104,41 +157,6 @@ def test_lookup_of_playlist_with_other_owner(
 
     assert playlist.uri == 'spotify:user:alice:playlist:foo'
     assert playlist.name == 'Foo (by bob)'
-
-
-def test_playlists_when_not_logged_in(
-        session_mock, provider):
-    session_mock.get_starred.return_value = None
-    session_mock.playlist_container = None
-
-    assert len(provider.playlists) == 0
-
-
-def test_playlists_when_playlist_container_isnt_loaded(
-        session_mock, provider):
-    session_mock.playlist_container = None
-
-    assert len(provider.playlists) == 1
-
-    assert provider.playlists[0].name == 'Starred'
-    assert provider.playlists[0].uri == 'spotify:user:alice:starred'
-    assert len(provider.playlists[0].tracks) == 2
-
-
-def test_playlists_with_folders_and_ignored_unloaded_playlist(provider):
-    assert len(provider.playlists) == 3
-
-    assert provider.playlists[0].name == 'Starred'
-    assert provider.playlists[0].uri == 'spotify:user:alice:starred'
-    assert len(provider.playlists[0].tracks) == 2
-
-    assert provider.playlists[1].name == 'Foo'
-    assert provider.playlists[1].uri == 'spotify:user:alice:playlist:foo'
-    assert len(provider.playlists[1].tracks) == 1
-
-    assert provider.playlists[2].name == 'Bar/Baz (by bob)'
-    assert provider.playlists[2].uri == 'spotify:playlist:bob:baz'
-    assert len(provider.playlists[2].tracks) == 0
 
 
 def test_create(session_mock, sp_playlist_mock, provider):

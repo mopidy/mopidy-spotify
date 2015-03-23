@@ -6,7 +6,7 @@ from mopidy import backend
 
 import spotify
 
-from mopidy_spotify import translator, utils
+from mopidy_spotify import translator
 
 
 logger = logging.getLogger(__name__)
@@ -19,17 +19,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         # TODO Listen to playlist events
 
-    @property
-    def playlists(self):
-        # XXX We should just return light-weight Ref objects here, but Mopidy's
-        # core and backend APIs must be changed first.
+    def as_list(self):
+        return (
+            list(self._get_starred_playlist_ref()) +
+            list(self._get_flattened_playlist_refs()))
 
-        with utils.time_logger('Playlist fetch'):
-            return (
-                list(self._get_starred_playlist()) +
-                list(self._get_flattened_playlists()))
-
-    def _get_starred_playlist(self):
+    def _get_starred_playlist_ref(self):
         if self._backend._session is None:
             return
 
@@ -39,15 +34,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         sp_starred.load()
 
-        starred = translator.to_playlist(
-            sp_starred,
-            username=self._backend._session.user_name,
-            bitrate=self._backend._bitrate)
+        starred_ref = translator.to_playlist_ref(
+            sp_starred, username=self._backend._session.user_name)
 
-        if starred is not None:
-            yield starred
+        if starred_ref is not None:
+            yield starred_ref
 
-    def _get_flattened_playlists(self):
+    def _get_flattened_playlist_refs(self):
         if self._backend._session is None:
             return
 
@@ -65,13 +58,18 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                     folders.pop()
                 continue
 
-            playlist = translator.to_playlist(
-                sp_playlist, folders=folders, username=username,
-                bitrate=self._backend._bitrate)
-            if playlist is not None:
-                yield playlist
+            playlist_ref = translator.to_playlist_ref(
+                sp_playlist, folders=folders, username=username)
+            if playlist_ref is not None:
+                yield playlist_ref
+
+    def get_items(self, uri):
+        return self._get_playlist(uri, as_items=True)
 
     def lookup(self, uri):
+        return self._get_playlist(uri)
+
+    def _get_playlist(self, uri, as_items=False):
         try:
             sp_playlist = self._backend._session.get_playlist(uri)
         except spotify.Error as exc:
@@ -85,7 +83,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         username = self._backend._session.user_name
         return translator.to_playlist(
-            sp_playlist, username=username, bitrate=self._backend._bitrate)
+            sp_playlist, username=username, bitrate=self._backend._bitrate,
+            as_items=as_items)
 
     def refresh(self):
         pass  # Not needed as long as we don't cache anything.
