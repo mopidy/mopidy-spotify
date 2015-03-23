@@ -151,13 +151,16 @@ def to_track_refs(sp_tracks):
 
 
 def to_playlist(
-        sp_playlist, folders=None, username=None, bitrate=None, as_ref=False):
+        sp_playlist, folders=None, username=None, bitrate=None,
+        as_ref=False, as_items=False):
     if not isinstance(sp_playlist, spotify.Playlist):
         return
 
     if not sp_playlist.is_loaded:
         return
 
+    if as_items:
+        return list(to_track_refs(sp_playlist.tracks))
 
     name = sp_playlist.name
 

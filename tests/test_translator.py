@@ -266,6 +266,12 @@ class TestToPlaylist(object):
         assert track in playlist.tracks
         assert playlist.last_modified is None
 
+    def test_as_items(self, sp_track_mock, sp_playlist_mock):
+        track_ref = translator.to_track_ref(sp_track_mock)
+        items = translator.to_playlist(sp_playlist_mock, as_items=True)
+
+        assert track_ref in items
+
     def test_adds_name_for_starred_playlists(self, sp_starred_mock):
         playlist = translator.to_playlist(sp_starred_mock)
 
