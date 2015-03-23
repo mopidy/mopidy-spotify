@@ -188,7 +188,7 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
             self.session.starred(),
             bitrate=self.bitrate, username=self.username))
         playlists = filter(None, playlists)
-        self.backend.playlists.playlists = playlists
+        self.backend.playlists.playlists_map = {pl.uri: pl for pl in playlists}
         logger.info('Loaded %d Spotify playlists', len(playlists))
         backend.BackendListener.send('playlists_loaded')
 

@@ -1,23 +1,28 @@
 from __future__ import unicode_literals
 
-import copy
+import operator
 
 from mopidy import backend
+from mopidy.models import Ref
 
 
 class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def __init__(self, backend):
         super(SpotifyPlaylistsProvider, self).__init__(backend)
-        self._playlists = []
+        self.playlists_map = {}
 
-    @property
-    def playlists(self):
-        return copy.copy(self._playlists)
+    def as_list(self):
+        refs = [
+            Ref.playlist(uri=pl.uri, name=pl.name)
+            for pl in self.playlists_map.values()]
+        return sorted(refs, key=operator.attrgetter('name'))
 
-    @playlists.setter
-    def playlists(self, playlists):
-        self._playlists = playlists
+    def get_items(self, uri):
+        playlist = self.playlists_map.get(uri)
+        if playlist is None:
+            return None
+        return [Ref.track(uri=t.uri, name=t.name) for t in playlist.tracks]
 
     def create(self, name):
         pass  # TODO
@@ -26,9 +31,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         pass  # TODO
 
     def lookup(self, uri):
-        for playlist in self._playlists:
-            if playlist.uri == uri:
-                return playlist
+        return self.playlists_map.get(uri)
 
     def refresh(self):
         pass  # TODO
