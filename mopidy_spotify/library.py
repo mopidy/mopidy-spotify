@@ -11,7 +11,7 @@ import pykka
 
 from spotify import Link, SpotifyError, ToplistBrowser
 
-from mopidy_spotify import translator, utils
+from mopidy_spotify import images, translator, utils
 
 logger = logging.getLogger(__name__)
 
@@ -298,3 +298,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                     spotify_query.append('%s:"%s"' % (field, value))
         spotify_query = ' '.join(spotify_query)
         return spotify_query
+
+    def get_images(self, uris):
+        return images.get_images(uris)

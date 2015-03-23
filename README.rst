@@ -117,6 +117,8 @@ v1.3.0 (UNRELEASED)
 
 - Update to work with new playback API in Mopidy 1.0.
 
+- Add ``get_images`` support for coverart in updated clients.
+
 v1.2.0 (2014-07-21)
 -------------------
 
