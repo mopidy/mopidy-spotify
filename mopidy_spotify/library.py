@@ -7,7 +7,7 @@ from mopidy import backend, models
 
 import spotify
 
-from mopidy_spotify import countries, translator, utils
+from mopidy_spotify import countries, images, translator, utils
 
 
 logger = logging.getLogger(__name__)
@@ -262,3 +262,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             uri = query['uri'][0]
 
         return models.SearchResult(uri=uri, tracks=tracks)
+
+    def get_images(self, uris):
+        return images.get_images(uris)
