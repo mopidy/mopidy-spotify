@@ -86,5 +86,10 @@ def test_search_returns_albums_and_artists_and_tracks(
     assert result.tracks[0].uri == 'spotify:track:abc'
 
 
-def test_find_exact_is_the_same_as_search(provider):
-    assert provider.find_exact == provider.search
+def test_exact_is_ignored(session_mock, sp_track_mock, provider):
+    session_mock.get_link.return_value = sp_track_mock.link
+
+    result1 = provider.search({'uri': ['spotify:track:abc']})
+    result2 = provider.search({'uri': ['spotify:track:abc']}, exact=True)
+
+    assert result1 == result2

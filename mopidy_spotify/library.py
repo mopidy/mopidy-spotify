@@ -211,8 +211,9 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             if track is not None:
                 yield track
 
-    def search(self, query=None, uris=None):
+    def search(self, query=None, uris=None, exact=False):
         # TODO Respect `uris` argument
+        # TODO Support `exact` search
 
         if query is None:
             logger.debug('Ignored search without query')
@@ -261,6 +262,3 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             uri = query['uri'][0]
 
         return models.SearchResult(uri=uri, tracks=tracks)
-
-    # Spotify doesn't support exact search
-    find_exact = search
