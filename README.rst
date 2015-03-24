@@ -119,6 +119,8 @@ v1.3.0 (UNRELEASED)
 
 - Update to work with new playlists API in Mopidy 1.0.
 
+- Update to work with new search API in Mopidy 1.0.
+
 - Add ``get_images`` support for cover art.
 
 v1.2.0 (2014-07-21)
