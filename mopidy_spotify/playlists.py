@@ -6,7 +6,7 @@ from mopidy import backend
 
 import spotify
 
-from mopidy_spotify import translator
+from mopidy_spotify import translator, utils
 
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # TODO Listen to playlist events
 
     def as_list(self):
-        return (
-            list(self._get_starred_playlist_ref()) +
-            list(self._get_flattened_playlist_refs()))
+        with utils.time_logger('playlists.as_list()'):
+            return (
+                list(self._get_starred_playlist_ref()) +
+                list(self._get_flattened_playlist_refs()))
 
     def _get_starred_playlist_ref(self):
         if self._backend._session is None:
@@ -64,10 +65,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 yield playlist_ref
 
     def get_items(self, uri):
-        return self._get_playlist(uri, as_items=True)
+        with utils.time_logger('playlist.get_items(%s)' % uri):
+            return self._get_playlist(uri, as_items=True)
 
     def lookup(self, uri):
-        return self._get_playlist(uri)
+        with utils.time_logger('playlists.lookup(%s)' % uri):
+            return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
         try:
