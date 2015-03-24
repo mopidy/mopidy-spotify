@@ -6,10 +6,11 @@ import time
 
 
 logger = logging.getLogger(__name__)
+TRACE = logging.getLevelName('TRACE')
 
 
 @contextlib.contextmanager
-def time_logger(name):
+def time_logger(name, level=TRACE):
     start = time.time()
     yield
-    logger.debug('%s took %dms', name, (time.time() - start) * 1000)
+    logger.log(level, '%s took %dms', name, (time.time() - start) * 1000)
