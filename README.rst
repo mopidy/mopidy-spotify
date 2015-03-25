@@ -110,7 +110,7 @@ Project resources
 Changelog
 =========
 
-v1.3.0 (UNRELEASED)
+v1.3.0 (2015-03-25)
 -------------------
 
 - Require Mopidy >= 1.0.
@@ -121,7 +121,7 @@ v1.3.0 (UNRELEASED)
 
 - Update to work with new search API in Mopidy 1.0.
 
-- Add ``get_images`` support for cover art.
+- Add ``library.get_images()`` support for cover art.
 
 v1.2.0 (2014-07-21)
 -------------------
