@@ -141,6 +141,26 @@ Project resources
 - `Download development snapshot <https://github.com/mopidy/mopidy-spotify/tarball/develop#egg=Mopidy-Spotify-dev>`_
 
 
+Helping out
+===========
+
+The following commands should get you going.::
+
+    git clone https://github.com/mopidy/mopidy-spotify.git
+    cd mopidy-spotify
+
+    # start editing files
+
+    # install your changes
+    sudo python setup.py develop
+
+    # test your changes
+
+    # test the project
+    sudo pip install tox
+    sudo tox
+
+
 Changelog
 =========
 
