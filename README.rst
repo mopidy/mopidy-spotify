@@ -200,6 +200,18 @@ v2.0.0 (UNRELEASED)
   pause Mopidy playback if this happened. Now, we only pause playback if we're
   currently playing music from Spotify. (Fixes: #1)
 
+v1.3.0 (2015-03-25)
+-------------------
+
+- Require Mopidy >= 1.0.
+
+- Update to work with new playback API in Mopidy 1.0.
+
+- Update to work with new playlists API in Mopidy 1.0.
+
+- Update to work with new search API in Mopidy 1.0.
+
+- Add ``library.get_images()`` support for cover art.
 
 v1.2.0 (2014-07-21)
 -------------------
