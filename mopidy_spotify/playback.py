@@ -168,7 +168,7 @@ def end_of_track_callback(session, audio_actor):
     # This callback is called from the pyspotify event loop.
 
     logger.debug('End of track reached')
-    audio_actor.emit_end_of_stream()
+    audio_actor.emit_data(None)
 
 
 class BufferTimestamp(object):
