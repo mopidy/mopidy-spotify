@@ -260,7 +260,7 @@ def test_music_delivery_consumes_zero_frames_if_audio_fails(
 def test_end_of_track_callback(session_mock, audio_mock):
     playback.end_of_track_callback(session_mock, audio_mock)
 
-    audio_mock.emit_end_of_stream.assert_called_once_with()
+    audio_mock.emit_data.assert_called_once_with(None)
 
 
 def test_buffer_timestamp_wrapper():
