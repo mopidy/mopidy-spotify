@@ -167,7 +167,7 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
     def end_of_track(self, session):
         """Callback used by pyspotify"""
         logger.debug('End of data stream reached')
-        self.audio.emit_end_of_stream()
+        self.audio.emit_data(None)
 
     def refresh_playlists(self):
         """Refresh the playlists in the backend with data from Spotify"""
