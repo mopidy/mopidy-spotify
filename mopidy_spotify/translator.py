@@ -48,7 +48,7 @@ def to_mopidy_album(spotify_album):
         uri=uri,
         name=spotify_album.name(),
         artists=[to_mopidy_artist(spotify_album.artist())],
-        date=spotify_album.year())
+        date='%d' % spotify_album.year())
     return album_cache[uri]
 
 
@@ -76,7 +76,7 @@ def to_mopidy_track(spotify_track, bitrate=None):
         name = '[unplayable] %s' % name
     spotify_album = spotify_track.album()
     if spotify_album is not None and spotify_album.is_loaded():
-        date = spotify_album.year()
+        date = '%d' % spotify_album.year()
     else:
         date = None
     track_cache[uri] = Track(

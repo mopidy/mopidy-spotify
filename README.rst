@@ -115,6 +115,9 @@ v1.3.1 (UNRELEASED)
 
 - Update to not use deprecated Mopidy audio APIs.
 
+- Use strings and not ints for the model's date field. This is required for
+  compatibility with the model validation added in Mopidy 1.1. (Fixes: #52)
+
 v1.3.0 (2015-03-25)
 -------------------
 
