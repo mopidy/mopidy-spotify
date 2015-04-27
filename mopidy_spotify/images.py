@@ -32,11 +32,11 @@ def get_images(uris):
         for uri in group:
             if uri['key'] in _cache:
                 result[uri['uri']] = _cache[uri['key']]
-            elif len(batch) < _API_MAX_IDS_PER_REQUEST:
-                batch.append(uri)
             else:
-                result.update(_process_uris(uri_type, batch))
-                batch = []
+                batch.append(uri)
+                if len(batch) >= _API_MAX_IDS_PER_REQUEST:
+                    result.update(_process_uris(uri_type, batch))
+                    batch = []
         result.update(_process_uris(uri_type, batch))
     return result
 
@@ -55,7 +55,7 @@ def _parse_uri(uri):
         return {'uri': uri, 'type': uri_type, 'id': uri_id,
                 'key': (uri_type, uri_id)}
 
-    raise ValueError('Could not parse %r as a spotify URI' % uri)
+    raise ValueError('Could not parse %r as a Spotify URI' % uri)
 
 
 def _process_uris(uri_type, uris):

@@ -118,6 +118,9 @@ v1.3.1 (UNRELEASED)
 - Use strings and not ints for the model's date field. This is required for
   compatibility with the model validation added in Mopidy 1.1. (Fixes: #52)
 
+- Fix error causing the image of every 50th URI in a ``library.get_images()``
+  call to not be looked up and returned.
+
 v1.3.0 (2015-03-25)
 -------------------
 
