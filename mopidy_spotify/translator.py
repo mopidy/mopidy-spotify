@@ -58,7 +58,7 @@ def to_album(sp_album):
     if not sp_album.is_loaded:
         return
 
-    if sp_album.artist is not None:
+    if sp_album.artist is not None and sp_album.artist.is_loaded:
         artists = [to_artist(sp_album.artist)]
     else:
         artists = []
@@ -171,7 +171,7 @@ def to_playlist(
         tracks = filter(None, tracks)
         if name is None:
             # Use same starred order as the Spotify client
-            tracks = reversed(tracks)
+            tracks = list(reversed(tracks))
 
     if name is None:
         name = 'Starred'
