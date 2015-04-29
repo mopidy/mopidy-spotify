@@ -56,6 +56,8 @@ SPOTIFY_COUNTRIES = {
 
 class SpotifyTrack(Track):
     """Proxy object for unloaded Spotify tracks."""
+    __slots__ = ('_spotify_track', '_track')
+
     def __init__(self, uri=None, track=None):
         super(SpotifyTrack, self).__init__()
         if (uri and track) or (not uri and not track):
@@ -92,6 +94,9 @@ class SpotifyTrack(Track):
 
     def copy(self, **values):
         return self._proxy.copy(**values)
+
+    def replace(self, **values):
+        return self._proxy.replace(**values)
 
 
 class SpotifyLibraryProvider(backend.LibraryProvider):
