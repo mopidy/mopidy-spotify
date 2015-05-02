@@ -121,6 +121,9 @@ v1.3.1 (UNRELEASED)
 - Fix error causing the image of every 50th URI in a ``library.get_images()``
   call to not be looked up and returned.
 
+- Fix handling of empty search queries. This was still using the removed
+  ``playlists.playlists`` to fetch all your tracks.
+
 v1.3.0 (2015-03-25)
 -------------------
 

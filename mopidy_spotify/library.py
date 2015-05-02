@@ -271,7 +271,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         # Since we can't search for the entire Spotify library, we return
         # all tracks in the playlists when the query is empty.
         tracks = []
-        for playlist in self.backend.playlists.playlists:
+        for ref in self.backend.playlists.as_list():
+            playlist = self.backend.playlists.lookup(ref.uri)
             tracks += playlist.tracks
         return SearchResult(uri='spotify:search', tracks=tracks)
 
