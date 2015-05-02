@@ -124,6 +124,9 @@ v1.3.1 (UNRELEASED)
 - Fix handling of empty search queries. This was still using the removed
   ``playlists.playlists`` to fetch all your tracks.
 
+- Update the ``SpotifyTrack`` proxy model to work with Mopidy 1.1 model
+  changes.
+
 v1.3.0 (2015-03-25)
 -------------------
 
