@@ -101,6 +101,19 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             logger.info('Spotify private session activated')
             self._session.social.private_session = True
 
+        self._session.playlist_container.on(
+            spotify.PlaylistContainerEvent.CONTAINER_LOADED,
+            playlists.on_container_loaded)
+        self._session.playlist_container.on(
+            spotify.PlaylistContainerEvent.PLAYLIST_ADDED,
+            playlists.on_playlist_added)
+        self._session.playlist_container.on(
+            spotify.PlaylistContainerEvent.PLAYLIST_REMOVED,
+            playlists.on_playlist_removed)
+        self._session.playlist_container.on(
+            spotify.PlaylistContainerEvent.PLAYLIST_MOVED,
+            playlists.on_playlist_moved)
+
     def on_play_token_lost(self):
         if self._session.player.state == spotify.PlayerState.PLAYING:
             self.playback.pause()

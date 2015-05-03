@@ -197,3 +197,41 @@ def test_create_fails_in_libspotify(session_mock, provider, caplog):
 
     assert playlist is None
     assert 'Failed creating new Spotify playlist "Foo"' in caplog.text()
+
+
+def test_on_container_loaded_triggers_playlists_loaded_event(
+        sp_playlist_container_mock, caplog, backend_listener_mock):
+    playlists.on_container_loaded(sp_playlist_container_mock)
+
+    assert 'Spotify playlist container loaded' in caplog.text()
+    backend_listener_mock.send.assert_called_once_with('playlists_loaded')
+
+
+def test_on_playlist_added_does_nothing_yet(
+        sp_playlist_container_mock, sp_playlist_mock,
+        caplog, backend_listener_mock):
+    playlists.on_playlist_added(
+        sp_playlist_container_mock, sp_playlist_mock, 0)
+
+    assert 'Spotify playlist "Foo" added to index 0' in caplog.text()
+    assert backend_listener_mock.send.call_count == 0
+
+
+def test_on_playlist_removed_does_nothing_yet(
+        sp_playlist_container_mock, sp_playlist_mock,
+        caplog, backend_listener_mock):
+    playlists.on_playlist_removed(
+        sp_playlist_container_mock, sp_playlist_mock, 0)
+
+    assert 'Spotify playlist "Foo" removed from index 0' in caplog.text()
+    assert backend_listener_mock.send.call_count == 0
+
+
+def test_on_playlist_moved_does_nothing_yet(
+        sp_playlist_container_mock, sp_playlist_mock,
+        caplog, backend_listener_mock):
+    playlists.on_playlist_moved(
+        sp_playlist_container_mock, sp_playlist_mock, 0, 1)
+
+    assert 'Spotify playlist "Foo" moved from index 0 to 1' in caplog.text()
+    assert backend_listener_mock.send.call_count == 0

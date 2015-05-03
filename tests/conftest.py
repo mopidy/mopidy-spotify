@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import mock
 
+from mopidy import backend as backend_api
+
 import pytest
 
 import spotify
@@ -166,6 +168,12 @@ def sp_playlist_mock(sp_user_mock, sp_track_mock):
 
 
 @pytest.fixture
+def sp_playlist_container_mock():
+    sp_playlist_container = mock.Mock(spec=spotify.PlaylistContainer)
+    return sp_playlist_container
+
+
+@pytest.fixture
 def sp_search_mock(sp_album_mock, sp_artist_mock, sp_track_mock):
     sp_search = mock.Mock(spec=spotify.Search)
     sp_search.is_loaded = True
@@ -188,6 +196,14 @@ def backend_mock(session_mock, config):
     backend_mock._session = session_mock
     backend_mock._bitrate = 160
     return backend_mock
+
+
+@pytest.yield_fixture
+def backend_listener_mock():
+    patcher = mock.patch.object(
+        backend_api, 'BackendListener', spec=backend_api.BackendListener)
+    yield patcher.start()
+    patcher.stop()
 
 
 @pytest.fixture

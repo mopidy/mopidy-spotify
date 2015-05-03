@@ -147,10 +147,7 @@ Changelog
 v2.0.0 (UNRELEASED)
 -------------------
 
-- Rewrite using pyspotify 2. Still left to reimplement for feature parity with
-  Mopidy-Spotify 1.2.0:
-
-  - Emit playlists changed events when playlists are changed by other clients.
+- Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
 
 **Config**
 
