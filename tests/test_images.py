@@ -68,7 +68,7 @@ def test_get_artist_images(img_provider, urllib_mock):
         'https://api.spotify.com/v1/artists/?ids='
         '4FCGgZrVQtcbDFEap3OAb2,0Nsz79ZcE8E4i3XZhCzZ1l')
     assert len(result) == 2
-    assert result.keys() == uris
+    assert sorted(result.keys()) == sorted(uris)
 
     assert len(result[uris[0]]) == 2
     assert len(result[uris[1]]) == 1
@@ -117,7 +117,7 @@ def test_get_album_images(img_provider, urllib_mock):
     urllib_mock.urlopen.assert_called_once_with(
         'https://api.spotify.com/v1/albums/?ids=1utFPuvgBHXzLJdqhCDOkg')
     assert len(result) == 1
-    assert result.keys() == uris
+    assert sorted(result.keys()) == sorted(uris)
     assert len(result[uris[0]]) == 1
 
     image = result[uris[0]][0]
@@ -155,7 +155,7 @@ def test_get_track_images(img_provider, urllib_mock):
     urllib_mock.urlopen.assert_called_once_with(
         'https://api.spotify.com/v1/tracks/?ids=41shEpOKyyadtG6lDclooa')
     assert len(result) == 1
-    assert result.keys() == uris
+    assert sorted(result.keys()) == sorted(uris)
     assert len(result[uris[0]]) == 1
 
     image = result[uris[0]][0]
