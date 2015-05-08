@@ -68,7 +68,8 @@ def _process_uris(uri_type, uris):
         return result
 
     try:
-        lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids_to_uris.keys()))
+        lookup_uri = _API_BASE_URI % (
+            uri_type, ','.join(sorted(ids_to_uris.keys())))
         data = json.load(urllib2.urlopen(lookup_uri))
     except (ValueError, IOError) as e:
         error_msg = utils.locale_decode(e)

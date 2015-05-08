@@ -66,7 +66,7 @@ def test_get_artist_images(img_provider, urllib_mock):
 
     urllib_mock.urlopen.assert_called_once_with(
         'https://api.spotify.com/v1/artists/?ids='
-        '4FCGgZrVQtcbDFEap3OAb2,0Nsz79ZcE8E4i3XZhCzZ1l')
+        '0Nsz79ZcE8E4i3XZhCzZ1l,4FCGgZrVQtcbDFEap3OAb2')
     assert len(result) == 2
     assert sorted(result.keys()) == sorted(uris)
 
