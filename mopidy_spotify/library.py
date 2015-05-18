@@ -228,10 +228,10 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             return models.SearchResult(uri='spotify:search')
 
         uri = 'spotify:search:%s' % urllib.quote(sp_query.encode('utf-8'))
-        logger.debug('Searching Spotify for: %s', sp_query)
+        logger.info('Searching Spotify for: %s', sp_query)
 
         if not self._backend._online.is_set():
-            logger.info('Search aborted: Spotify is offline')
+            logger.info('Spotify search aborted: Spotify is offline')
             return models.SearchResult(uri=uri)
 
         spotify_config = self._backend._config['spotify']

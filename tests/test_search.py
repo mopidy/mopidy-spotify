@@ -54,7 +54,7 @@ def test_search_when_offline_returns_nothing(provider, caplog):
 
     result = provider.search({'any': ['ABBA']})
 
-    assert 'Search aborted: Spotify is offline' in caplog.text()
+    assert 'Spotify search aborted: Spotify is offline' in caplog.text()
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == 'spotify:search:%22ABBA%22'
