@@ -5,10 +5,11 @@ import os
 import threading
 
 from mopidy import audio, backend
-from mopidy.utils import process, versioning
+from mopidy.utils import process
 
 from spotify.manager import SpotifySessionManager as PyspotifySessionManager
 
+import mopidy_spotify
 from mopidy_spotify import translator
 from mopidy_spotify.container_manager import SpotifyContainerManager
 from mopidy_spotify.playlist_manager import SpotifyPlaylistManager
@@ -23,7 +24,7 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
     cache_location = None
     settings_location = None
     appkey_file = os.path.join(os.path.dirname(__file__), 'spotify_appkey.key')
-    user_agent = 'Mopidy %s' % versioning.get_version()
+    user_agent = 'Mopidy-Spotify %s' % mopidy_spotify.__version__
 
     def __init__(self, config, audio, backend_ref):
 
