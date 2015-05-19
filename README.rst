@@ -110,7 +110,7 @@ Project resources
 Changelog
 =========
 
-v1.4.0 (UNRELEASED)
+v1.4.0 (2015-05-19)
 -------------------
 
 - Update to not use deprecated Mopidy audio APIs.
