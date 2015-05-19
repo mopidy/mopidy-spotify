@@ -5,7 +5,12 @@ import os
 import threading
 
 from mopidy import audio, backend
-from mopidy.utils import process
+
+# FIXME We should not be using internals from Mopidy
+try:
+    from mopidy.internal import process  # Mopidy >= 1.1
+except ImportError:
+    from mopidy.utils import process  # Mopidy <= 1.0
 
 from spotify.manager import SpotifySessionManager as PyspotifySessionManager
 

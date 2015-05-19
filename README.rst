@@ -110,7 +110,7 @@ Project resources
 Changelog
 =========
 
-v1.3.1 (UNRELEASED)
+v1.4.0 (UNRELEASED)
 -------------------
 
 - Update to not use deprecated Mopidy audio APIs.
@@ -126,6 +126,9 @@ v1.3.1 (UNRELEASED)
 
 - Update the ``SpotifyTrack`` proxy model to work with Mopidy 1.1 model
   changes.
+
+- Updated to work with the renaming of ``mopidy.utils`` to ``mopidy.internal``
+  in Mopidy 1.1.
 
 v1.3.0 (2015-03-25)
 -------------------
