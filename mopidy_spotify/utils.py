@@ -1,9 +1,17 @@
 from __future__ import unicode_literals
 
+import locale
 import logging
 import time
 
 logger = logging.getLogger(__name__)
+
+
+def locale_decode(bytestr):
+    try:
+        return unicode(bytestr)
+    except UnicodeError:
+        return bytes(bytestr).decode(locale.getpreferredencoding())
 
 
 def wait_for_object_to_load(spotify_obj, timeout):
