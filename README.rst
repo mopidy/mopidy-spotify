@@ -147,7 +147,7 @@ Changelog
 v2.0.0 (UNRELEASED)
 -------------------
 
-- Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
+Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
 
 **Config**
 
@@ -196,6 +196,26 @@ v2.0.0 (UNRELEASED)
   "play token lost" event. Previously, Mopidy-Spotify would unconditionally
   pause Mopidy playback if this happened. Now, we only pause playback if we're
   currently playing music from Spotify. (Fixes: #1)
+
+v1.4.0 (2015-05-19)
+-------------------
+
+- Update to not use deprecated Mopidy audio APIs.
+
+- Use strings and not ints for the model's date field. This is required for
+  compatibility with the model validation added in Mopidy 1.1. (Fixes: #52)
+
+- Fix error causing the image of every 50th URI in a ``library.get_images()``
+  call to not be looked up and returned.
+
+- Fix handling of empty search queries. This was still using the removed
+  ``playlists.playlists`` to fetch all your tracks.
+
+- Update the ``SpotifyTrack`` proxy model to work with Mopidy 1.1 model
+  changes.
+
+- Updated to work with the renaming of ``mopidy.utils`` to ``mopidy.internal``
+  in Mopidy 1.1.
 
 v1.3.0 (2015-03-25)
 -------------------
