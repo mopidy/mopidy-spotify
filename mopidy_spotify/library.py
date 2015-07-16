@@ -137,6 +137,9 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         else:
             return []
 
+    def get_images(self, uris):
+        return images.get_images(uris)
+
     def lookup(self, uri):
         try:
             sp_link = self._backend._session.get_link(uri)
@@ -266,6 +269,3 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             uri = query['uri'][0]
 
         return models.SearchResult(uri=uri, tracks=tracks)
-
-    def get_images(self, uris):
-        return images.get_images(uris)
