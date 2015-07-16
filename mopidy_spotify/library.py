@@ -137,6 +137,92 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         else:
             return []
 
+    def get_distinct(self, field, query=None):
+        # To make the returned data as interesting as possible, we limit
+        # ourselves to data extracted from the user's playlists when no search
+        # query is included.
+
+        sp_query = translator.sp_search_query(query) if query else None
+
+        if field == 'artist':
+            return self._get_distinct_artists(sp_query)
+        elif field == 'albumartist':
+            return self._get_distinct_albumartists(sp_query)
+        elif field == 'album':
+            return self._get_distinct_albums(sp_query)
+        elif field == 'date':
+            return self._get_distinct_dates(sp_query)
+        else:
+            return set()
+
+    def _get_distinct_artists(self, sp_query):
+        logger.debug('Getting distinct artists: %s', sp_query)
+        if sp_query:
+            sp_search = self._get_sp_search(sp_query, artist=True)
+            return {artist.name for artist in sp_search.artists}
+        else:
+            return {
+                artist.name
+                for track in self._get_playlist_tracks()
+                for artist in track.artists}
+
+    def _get_distinct_albumartists(self, sp_query):
+        logger.debug(
+            'Getting distinct albumartists: %s', sp_query)
+        if sp_query:
+            sp_search = self._get_sp_search(sp_query, album=True)
+            return {album.artist.name for album in sp_search.albums}
+        else:
+            return {
+                track.album.artist.name
+                for track in self._get_playlist_tracks()}
+
+    def _get_distinct_albums(self, sp_query):
+        logger.debug('Getting distinct albums: %s', sp_query)
+        if sp_query:
+            sp_search = self._get_sp_search(sp_query, album=True)
+            return {album.name for album in sp_search.albums}
+        else:
+            return {track.album.name for track in self._get_playlist_tracks()}
+
+    def _get_distinct_dates(self, sp_query):
+        logger.debug('Getting distinct album years: %s', sp_query)
+        if sp_query:
+            sp_search = self._get_sp_search(sp_query, album=True)
+            return {
+                '%s' % album.year
+                for album in sp_search.albums
+                if album.year != 0}
+        else:
+            return {
+                '%s' % track.album.year
+                for track in self._get_playlist_tracks()
+                if track.album.year != 0}
+
+    def _get_sp_search(self, sp_query, album=False, artist=False, track=False):
+        sp_search = self._backend._session.search(
+            sp_query,
+            album_count=self._search_album_count if album else 0,
+            artist_count=self._search_artist_count if artist else 0,
+            track_count=self._search_track_count if track else 0)
+        sp_search.load()
+        return sp_search
+
+    def _get_playlist_tracks(self):
+        if not self._backend._config['spotify']['allow_playlists']:
+            return
+
+        for playlist in self._backend._session.playlist_container:
+            if not isinstance(playlist, spotify.Playlist):
+                continue
+            playlist.load()
+            for track in playlist.tracks:
+                try:
+                    track.load()
+                    yield track
+                except spotify.Error:  # TODO Why did we get "General error"?
+                    continue
+
     def get_images(self, uris):
         return images.get_images(uris)
 

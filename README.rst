@@ -190,6 +190,14 @@ Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
 - When adding an artist by URI, all albums that are marked as "compilations"
   or where the album artist is "Various Artists" are now ignored. (Fixes: #5)
 
+**Library**
+
+- The library provider method ``get_distinct()`` is now supported. When called
+  without a query, the tracks in the user's playlists is used as the data
+  source. When called with a query, a Spotify search is used as the data
+  source. This addition makes the library view in some notable MPD clients,
+  like ncmpcpp, become quite fast and usable with Spotify. (Fixes: #50)
+
 **Playback**
 
 - If another Spotify client starts playback with the same account, we get a
