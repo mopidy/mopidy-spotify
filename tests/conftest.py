@@ -168,6 +168,23 @@ def sp_playlist_mock(sp_user_mock, sp_track_mock):
 
 
 @pytest.fixture
+def sp_playlist_folder_start_mock():
+    sp_playlist_folder_start = mock.Mock(spec=spotify.PlaylistFolder)
+    sp_playlist_folder_start.type = spotify.PlaylistType.START_FOLDER
+    sp_playlist_folder_start.name = 'Bar'
+    sp_playlist_folder_start.id = 17
+    return sp_playlist_folder_start
+
+
+@pytest.fixture
+def sp_playlist_folder_end_mock():
+    sp_playlist_folder_end = mock.Mock(spec=spotify.PlaylistFolder)
+    sp_playlist_folder_end.type = spotify.PlaylistType.END_FOLDER
+    sp_playlist_folder_end.id = 17
+    return sp_playlist_folder_end
+
+
+@pytest.fixture
 def sp_playlist_container_mock():
     sp_playlist_container = mock.Mock(spec=spotify.PlaylistContainer)
     return sp_playlist_container

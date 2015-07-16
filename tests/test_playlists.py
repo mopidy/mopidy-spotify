@@ -13,11 +13,10 @@ from mopidy_spotify import backend, playlists
 
 
 @pytest.fixture
-def session_mock(sp_playlist_mock, sp_user_mock, sp_starred_mock):
-    sp_playlist_folder_start_mock = mock.Mock(spec=spotify.PlaylistFolder)
-    sp_playlist_folder_start_mock.type = spotify.PlaylistType.START_FOLDER
-    sp_playlist_folder_start_mock.name = 'Bar'
-    sp_playlist_folder_start_mock.id = 17
+def session_mock(
+        sp_playlist_mock,
+        sp_playlist_folder_start_mock, sp_playlist_folder_end_mock,
+        sp_user_mock, sp_starred_mock):
 
     sp_playlist2_mock = mock.Mock(spec=spotify.Playlist)
     sp_playlist2_mock.is_loaded = True
@@ -26,10 +25,6 @@ def session_mock(sp_playlist_mock, sp_user_mock, sp_starred_mock):
     sp_playlist2_mock.link.uri = 'spotify:playlist:bob:baz'
     sp_playlist2_mock.name = 'Baz'
     sp_playlist2_mock.tracks = []
-
-    sp_playlist_folder_end_mock = mock.Mock(spec=spotify.PlaylistFolder)
-    sp_playlist_folder_end_mock.type = spotify.PlaylistType.END_FOLDER
-    sp_playlist_folder_end_mock.id = 17
 
     sp_playlist3_mock = mock.Mock(spec=spotify.Playlist)
     sp_playlist3_mock.is_loaded = False
