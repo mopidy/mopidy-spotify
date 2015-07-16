@@ -45,6 +45,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
                 uri='spotify:top:artists', name='Top artists'),
         ]
 
+        spotify_config = self._backend._config['spotify']
+        self._search_album_count = spotify_config['search_album_count']
+        self._search_artist_count = spotify_config['search_artist_count']
+        self._search_track_count = spotify_config['search_track_count']
+
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self._root_dir_contents
@@ -234,12 +239,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             logger.info('Spotify search aborted: Spotify is offline')
             return models.SearchResult(uri=uri)
 
-        spotify_config = self._backend._config['spotify']
         sp_search = self._backend._session.search(
             sp_query,
-            album_count=spotify_config['search_album_count'],
-            artist_count=spotify_config['search_artist_count'],
-            track_count=spotify_config['search_track_count'])
+            album_count=self._search_album_count,
+            artist_count=self._search_artist_count,
+            track_count=self._search_track_count)
         sp_search.load()
 
         albums = [
