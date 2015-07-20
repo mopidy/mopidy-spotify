@@ -6,15 +6,10 @@ import urllib
 from mopidy import backend, models
 
 import spotify
-
-from mopidy_spotify import browse, distinct, images, translator, utils
+from mopidy_spotify import browse, distinct, images, lookup, translator, utils
 
 
 logger = logging.getLogger(__name__)
-
-VARIOUS_ARTISTS_URIS = [
-    'spotify:artist:0LyfQWJT6nXafLPZqxe9Of',
-]
 
 
 class SpotifyLibraryProvider(backend.LibraryProvider):
@@ -35,83 +30,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         return images.get_images(uris)
 
     def lookup(self, uri):
-        try:
-            sp_link = self._backend._session.get_link(uri)
-        except ValueError as exc:
-            logger.info('Failed to lookup "%s": %s', uri, exc)
-            return []
-
-        try:
-            if sp_link.type is spotify.LinkType.TRACK:
-                return list(self._lookup_track(sp_link))
-            elif sp_link.type is spotify.LinkType.ALBUM:
-                return list(self._lookup_album(sp_link))
-            elif sp_link.type is spotify.LinkType.ARTIST:
-                with utils.time_logger('Artist lookup'):
-                    return list(self._lookup_artist(sp_link))
-            elif sp_link.type is spotify.LinkType.PLAYLIST:
-                return list(self._lookup_playlist(sp_link))
-            elif sp_link.type is spotify.LinkType.STARRED:
-                return list(reversed(list(self._lookup_playlist(sp_link))))
-            else:
-                logger.info(
-                    'Failed to lookup "%s": Cannot handle %r',
-                    uri, sp_link.type)
-                return []
-        except spotify.Error as exc:
-            logger.info('Failed to lookup "%s": %s', uri, exc)
-            return []
-
-    def _lookup_track(self, sp_link):
-        sp_track = sp_link.as_track()
-        sp_track.load()
-        track = translator.to_track(sp_track, bitrate=self._backend._bitrate)
-        if track is not None:
-            yield track
-
-    def _lookup_album(self, sp_link):
-        sp_album = sp_link.as_album()
-        sp_album_browser = sp_album.browse()
-        sp_album_browser.load()
-        for sp_track in sp_album_browser.tracks:
-            track = translator.to_track(
-                sp_track, bitrate=self._backend._bitrate)
-            if track is not None:
-                yield track
-
-    def _lookup_artist(self, sp_link):
-        sp_artist = sp_link.as_artist()
-        sp_artist_browser = sp_artist.browse(
-            type=spotify.ArtistBrowserType.NO_TRACKS)
-        sp_artist_browser.load()
-
-        # Get all album browsers we need first, so they can start retrieving
-        # data in the background.
-        sp_album_browsers = []
-        for sp_album in sp_artist_browser.albums:
-            sp_album.load()
-            if sp_album.type is spotify.AlbumType.COMPILATION:
-                continue
-            if sp_album.artist.link.uri in VARIOUS_ARTISTS_URIS:
-                continue
-            sp_album_browsers.append(sp_album.browse())
-
-        for sp_album_browser in sp_album_browsers:
-            sp_album_browser.load()
-            for sp_track in sp_album_browser.tracks:
-                track = translator.to_track(
-                    sp_track, bitrate=self._backend._bitrate)
-                if track is not None:
-                    yield track
-
-    def _lookup_playlist(self, sp_link):
-        sp_playlist = sp_link.as_playlist()
-        sp_playlist.load()
-        for sp_track in sp_playlist.tracks:
-            track = translator.to_track(
-                sp_track, bitrate=self._backend._bitrate)
-            if track is not None:
-                yield track
+        return lookup.lookup(self._config, self._backend._session, uri)
 
     def search(self, query=None, uris=None, exact=False):
         # TODO Respect `uris` argument
