@@ -7,22 +7,10 @@ from mopidy import backend, models
 
 import spotify
 
-from mopidy_spotify import countries, images, translator, utils
+from mopidy_spotify import browse, images, translator, utils
 
 
 logger = logging.getLogger(__name__)
-
-TOPLIST_TYPES = {
-    'albums': spotify.ToplistType.ALBUMS,
-    'artists': spotify.ToplistType.ARTISTS,
-    'tracks': spotify.ToplistType.TRACKS,
-}
-
-TOPLIST_REGIONS = {
-    'user': lambda session: spotify.ToplistRegion.USER,
-    'country': lambda session: session.user_country,
-    'everywhere': lambda session: spotify.ToplistRegion.EVERYWHERE,
-}
 
 VARIOUS_ARTISTS_URIS = [
     'spotify:artist:0LyfQWJT6nXafLPZqxe9Of',
@@ -30,20 +18,10 @@ VARIOUS_ARTISTS_URIS = [
 
 
 class SpotifyLibraryProvider(backend.LibraryProvider):
-    root_directory = models.Ref.directory(
-        uri='spotify:directory', name='Spotify')
+    root_directory = browse.ROOT_DIR
 
     def __init__(self, backend):
         self._backend = backend
-
-        self._root_dir_contents = [
-            models.Ref.directory(
-                uri='spotify:top:tracks', name='Top tracks'),
-            models.Ref.directory(
-                uri='spotify:top:albums', name='Top albums'),
-            models.Ref.directory(
-                uri='spotify:top:artists', name='Top artists'),
-        ]
 
         spotify_config = self._backend._config['spotify']
         self._search_album_count = spotify_config['search_album_count']
@@ -51,91 +29,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         self._search_track_count = spotify_config['search_track_count']
 
     def browse(self, uri):
-        if uri == self.root_directory.uri:
-            return self._root_dir_contents
-        elif uri.startswith('spotify:user:'):
-            return self._browse_playlist(uri)
-        elif uri.startswith('spotify:album:'):
-            return self._browse_album(uri)
-        elif uri.startswith('spotify:artist:'):
-            return self._browse_artist(uri)
-        elif uri.startswith('spotify:top:'):
-            parts = uri.replace('spotify:top:', '').split(':')
-            if len(parts) == 1:
-                return self._browse_toplist_regions(variant=parts[0])
-            elif len(parts) == 2:
-                return self._browse_toplist(variant=parts[0], region=parts[1])
-            else:
-                logger.info(
-                    'Failed to browse "%s": Toplist URI parsing failed', uri)
-                return []
-        else:
-            logger.info('Failed to browse "%s": Unknown URI type', uri)
-            return []
-
-    def _browse_playlist(self, uri):
-        sp_playlist = self._backend._session.get_playlist(uri)
-        sp_playlist.load()
-        return list(translator.to_track_refs(sp_playlist.tracks))
-
-    def _browse_album(self, uri):
-        sp_album_browser = self._backend._session.get_album(uri).browse()
-        sp_album_browser.load()
-        return list(translator.to_track_refs(sp_album_browser.tracks))
-
-    def _browse_artist(self, uri):
-        sp_artist_browser = self._backend._session.get_artist(uri).browse(
-            type=spotify.ArtistBrowserType.NO_TRACKS)
-        sp_artist_browser.load()
-        top_tracks = list(translator.to_track_refs(
-            sp_artist_browser.tophit_tracks))
-        albums = list(translator.to_album_refs(sp_artist_browser.albums))
-        return top_tracks + albums
-
-    def _browse_toplist_regions(self, variant):
-        return [
-            models.Ref.directory(
-                uri='spotify:top:%s:user' % variant, name='Personal'),
-            models.Ref.directory(
-                uri='spotify:top:%s:country' % variant, name='Country'),
-            models.Ref.directory(
-                uri='spotify:top:%s:countries' % variant,
-                name='Other countries'),
-            models.Ref.directory(
-                uri='spotify:top:%s:everywhere' % variant, name='Global'),
-        ]
-
-    def _browse_toplist(self, variant, region):
-        if region == 'countries':
-            codes = self._backend._config['spotify']['toplist_countries']
-            if not codes:
-                codes = countries.COUNTRIES.keys()
-            return [
-                models.Ref.directory(
-                    uri='spotify:top:%s:%s' % (variant, code.lower()),
-                    name=countries.COUNTRIES.get(code.upper(), code.upper()))
-                for code in codes]
-
-        if region in ('user', 'country', 'everywhere'):
-            sp_toplist = self._backend._session.get_toplist(
-                type=TOPLIST_TYPES[variant],
-                region=TOPLIST_REGIONS[region](self._backend._session))
-        elif len(region) == 2:
-            sp_toplist = self._backend._session.get_toplist(
-                type=TOPLIST_TYPES[variant], region=region.upper())
-        else:
-            return []
-
-        sp_toplist.load()
-
-        if variant == 'tracks':
-            return list(translator.to_track_refs(sp_toplist.tracks))
-        elif variant == 'albums':
-            return list(translator.to_album_refs(sp_toplist.albums))
-        elif variant == 'artists':
-            return list(translator.to_artist_refs(sp_toplist.artists))
-        else:
-            return []
+        return browse.browse(self._config, self._backend._session, uri)
 
     def get_distinct(self, field, query=None):
         # To make the returned data as interesting as possible, we limit
