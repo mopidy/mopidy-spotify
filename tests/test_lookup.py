@@ -100,6 +100,18 @@ def test_lookup_of_artist_uri(
     assert track.bitrate == 160
 
 
+def test_lookup_of_artist_ignores_unavailable_albums(
+        session_mock, sp_artist_browser_mock, sp_album_browser_mock, provider):
+    sp_artist_mock = sp_artist_browser_mock.artist
+    session_mock.get_link.return_value = sp_artist_mock.link
+    sp_album_mock = sp_album_browser_mock.album
+    sp_album_mock.is_available = False
+
+    results = provider.lookup('spotify:artist:abba')
+
+    assert len(results) == 0
+
+
 def test_lookup_of_artist_uri_ignores_compilations(
         session_mock, sp_artist_browser_mock, sp_album_browser_mock, provider):
     sp_artist_mock = sp_artist_browser_mock.artist

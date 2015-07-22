@@ -71,6 +71,8 @@ def _lookup_artist(config, sp_link):
     sp_album_browsers = []
     for sp_album in sp_artist_browser.albums:
         sp_album.load()
+        if not sp_album.is_available:
+            continue
         if sp_album.type is spotify.AlbumType.COMPILATION:
             continue
         if sp_album.artist.link.uri in _VARIOUS_ARTISTS_URIS:
