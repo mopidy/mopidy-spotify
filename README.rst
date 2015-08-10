@@ -167,7 +167,7 @@ Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
 
 - Removed ``spotify/cache_dir`` and ``spotify/settings_dir`` config values. We
   now use a "spotify" directory in the ``core/cache_dir`` and
-  ``core/config_dir`` directories defined in Mopidy's configuration.
+  ``core/data_dir`` directories defined in Mopidy's configuration.
 
 - Add ``spotify/allow_cache`` config value to make it possible to disable
   caching.

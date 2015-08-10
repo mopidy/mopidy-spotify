@@ -63,7 +63,7 @@ def test_on_start_creates_configured_session(tmpdir, spotify_mock, config):
     cache_location_mock.assert_called_once_with(
         '%s' % tmpdir.join('cache', 'spotify'))
     settings_location_mock.assert_called_once_with(
-        '%s' % tmpdir.join('config', 'spotify'))
+        '%s' % tmpdir.join('data', 'spotify'))
     spotify_mock.Session.assert_called_once_with(config_mock)
 
 

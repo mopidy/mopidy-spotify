@@ -16,7 +16,7 @@ def config(tmpdir):
     return {
         'core': {
             'cache_dir': '%s' % tmpdir.join('cache'),
-            'config_dir': '%s' % tmpdir.join('config'),
+            'data_dir': '%s' % tmpdir.join('data'),
         },
         'spotify': {
             'username': 'alice',

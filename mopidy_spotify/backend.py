@@ -97,7 +97,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             spotify_config.cache_location = ext.get_cache_dir(config)
         else:
             spotify_config.cache_location = None
-        spotify_config.settings_location = ext.get_config_dir(config)
+        spotify_config.settings_location = ext.get_data_dir(config)
         return spotify_config
 
     def on_logged_in(self):
