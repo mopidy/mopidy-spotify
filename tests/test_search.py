@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 from mopidy import models
 
+import spotify
+
 
 def test_search_with_no_query_returns_nothing(provider, caplog):
     result = provider.search()
@@ -51,8 +53,8 @@ def test_search_by_multiple_uris(session_mock, sp_track_mock, provider):
     assert track.bitrate == 160
 
 
-def test_search_when_offline_returns_nothing(provider, caplog):
-    provider._backend._online.is_set.return_value = False
+def test_search_when_offline_returns_nothing(session_mock, provider, caplog):
+    session_mock.connection.state = spotify.ConnectionState.OFFLINE
 
     result = provider.search({'any': ['ABBA']})
 

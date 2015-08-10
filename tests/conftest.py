@@ -206,6 +206,7 @@ def sp_search_mock(sp_album_mock, sp_artist_mock, sp_track_mock):
 @pytest.fixture
 def session_mock():
     sp_session_mock = mock.Mock(spec=spotify.Session)
+    sp_session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
     sp_session_mock.playlist_container = []
     return sp_session_mock
 

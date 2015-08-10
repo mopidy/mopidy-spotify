@@ -5,13 +5,15 @@ import urllib
 
 from mopidy import models
 
+import spotify
+
 from mopidy_spotify import lookup, translator
 
 
 logger = logging.getLogger(__name__)
 
 
-def search(config, session, is_online, query=None, uris=None, exact=False):
+def search(config, session, query=None, uris=None, exact=False):
     # TODO Respect `uris` argument
     # TODO Support `exact` search
 
@@ -30,7 +32,7 @@ def search(config, session, is_online, query=None, uris=None, exact=False):
     uri = 'spotify:search:%s' % urllib.quote(sp_query.encode('utf-8'))
     logger.info('Searching Spotify for: %s', sp_query)
 
-    if not is_online:
+    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
         logger.info('Spotify search aborted: Spotify is offline')
         return models.SearchResult(uri=uri)
 

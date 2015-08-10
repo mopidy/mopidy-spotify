@@ -28,7 +28,6 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
     _logged_in = threading.Event()
     _logged_out = threading.Event()
     _logged_out.set()
-    _online = threading.Event()
 
     def __init__(self, config, audio):
         super(SpotifyBackend, self).__init__()
@@ -80,8 +79,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         session.on(
             spotify.SessionEvent.CONNECTION_STATE_UPDATED,
             on_connection_state_changed,
-            self._logged_in, self._logged_out, self._online,
-            backend_actor_proxy)
+            self._logged_in, self._logged_out, backend_actor_proxy)
         session.on(
             spotify.SessionEvent.PLAY_TOKEN_LOST,
             on_play_token_lost, backend_actor_proxy)
@@ -127,28 +125,24 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
 
 def on_connection_state_changed(
-        session, logged_in_event, logged_out_event, online_event, backend):
+        session, logged_in_event, logged_out_event, backend):
 
     # Called from the pyspotify event loop, and not in an actor context.
     if session.connection.state is spotify.ConnectionState.LOGGED_OUT:
         logger.debug('Logged out of Spotify')
         logged_in_event.clear()
         logged_out_event.set()
-        online_event.clear()
     elif session.connection.state is spotify.ConnectionState.LOGGED_IN:
         logger.info('Logged in to Spotify in online mode')
         logged_in_event.set()
         logged_out_event.clear()
-        online_event.set()
         backend.on_logged_in()
     elif session.connection.state is spotify.ConnectionState.DISCONNECTED:
         logger.info('Disconnected from Spotify')
-        online_event.clear()
     elif session.connection.state is spotify.ConnectionState.OFFLINE:
         logger.info('Logged in to Spotify in offline mode')
         logged_in_event.set()
         logged_out_event.clear()
-        online_event.clear()
 
 
 def on_play_token_lost(session, backend):
