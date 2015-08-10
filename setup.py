@@ -25,14 +25,9 @@ setup(
     include_package_data=True,
     install_requires=[
         'setuptools',
-        'Mopidy >= 1.0',
+        'Mopidy >= 1.1',
         'Pykka >= 1.1',
-        'pyspotify >= 1.9, < 1.999',
-    ],
-    test_suite='nose.collector',
-    tests_require=[
-        'nose',
-        'mock >= 1.0',
+        'pyspotify >= 2.0.2',
     ],
     entry_points={
         'mopidy.ext': [

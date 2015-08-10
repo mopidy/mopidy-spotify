@@ -10,12 +10,12 @@ Mopidy-Spotify
     :target: https://pypi.python.org/pypi/Mopidy-Spotify/
     :alt: Number of PyPI downloads
 
-.. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/master.svg?style=flat
+.. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/develop.svg?style=flat
     :target: https://travis-ci.org/mopidy/mopidy-spotify
     :alt: Travis CI build status
 
-.. image:: https://img.shields.io/coveralls/mopidy/mopidy-spotify/master.svg?style=flat
-   :target: https://coveralls.io/r/mopidy/mopidy-spotify?branch=master
+.. image:: https://img.shields.io/coveralls/mopidy/mopidy-spotify/develop.svg?style=flat
+   :target: https://coveralls.io/r/mopidy/mopidy-spotify?branch=develop
    :alt: Test coverage
 
 `Mopidy <http://www.mopidy.com/>`_ extension for playing music from
@@ -38,10 +38,10 @@ Dependencies
   The package is available as ``libspotify12`` from
   `apt.mopidy.com <http://apt.mopidy.com/>`__.
 
-- ``pyspotify`` >= 1.9, < 2. The ``libspotify`` python wrapper. The package is
+- ``pyspotify`` >= 2.0. The ``libspotify`` python wrapper. The package is
   available as ``python-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
 
-- ``Mopidy`` >= 0.18. The music server that Mopidy-Spotify extends.
+- ``Mopidy`` >= 1.1. The music server that Mopidy-Spotify extends.
 
 If you install Mopidy-Spotify from apt.mopidy.com, AUR, or Homebrew, these
 dependencies are installed automatically.
@@ -84,19 +84,48 @@ to your Mopidy configuration file::
 The following configuration values are available:
 
 - ``spotify/enabled``: If the Spotify extension should be enabled or not.
-- ``spotify/username``: Your Spotify Premium username.
-- ``spotify/password``: Your Spotify Premium password.
-- ``spotify/bitrate``: Audio bitrate in kbps. 96, 160 or 320. Defaults to 160.
+  Defaults to ``true``.
+
+- ``spotify/username``: Your Spotify Premium username. You *must* provide this.
+
+- ``spotify/password``: Your Spotify Premium password. You *must* provide this.
+
+- ``spotify/bitrate``: Audio bitrate in kbps. ``96``, ``160``, or ``320``.
+  Defaults to ``160``.
+
+- ``spotify/volume_normalization``: Whether volume normalization is active or
+  not. Defaults to ``true``.
+
 - ``spotify/timeout``: Seconds before giving up waiting for search results,
-  etc. Defaults to 10 seconds.
-- ``spotify/cache_dir``: The dir where the Spotify extension caches data.
-  Defaults to ``$XDG_CACHE_DIR/mopidy/spotify``, which usually means
-  ``~/.cache/mopidy/spotify``. If set to an empty string, caching is disabled.
-- ``spotify/settings_dir``: The dir where the Spotify extension stores
-  libspotify settings. Defaults to ``$XDG_CONFIG_DIR/mopidy/spotify``, which
-  usually means ``~/.config/mopidy/spotify``.
-- ``spotify/toplist_countries``: Comma separated list of two letter country
-  domains to get toplists for.
+  etc. Defaults to ``10``.
+
+- ``spotify/allow_cache``: Whether to allow caching. The cache is stored in a
+  "spotify" directory within Mopidy's ``core/cache_dir``. Defaults to ``true``.
+
+- ``spotify/allow_network``: Whether to allow network access or not. Defaults
+  to ``true``.
+
+- ``spotify/allow_playlists``: Whether or not playlists should be exposed.
+  Defaults to ``true``.
+
+- ``spotify/search_album_count``: Maximum number of albums returned in search
+  results. Number between 0 and 200. Defaults to 20.
+
+- ``spotify/search_artist_count``: Maximum number of artists returned in search
+  results. Number between 0 and 200. Defaults to 10.
+
+- ``spotify/search_track_count``: Maximum number of tracks returned in search
+  results. Number between 0 and 200. Defaults to 50.
+
+- ``spotify/toplist_countries``: Comma separated list of two letter ISO country
+  codes to get toplists for. Defaults to blank, which is interpreted as all
+  countries that Spotify is available in.
+
+- ``spotify/private_session``: Whether to use a private Spotify session. Turn
+  on private session to disable sharing of played tracks with friends through
+  the Spotify activity feed, Last.fm scrobbling, and Facebook. This only
+  affects social sharing done by Spotify, not by other Mopidy extensions.
+  Defaults to ``false``.
 
 
 Project resources
@@ -104,11 +133,79 @@ Project resources
 
 - `Source code <https://github.com/mopidy/mopidy-spotify>`_
 - `Issue tracker <https://github.com/mopidy/mopidy-spotify/issues>`_
-- `Download development snapshot <https://github.com/mopidy/mopidy-spotify/tarball/master#egg=Mopidy-Spotify-dev>`_
+- `Download development snapshot <https://github.com/mopidy/mopidy-spotify/tarball/develop#egg=Mopidy-Spotify-dev>`_
 
 
 Changelog
 =========
+
+v2.0.0 (2015-08-11)
+-------------------
+
+Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
+
+**Config**
+
+- Add ``spotify/volume_normalization`` config. (Fixes: #13)
+
+- Add ``spotify/allow_network`` config which can be used to force
+  Mopidy-Spotify to stay offline. This is mostly useful for testing during
+  development.
+
+- Add ``spotify/allow_playlists`` config which can be used to disable all
+  access to playlists on the Spotify account. Useful where Mopidy is shared by
+  multiple users. (Fixes: #25)
+
+- Make maximum number of returned results configurable through
+  ``spotify/search_album_count``, ``spotify/search_artist_count``, and
+  ``spotify/search_track_count``.
+
+- Add ``spotify/private_session`` config.
+
+- Change ``spotify/toplist_countries`` default value to blank, which is now
+  interpreted as all supported countries instead of no countries.
+
+- Removed ``spotify/cache_dir`` and ``spotify/settings_dir`` config values. We
+  now use a "spotify" directory in the ``core/cache_dir`` and
+  ``core/data_dir`` directories defined in Mopidy's configuration.
+
+- Add ``spotify/allow_cache`` config value to make it possible to disable
+  caching.
+
+**Browse**
+
+- Add browsing of top albums and top artists, in additon to top tracks.
+
+- Add browsing by current user's country, in addition to personal, global and
+  per-country browsing.
+
+- Add browsing of artists, which includes the artist's top tracks and albums.
+
+- Update list of countries Spotify is available in and provides toplists for.
+
+**Lookup**
+
+- Adding an artist by URI will now first find all albums by the artist and
+  then all tracks in the albums. This way, the returned tracks are grouped by
+  album and they are sorted by track number. (Fixes: #7)
+
+- When adding an artist by URI, all albums that are marked as "compilations"
+  or where the album artist is "Various Artists" are now ignored. (Fixes: #5)
+
+**Library**
+
+- The library provider method ``get_distinct()`` is now supported. When called
+  without a query, the tracks in the user's playlists is used as the data
+  source. When called with a query, a Spotify search is used as the data
+  source. This addition makes the library view in some notable MPD clients,
+  like ncmpcpp, become quite fast and usable with Spotify. (Fixes: #50)
+
+**Playback**
+
+- If another Spotify client starts playback with the same account, we get a
+  "play token lost" event. Previously, Mopidy-Spotify would unconditionally
+  pause Mopidy playback if this happened. Now, we only pause playback if we're
+  currently playing music from Spotify. (Fixes: #1)
 
 v1.4.0 (2015-05-19)
 -------------------

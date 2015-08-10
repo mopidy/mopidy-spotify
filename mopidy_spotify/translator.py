@@ -1,121 +1,234 @@
 from __future__ import unicode_literals
 
+import collections
 import logging
-import re
 
-from mopidy.models import Album, Artist, Playlist, Ref, Track
+from mopidy import models
 
 import spotify
 
 
 logger = logging.getLogger(__name__)
 
-artist_cache = {}
-album_cache = {}
-track_cache = {}
 
-TRACK_AVAILABLE = 1
+class memoized(object):
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+
+    def __call__(self, *args, **kwargs):
+        # NOTE Only args, not kwargs, are part of the memoization key.
+        if not isinstance(args, collections.Hashable):
+            return self.func(*args, **kwargs)
+        if args in self.cache:
+            return self.cache[args]
+        else:
+            value = self.func(*args, **kwargs)
+            if value is not None:
+                self.cache[args] = value
+            return value
 
 
-def parse_uri(uri):
-    result = re.findall(r'^spotify:([a-z]+)(?::([\w:]+))?$', uri)
-    if result:
-        return result[0]
-    return None, None
-
-
-def to_mopidy_artist(spotify_artist):
-    if spotify_artist is None:
+@memoized
+def to_artist(sp_artist):
+    if not sp_artist.is_loaded:
         return
-    uri = str(spotify.Link.from_artist(spotify_artist))
-    if uri in artist_cache:
-        return artist_cache[uri]
-    if not spotify_artist.is_loaded():
-        return Artist(uri=uri, name='[loading] %s' % uri)
-    artist_cache[uri] = Artist(uri=uri, name=spotify_artist.name())
-    return artist_cache[uri]
+
+    return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
-def to_mopidy_album(spotify_album):
-    if spotify_album is None:
+@memoized
+def to_artist_ref(sp_artist):
+    if not sp_artist.is_loaded:
         return
-    uri = str(spotify.Link.from_album(spotify_album))
-    if uri in album_cache:
-        return album_cache[uri]
-    if not spotify_album.is_loaded():
-        return Album(uri=uri, name='[loading] %s' % uri)
-    album_cache[uri] = Album(
-        uri=uri,
-        name=spotify_album.name(),
-        artists=[to_mopidy_artist(spotify_album.artist())],
-        date='%d' % spotify_album.year())
-    return album_cache[uri]
+
+    return models.Ref.artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
-def to_mopidy_track_ref(spotify_track):
-    uri = str(spotify.Link.from_track(spotify_track, 0))
-    if not spotify_track.is_loaded():
-        return Ref.track(uri=uri, name='[loading] %s' % uri)
-
-    name = spotify_track.name()
-    if spotify_track.availability() != TRACK_AVAILABLE:
-        name = '[unplayable] %s' % name
-    return Ref.track(uri=uri, name=name)
+def to_artist_refs(sp_artists):
+    for sp_artist in sp_artists:
+        sp_artist.load()
+        ref = to_artist_ref(sp_artist)
+        if ref is not None:
+            yield ref
 
 
-def to_mopidy_track(spotify_track, bitrate=None):
-    if spotify_track is None:
+@memoized
+def to_album(sp_album):
+    if not sp_album.is_loaded:
         return
-    uri = str(spotify.Link.from_track(spotify_track, 0))
-    if uri in track_cache:
-        return track_cache[uri]
-    if not spotify_track.is_loaded():
-        return Track(uri=uri, name='[loading] %s' % uri)
-    name = spotify_track.name()
-    if spotify_track.availability() != TRACK_AVAILABLE:
-        name = '[unplayable] %s' % name
-    spotify_album = spotify_track.album()
-    if spotify_album is not None and spotify_album.is_loaded():
-        date = '%d' % spotify_album.year()
+
+    if sp_album.artist is not None and sp_album.artist.is_loaded:
+        artists = [to_artist(sp_album.artist)]
+    else:
+        artists = []
+
+    if sp_album.year is not None:
+        date = '%d' % sp_album.year
     else:
         date = None
-    track_cache[uri] = Track(
-        uri=uri,
-        name=name,
-        artists=[to_mopidy_artist(a) for a in spotify_track.artists()],
-        album=to_mopidy_album(spotify_track.album()),
-        track_no=spotify_track.index(),
-        date=date,
-        length=spotify_track.duration(),
+
+    return models.Album(
+        uri=sp_album.link.uri,
+        name=sp_album.name,
+        artists=artists,
+        date=date)
+
+
+@memoized
+def to_album_ref(sp_album):
+    if not sp_album.is_loaded:
+        return
+
+    if sp_album.artist is None or not sp_album.artist.is_loaded:
+        name = sp_album.name
+    else:
+        name = '%s - %s' % (sp_album.artist.name, sp_album.name)
+
+    return models.Ref.album(uri=sp_album.link.uri, name=name)
+
+
+def to_album_refs(sp_albums):
+    for sp_album in sp_albums:
+        sp_album.load()
+        ref = to_album_ref(sp_album)
+        if ref is not None:
+            yield ref
+
+
+@memoized
+def to_track(sp_track, bitrate=None):
+    if not sp_track.is_loaded:
+        return
+
+    if sp_track.error != spotify.ErrorType.OK:
+        logger.debug(
+            'Error loading %s: %r', sp_track.link.uri, sp_track.error)
+        return
+
+    if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
+        return
+
+    artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
+    artists = filter(None, artists)
+
+    album = to_album(sp_track.album)
+
+    return models.Track(
+        uri=sp_track.link.uri,
+        name=sp_track.name,
+        artists=artists,
+        album=album,
+        date=album.date,
+        length=sp_track.duration,
+        disc_no=sp_track.disc,
+        track_no=sp_track.index,
         bitrate=bitrate)
-    return track_cache[uri]
 
 
-def to_mopidy_playlist(
-        spotify_playlist, folders=None, bitrate=None, username=None):
-    if spotify_playlist is None or spotify_playlist.type() != 'playlist':
+@memoized
+def to_track_ref(sp_track):
+    if not sp_track.is_loaded:
         return
-    try:
-        uri = str(spotify.Link.from_playlist(spotify_playlist))
-    except spotify.SpotifyError as e:
-        logger.debug('Spotify playlist translation error: %s', e)
+
+    if sp_track.error != spotify.ErrorType.OK:
+        logger.debug(
+            'Error loading %s: %r', sp_track.link.uri, sp_track.error)
         return
-    if not spotify_playlist.is_loaded():
-        return Playlist(uri=uri, name='[loading] %s' % uri)
-    name = spotify_playlist.name()
-    if folders:
-        folder_names = '/'.join(folder.name() for folder in folders)
-        name = folder_names + '/' + name
-    tracks = [
-        to_mopidy_track(spotify_track, bitrate=bitrate)
-        for spotify_track in spotify_playlist
-        if not spotify_track.is_local()
-    ]
-    if not name:
+
+    if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
+        return
+
+    return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
+
+
+def to_track_refs(sp_tracks):
+    for sp_track in sp_tracks:
+        sp_track.load()
+        ref = to_track_ref(sp_track)
+        if ref is not None:
+            yield ref
+
+
+def to_playlist(
+        sp_playlist, folders=None, username=None, bitrate=None,
+        as_ref=False, as_items=False):
+    if not isinstance(sp_playlist, spotify.Playlist):
+        return
+
+    if not sp_playlist.is_loaded:
+        return
+
+    if as_items:
+        return list(to_track_refs(sp_playlist.tracks))
+
+    name = sp_playlist.name
+
+    if not as_ref:
+        tracks = [
+            to_track(sp_track, bitrate=bitrate)
+            for sp_track in sp_playlist.tracks]
+        tracks = filter(None, tracks)
+        if name is None:
+            # Use same starred order as the Spotify client
+            tracks = list(reversed(tracks))
+
+    if name is None:
         name = 'Starred'
-        # Tracks in the Starred playlist are in reverse order from the official
-        # client.
-        tracks.reverse()
-    if spotify_playlist.owner().canonical_name() != username:
-        name += ' by ' + spotify_playlist.owner().canonical_name()
-    return Playlist(uri=uri, name=name, tracks=tracks)
+    if folders is not None:
+        name = '/'.join(folders + [name])
+    if username is not None and sp_playlist.owner.canonical_name != username:
+        name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
+
+    if as_ref:
+        return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
+    else:
+        return models.Playlist(
+            uri=sp_playlist.link.uri, name=name, tracks=tracks)
+
+
+def to_playlist_ref(sp_playlist, folders=None, username=None):
+    return to_playlist(
+        sp_playlist, folders=folders, username=username, as_ref=True)
+
+
+# Maps from Mopidy search query field to Spotify search query field.
+# `None` if there is no matching concept.
+SEARCH_FIELD_MAP = {
+    'albumartist': 'artist',
+    'date': 'year',
+    'track_name': 'track',
+    'track_number': None,
+}
+
+
+def sp_search_query(query):
+    """Translate a Mopidy search query to a Spotify search query"""
+
+    result = []
+
+    for (field, values) in query.items():
+        field = SEARCH_FIELD_MAP.get(field, field)
+        if field is None:
+            continue
+
+        for value in values:
+            if field == 'year':
+                value = _transform_year(value)
+                if value is not None:
+                    result.append('%s:%d' % (field, value))
+            elif field == 'any':
+                result.append('"%s"' % value)
+            else:
+                result.append('%s:"%s"' % (field, value))
+
+    return ' '.join(result)
+
+
+def _transform_year(date):
+    try:
+        return int(date.split('-')[0])
+    except ValueError:
+        logger.debug(
+            'Excluded year from search query: '
+            'Cannot parse date "%s"', date)
