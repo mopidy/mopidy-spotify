@@ -139,7 +139,7 @@ Project resources
 Changelog
 =========
 
-v2.0.0 (UNRELEASED)
+v2.0.0 (2015-08-11)
 -------------------
 
 Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
