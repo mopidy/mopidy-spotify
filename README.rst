@@ -103,10 +103,6 @@ The following configuration values are available:
   Defaults to ``$XDG_CACHE_DIR/mopidy/spotify``, which usually means
   ``~/.cache/mopidy/spotify``. If set to an empty string, caching is disabled.
 
-- ``spotify/settings_dir``: The dir where the Spotify extension stores
-  libspotify settings. Defaults to ``$XDG_CONFIG_DIR/mopidy/spotify``, which
-  usually means ``~/.config/mopidy/spotify``.
-
 - ``spotify/allow_network``: Whether to allow network access or not. Defaults
   to ``true``.
 
@@ -169,6 +165,10 @@ Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
 
 - Change ``spotify/toplist_countries`` default value to blank, which is now
   interpreted as all supported countries instead of no countries.
+
+- Removed ``spotify/settings_dir`` config value. We now use a "spotify"
+  directory in the ``core/config_dir`` directory defined in Mopidy's
+  configuration.
 
 **Browse**
 

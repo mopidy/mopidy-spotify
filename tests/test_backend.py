@@ -49,7 +49,7 @@ def test_init_disables_playlists_provider_if_not_allowed(spotify_mock, config):
     assert backend.playlists is None
 
 
-def test_on_start_creates_configured_session(spotify_mock, config):
+def test_on_start_creates_configured_session(tmpdir, spotify_mock, config):
     cache_location_mock = mock.PropertyMock()
     settings_location_mock = mock.PropertyMock()
     config_mock = spotify_mock.Config.return_value
@@ -61,7 +61,8 @@ def test_on_start_creates_configured_session(spotify_mock, config):
     spotify_mock.Config.assert_called_once_with()
     config_mock.load_application_key_file.assert_called_once_with(mock.ANY)
     cache_location_mock.assert_called_once_with('/my/cache/dir')
-    settings_location_mock.assert_called_once_with('/my/settings/dir')
+    settings_location_mock.assert_called_once_with(
+        '%s' % tmpdir.join('config', 'spotify'))
     spotify_mock.Session.assert_called_once_with(config_mock)
 
 

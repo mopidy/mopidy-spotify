@@ -12,8 +12,11 @@ from mopidy_spotify import backend, library
 
 
 @pytest.fixture
-def config():
+def config(tmpdir):
     return {
+        'core': {
+            'config_dir': '%s' % tmpdir.join('config'),
+        },
         'spotify': {
             'username': 'alice',
             'password': 'password',
@@ -22,7 +25,6 @@ def config():
             'private_session': False,
             'timeout': 10,
             'cache_dir': '/my/cache/dir',
-            'settings_dir': '/my/settings/dir',
             'allow_network': True,
             'allow_playlists': True,
             'search_album_count': 20,

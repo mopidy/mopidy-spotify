@@ -10,7 +10,7 @@ import pykka
 
 import spotify
 
-from mopidy_spotify import library, playback, playlists
+from mopidy_spotify import Extension, library, playback, playlists
 
 
 logger = logging.getLogger(__name__)
@@ -89,11 +89,12 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         return session
 
     def _get_spotify_config(self, config):
+        ext = Extension()
         spotify_config = spotify.Config()
         spotify_config.load_application_key_file(
             os.path.join(os.path.dirname(__file__), 'spotify_appkey.key'))
         spotify_config.cache_location = config['spotify']['cache_dir']
-        spotify_config.settings_location = config['spotify']['settings_dir']
+        spotify_config.settings_location = ext.get_config_dir(config)
         return spotify_config
 
     def on_logged_in(self):
