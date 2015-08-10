@@ -16,7 +16,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def __init__(self, backend):
         self._backend = backend
-        self._session = backend._session
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
@@ -25,33 +24,35 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 list(self._get_flattened_playlist_refs()))
 
     def _get_starred_playlist_ref(self):
-        if self._session is None:
+        if self._backend._session is None:
             return
 
-        sp_starred = self._session.get_starred()
+        sp_starred = self._backend._session.get_starred()
         if sp_starred is None:
             return
 
-        if self._session.connection.state is spotify.ConnectionState.LOGGED_IN:
+        if (
+                self._backend._session.connection.state is
+                spotify.ConnectionState.LOGGED_IN):
             sp_starred.load()
 
         starred_ref = translator.to_playlist_ref(
-            sp_starred, username=self._session.user_name)
+            sp_starred, username=self._backend._session.user_name)
 
         if starred_ref is not None:
             yield starred_ref
 
     def _get_flattened_playlist_refs(self):
-        if self._session is None:
+        if self._backend._session is None:
             return
 
-        if self._session.playlist_container is None:
+        if self._backend._session.playlist_container is None:
             return
 
-        username = self._session.user_name
+        username = self._backend._session.user_name
         folders = []
 
-        for sp_playlist in self._session.playlist_container:
+        for sp_playlist in self._backend._session.playlist_container:
             if isinstance(sp_playlist, spotify.PlaylistFolder):
                 if sp_playlist.type is spotify.PlaylistType.START_FOLDER:
                     folders.append(sp_playlist.name)
@@ -74,7 +75,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def _get_playlist(self, uri, as_items=False):
         try:
-            sp_playlist = self._session.get_playlist(uri)
+            sp_playlist = self._backend._session.get_playlist(uri)
         except spotify.Error as exc:
             logger.debug('Failed to lookup Spotify URI %s: %s', uri, exc)
             return
@@ -84,7 +85,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 'Waiting for Spotify playlist to load: %s', sp_playlist)
             sp_playlist.load()
 
-        username = self._session.user_name
+        username = self._backend._session.user_name
         return translator.to_playlist(
             sp_playlist, username=username, bitrate=self._backend._bitrate,
             as_items=as_items)
@@ -95,7 +96,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def create(self, name):
         try:
             sp_playlist = (
-                self._session.playlist_container
+                self._backend._session.playlist_container
                 .add_new_playlist(name))
         except ValueError as exc:
             logger.warning(
@@ -103,7 +104,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         except spotify.Error:
             logger.warning('Failed creating new Spotify playlist "%s"', name)
         else:
-            username = self._session.user_name
+            username = self._backend._session.user_name
             return translator.to_playlist(sp_playlist, username=username)
 
     def delete(self, uri):
