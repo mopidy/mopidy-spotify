@@ -32,7 +32,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if sp_starred is None:
             return
 
-        sp_starred.load()
+        if self._session.connection.state is spotify.ConnectionState.LOGGED_IN:
+            sp_starred.load()
 
         starred_ref = translator.to_playlist_ref(
             sp_starred, username=self._session.user_name)

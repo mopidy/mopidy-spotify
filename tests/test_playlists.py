@@ -70,6 +70,15 @@ def test_as_list_when_not_logged_in(
     assert len(result) == 0
 
 
+def test_as_list_when_offline(session_mock, sp_starred_mock, provider):
+    session_mock.connection.state = spotify.ConnectionState.OFFLINE
+
+    result = provider.as_list()
+
+    assert len(result) == 3
+    assert sp_starred_mock.load.call_count == 0
+
+
 def test_as_list_when_playlist_container_isnt_loaded(
         session_mock, provider):
     session_mock.playlist_container = None
