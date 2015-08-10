@@ -33,6 +33,8 @@ def _get_distinct_artists(config, session, sp_query):
     logger.debug('Getting distinct artists: %s', sp_query)
     if sp_query:
         sp_search = _get_sp_search(config, session, sp_query, artist=True)
+        if sp_search is None:
+            return set()
         return {artist.name for artist in sp_search.artists}
     else:
         return {
@@ -46,6 +48,8 @@ def _get_distinct_albumartists(config, session, sp_query):
         'Getting distinct albumartists: %s', sp_query)
     if sp_query:
         sp_search = _get_sp_search(config, session, sp_query, album=True)
+        if sp_search is None:
+            return set()
         return {album.artist.name for album in sp_search.albums}
     else:
         return {
@@ -57,6 +61,8 @@ def _get_distinct_albums(config, session, sp_query):
     logger.debug('Getting distinct albums: %s', sp_query)
     if sp_query:
         sp_search = _get_sp_search(config, session, sp_query, album=True)
+        if sp_search is None:
+            return set()
         return {album.name for album in sp_search.albums}
     else:
         return {
@@ -68,6 +74,8 @@ def _get_distinct_dates(config, session, sp_query):
     logger.debug('Getting distinct album years: %s', sp_query)
     if sp_query:
         sp_search = _get_sp_search(config, session, sp_query, album=True)
+        if sp_search is None:
+            return set()
         return {
             '%s' % album.year
             for album in sp_search.albums
@@ -81,6 +89,11 @@ def _get_distinct_dates(config, session, sp_query):
 
 def _get_sp_search(
         config, session, sp_query, album=False, artist=False, track=False):
+
+    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
+        logger.info('Spotify search aborted: Spotify is offline')
+        return None
+
     sp_search = session.search(
         sp_query,
         album_count=config['search_album_count'] if album else 0,

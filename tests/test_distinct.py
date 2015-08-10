@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import pytest
 
+import spotify
+
 
 @pytest.fixture
 def session_mock_with_playlists(
@@ -18,6 +20,7 @@ def session_mock_with_playlists(
 
 @pytest.fixture
 def session_mock_with_search(session_mock, sp_album_mock, sp_artist_mock):
+    session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
     session_mock.search.return_value.albums = [sp_album_mock]
     session_mock.search.return_value.artists = [sp_artist_mock]
     return session_mock
@@ -96,3 +99,12 @@ def test_get_distinct_with_query(
     assert provider.get_distinct(field, query) == expected
     session_mock_with_search.search.assert_called_once_with(
         *search_args, **search_kwargs)
+
+
+def test_get_distinct_with_query_when_offline(
+        session_mock_with_search, provider):
+
+    session_mock_with_search.connection.state = spotify.ConnectionState.OFFLINE
+
+    assert provider.get_distinct('artist', {'album': ['Foo']}) == set()
+    assert session_mock_with_search.search.return_value.load.call_count == 0
