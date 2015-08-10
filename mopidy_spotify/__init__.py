@@ -30,9 +30,10 @@ class Extension(ext.Extension):
 
         schema['timeout'] = config.Integer(minimum=0)
 
-        schema['cache_dir'] = config.Path(optional=True)
+        schema['cache_dir'] = config.Deprecated()  # since 2.0
         schema['settings_dir'] = config.Deprecated()  # since 2.0
 
+        schema['allow_cache'] = config.Boolean()
         schema['allow_network'] = config.Boolean()
         schema['allow_playlists'] = config.Boolean()
 

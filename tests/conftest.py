@@ -15,6 +15,7 @@ from mopidy_spotify import backend, library
 def config(tmpdir):
     return {
         'core': {
+            'cache_dir': '%s' % tmpdir.join('cache'),
             'config_dir': '%s' % tmpdir.join('config'),
         },
         'spotify': {
@@ -24,7 +25,7 @@ def config(tmpdir):
             'volume_normalization': True,
             'private_session': False,
             'timeout': 10,
-            'cache_dir': '/my/cache/dir',
+            'allow_cache': True,
             'allow_network': True,
             'allow_playlists': True,
             'search_album_count': 20,

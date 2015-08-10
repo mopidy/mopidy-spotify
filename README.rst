@@ -99,9 +99,8 @@ The following configuration values are available:
 - ``spotify/timeout``: Seconds before giving up waiting for search results,
   etc. Defaults to ``10``.
 
-- ``spotify/cache_dir``: The dir where the Spotify extension caches data.
-  Defaults to ``$XDG_CACHE_DIR/mopidy/spotify``, which usually means
-  ``~/.cache/mopidy/spotify``. If set to an empty string, caching is disabled.
+- ``spotify/allow_cache``: Whether to allow caching. The cache is stored in a
+  "spotify" directory within Mopidy's ``core/cache_dir``. Defaults to ``true``.
 
 - ``spotify/allow_network``: Whether to allow network access or not. Defaults
   to ``true``.
@@ -166,9 +165,12 @@ Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
 - Change ``spotify/toplist_countries`` default value to blank, which is now
   interpreted as all supported countries instead of no countries.
 
-- Removed ``spotify/settings_dir`` config value. We now use a "spotify"
-  directory in the ``core/config_dir`` directory defined in Mopidy's
-  configuration.
+- Removed ``spotify/cache_dir`` and ``spotify/settings_dir`` config values. We
+  now use a "spotify" directory in the ``core/cache_dir`` and
+  ``core/config_dir`` directories defined in Mopidy's configuration.
+
+- Add ``spotify/allow_cache`` config value to make it possible to disable
+  caching.
 
 **Browse**
 

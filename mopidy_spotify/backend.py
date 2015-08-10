@@ -93,7 +93,10 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         spotify_config = spotify.Config()
         spotify_config.load_application_key_file(
             os.path.join(os.path.dirname(__file__), 'spotify_appkey.key'))
-        spotify_config.cache_location = config['spotify']['cache_dir']
+        if config['spotify']['allow_cache']:
+            spotify_config.cache_location = ext.get_cache_dir(config)
+        else:
+            spotify_config.cache_location = None
         spotify_config.settings_location = ext.get_config_dir(config)
         return spotify_config
 
