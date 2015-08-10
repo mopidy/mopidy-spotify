@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import mock
+
 from mopidy import models
 
 import spotify
@@ -72,6 +74,17 @@ def test_browse_artist(
         uri='spotify:track:abc', name='ABC 123')
     assert results[2] == models.Ref.album(
         uri='spotify:album:def', name='ABBA - DEF 456')
+
+
+def test_browse_toplist_when_offline(session_mock, provider):
+    session_mock.connection.state = spotify.ConnectionState.OFFLINE
+    toplist_mock = session_mock.get_toplist.return_value
+    toplist_mock.is_loaded = False
+    type(toplist_mock).tracks = mock.PropertyMock(side_effect=Exception)
+
+    provider.browse('spotify:top:tracks:user')
+
+    assert toplist_mock.load.call_count == 0
 
 
 def test_browse_top_tracks(provider):

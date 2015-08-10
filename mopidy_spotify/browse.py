@@ -118,7 +118,11 @@ def _browse_toplist(config, session, variant, region):
     else:
         return []
 
-    sp_toplist.load()
+    if session.connection.state is spotify.ConnectionState.LOGGED_IN:
+        sp_toplist.load()
+
+    if not sp_toplist.is_loaded:
+        return []
 
     if variant == 'tracks':
         return list(translator.to_track_refs(sp_toplist.tracks))
