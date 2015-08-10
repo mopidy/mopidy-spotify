@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import mock
 
 from mopidy_spotify import Extension, backend as backend_lib

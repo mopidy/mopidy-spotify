@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 """
 List of countries that Spotify is available in.
 
