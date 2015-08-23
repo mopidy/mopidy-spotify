@@ -7,22 +7,29 @@ import spotify
 
 @pytest.fixture
 def session_mock_with_playlists(
-        session_mock, sp_playlist_mock,
+        session_mock, sp_playlist_mock, sp_unloaded_playlist_mock,
         sp_playlist_folder_start_mock, sp_playlist_folder_end_mock):
 
     session_mock.playlist_container = [
         sp_playlist_folder_start_mock,
         sp_playlist_mock,
+        sp_unloaded_playlist_mock,
         sp_playlist_folder_end_mock,
     ]
     return session_mock
 
 
 @pytest.fixture
-def session_mock_with_search(session_mock, sp_album_mock, sp_artist_mock):
+def session_mock_with_search(
+        session_mock,
+        sp_album_mock, sp_unloaded_album_mock,
+        sp_artist_mock, sp_unloaded_artist_mock):
+
     session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
-    session_mock.search.return_value.albums = [sp_album_mock]
-    session_mock.search.return_value.artists = [sp_artist_mock]
+    session_mock.search.return_value.albums = [
+        sp_album_mock, sp_unloaded_album_mock]
+    session_mock.search.return_value.artists = [
+        sp_artist_mock, sp_unloaded_artist_mock]
     return session_mock
 
 

@@ -18,15 +18,17 @@ def get_distinct(config, session, field, query=None):
     sp_query = translator.sp_search_query(query) if query else None
 
     if field == 'artist':
-        return _get_distinct_artists(config, session, sp_query)
+        result = _get_distinct_artists(config, session, sp_query)
     elif field == 'albumartist':
-        return _get_distinct_albumartists(config, session, sp_query)
+        result = _get_distinct_albumartists(config, session, sp_query)
     elif field == 'album':
-        return _get_distinct_albums(config, session, sp_query)
+        result = _get_distinct_albums(config, session, sp_query)
     elif field == 'date':
-        return _get_distinct_dates(config, session, sp_query)
+        result = _get_distinct_dates(config, session, sp_query)
     else:
-        return set()
+        result = set()
+
+    return result - {None}
 
 
 def _get_distinct_artists(config, session, sp_query):
@@ -50,11 +52,15 @@ def _get_distinct_albumartists(config, session, sp_query):
         sp_search = _get_sp_search(config, session, sp_query, album=True)
         if sp_search is None:
             return set()
-        return {album.artist.name for album in sp_search.albums}
+        return {
+            album.artist.name
+            for album in sp_search.albums
+            if album.artist}
     else:
         return {
             track.album.artist.name
-            for track in _get_playlist_tracks(config, session)}
+            for track in _get_playlist_tracks(config, session)
+            if track.album and track.album.artist}
 
 
 def _get_distinct_albums(config, session, sp_query):
@@ -67,7 +73,8 @@ def _get_distinct_albums(config, session, sp_query):
     else:
         return {
             track.album.name
-            for track in _get_playlist_tracks(config, session)}
+            for track in _get_playlist_tracks(config, session)
+            if track.album}
 
 
 def _get_distinct_dates(config, session, sp_query):
@@ -79,12 +86,12 @@ def _get_distinct_dates(config, session, sp_query):
         return {
             '%s' % album.year
             for album in sp_search.albums
-            if album.year != 0}
+            if album.year not in (None, 0)}
     else:
         return {
             '%s' % track.album.year
             for track in _get_playlist_tracks(config, session)
-            if track.album.year != 0}
+            if track.album and track.album.year not in (None, 0)}
 
 
 def _get_sp_search(

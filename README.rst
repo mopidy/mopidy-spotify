@@ -139,6 +139,14 @@ Project resources
 Changelog
 =========
 
+v2.0.1 (2015-08-23)
+-------------------
+
+Bug fix release.
+
+- Filter out ``None`` from ``library.get_distinct()`` return values. (Fixes:
+  #63)
+
 v2.0.0 (2015-08-11)
 -------------------
 
