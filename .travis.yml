@@ -10,8 +10,10 @@ addons:
     sources:
       - mopidy-stable
     packages:
+      - libffi-dev
+      - libspotify-dev
       - mopidy
-      - python-spotify
+      - python-all-dev
 
 env:
   - TOX_ENV=py27
