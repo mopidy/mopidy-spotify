@@ -138,11 +138,29 @@ def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
 
 
 def test_on_start_logs_in(spotify_mock, config):
+    config['spotify']['username'] = 'alice'
+    config['spotify']['password'] = 'password'
+
     backend = get_backend(config)
     backend.on_start()
 
     spotify_mock.Session.return_value.login.assert_called_once_with(
         'alice', 'password')
+
+
+def test_on_start_logs_in_using_keyring(spotify_mock, keyring_mock, config):
+    keyring_mock.fetch.return_value = [
+        ('mopidy-spotify', 'foo', 'eve'),
+        ('mopidy-spotify', 'username', 'bob'),
+        ('mopidy-spotify', 'password', 'PASSWORD'),
+        ('mopidy-foo', 'username', 'eve'),
+    ]
+
+    backend = get_backend(config)
+    backend.on_start()
+
+    spotify_mock.Session.return_value.login.assert_called_once_with(
+        'bob', 'PASSWORD')
 
 
 def test_on_stop_logs_out_and_waits_for_logout_to_complete(
