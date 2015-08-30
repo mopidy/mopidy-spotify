@@ -5,6 +5,7 @@ import os
 import threading
 
 from mopidy import backend
+from mopidy.config import keyring
 
 import pykka
 
@@ -55,9 +56,23 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._event_loop = spotify.EventLoop(self._session)
         self._event_loop.start()
 
-        self._session.login(
-            self._config['spotify']['username'],
-            self._config['spotify']['password'])
+        credentials = self._create_credentials()
+        self._session.login(credentials['username'], credentials['password'])
+
+    def _create_credentials(self):
+        credentials = dict(
+            username=self._config['spotify']['username'],
+            password=self._config['spotify']['password'],
+        )
+        if not self._is_credential_info_provided():
+            logger.info('credentials not found in config, trying keyring')
+            credentials = fetch_credentials()
+        return credentials
+
+    def _is_credential_info_provided(self):
+        config = self._config['spotify']
+        return (config['username'] is not None
+                and config['password'] is not None)
 
     def on_stop(self):
         logger.debug('Logging out of Spotify')
@@ -149,3 +164,13 @@ def on_play_token_lost(session, backend):
     # Called from the pyspotify event loop, and not in an actor context.
     logger.debug('Spotify play token lost')
     backend.on_play_token_lost()
+
+
+def fetch(wanted_key):
+    for section, key, value in keyring.fetch():
+        if section == 'mopidy-spotify' and key == wanted_key:
+            return value
+
+
+def fetch_credentials():
+    return dict(username=fetch('username'), password=fetch('password'))

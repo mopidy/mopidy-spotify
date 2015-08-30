@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import mock
 
 from mopidy import backend as backend_api
+from mopidy.config import keyring as keyring_api
 
 import pytest
 
@@ -19,8 +20,8 @@ def config(tmpdir):
             'data_dir': '%s' % tmpdir.join('data'),
         },
         'spotify': {
-            'username': 'alice',
-            'password': 'password',
+            'username': None,
+            'password': None,
             'bitrate': 160,
             'volume_normalization': True,
             'private_session': False,
@@ -39,6 +40,13 @@ def config(tmpdir):
 @pytest.yield_fixture
 def spotify_mock():
     patcher = mock.patch.object(backend, 'spotify', spec=spotify)
+    yield patcher.start()
+    patcher.stop()
+
+
+@pytest.yield_fixture
+def keyring_mock():
+    patcher = mock.patch.object(backend, 'keyring', spec=keyring_api)
     yield patcher.start()
     patcher.stop()
 
