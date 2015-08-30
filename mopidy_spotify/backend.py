@@ -71,7 +71,8 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
     def _is_credential_info_provided(self):
         config = self._config['spotify']
-        return config['username'] is not None and config['password'] is not None
+        return (config['username'] is not None
+                and config['password'] is not None)
 
     def on_stop(self):
         logger.debug('Logging out of Spotify')
@@ -173,4 +174,3 @@ def fetch(wanted_key):
 
 def fetch_credentials():
     return dict(username=fetch('username'), password=fetch('password'))
-
