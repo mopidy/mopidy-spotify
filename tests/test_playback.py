@@ -302,7 +302,7 @@ def test_music_delivery_creates_gstreamer_buffer_and_gives_it_to_audio(
 
     audio_lib_mock.calculate_duration.assert_called_once_with(1, 44100)
     audio_lib_mock.create_buffer.assert_called_once_with(
-        frames, capabilites=mock.ANY, timestamp=mock.sentinel.timestamp,
+        frames, timestamp=mock.sentinel.timestamp,
         duration=mock.sentinel.duration)
     buffer_timestamp.increase.assert_called_once_with(mock.sentinel.duration)
     audio_mock.emit_data.assert_called_once_with(mock.sentinel.gst_buffer)
