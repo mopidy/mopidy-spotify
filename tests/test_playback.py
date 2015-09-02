@@ -114,7 +114,7 @@ def test_change_track_sets_up_appsrc(audio_mock, provider):
     assert provider._buffer_timestamp.get() == 0
     assert audio_mock.prepare_change.call_count == 0
     audio_mock.set_appsrc.assert_called_once_with(
-        playback.LIBSPOTIFY_GST_CAPS,
+        playback.GST_CAPS,
         need_data=mock.ANY, enough_data=mock.ANY, seek_data=mock.ANY)
     assert audio_mock.start_playback.call_count == 0
     audio_mock.set_metadata.assert_called_once_with(track)
