@@ -15,7 +15,7 @@ Mopidy-Spotify
     :alt: Travis CI build status
 
 .. image:: https://img.shields.io/coveralls/mopidy/mopidy-spotify/develop.svg?style=flat
-   :target: https://coveralls.io/r/mopidy/mopidy-spotify?branch=develop
+   :target: https://coveralls.io/r/mopidy/mopidy-spotify
    :alt: Test coverage
 
 `Mopidy <http://www.mopidy.com/>`_ extension for playing music from
