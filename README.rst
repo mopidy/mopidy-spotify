@@ -139,6 +139,14 @@ Project resources
 Changelog
 =========
 
+v2.0.2 (UNRELEASED)
+-------------------
+
+Bug fix release.
+
+- Support connecting to Spotify through a proxy. This was forgotten in the 2.0
+  reimplementation. (Fixes: #68)
+
 v2.0.1 (2015-08-23)
 -------------------
 

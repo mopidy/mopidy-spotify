@@ -89,13 +89,30 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
     def _get_spotify_config(self, config):
         ext = Extension()
         spotify_config = spotify.Config()
+
         spotify_config.load_application_key_file(
             os.path.join(os.path.dirname(__file__), 'spotify_appkey.key'))
+
         if config['spotify']['allow_cache']:
             spotify_config.cache_location = ext.get_cache_dir(config)
         else:
             spotify_config.cache_location = None
+
         spotify_config.settings_location = ext.get_data_dir(config)
+
+        proxy_uri = None
+        if config['proxy'].get('hostname'):
+            proxy_uri = config['proxy']['hostname']
+            if config['proxy'].get('port'):
+                proxy_uri += ':%d' % config['proxy']['port']
+            if config['proxy'].get('scheme'):
+                proxy_uri = '%s://%s' % (config['proxy']['scheme'], proxy_uri)
+            logger.debug('Connecting to Spotify through proxy: %s', proxy_uri)
+
+        spotify_config.proxy = proxy_uri
+        spotify_config.proxy_username = config['proxy'].get('username')
+        spotify_config.proxy_password = config['proxy'].get('password')
+
         return spotify_config
 
     def on_logged_in(self):
