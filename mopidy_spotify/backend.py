@@ -4,7 +4,7 @@ import logging
 import os
 import threading
 
-from mopidy import backend
+from mopidy import backend, httpclient
 
 import pykka
 
@@ -100,13 +100,8 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         spotify_config.settings_location = ext.get_data_dir(config)
 
-        proxy_uri = None
-        if config['proxy'].get('hostname'):
-            proxy_uri = config['proxy']['hostname']
-            if config['proxy'].get('port'):
-                proxy_uri += ':%d' % config['proxy']['port']
-            if config['proxy'].get('scheme'):
-                proxy_uri = '%s://%s' % (config['proxy']['scheme'], proxy_uri)
+        proxy_uri = httpclient.format_proxy(config['proxy'], auth=False)
+        if proxy_uri is not None:
             logger.debug('Connecting to Spotify through proxy: %s', proxy_uri)
 
         spotify_config.proxy = proxy_uri
