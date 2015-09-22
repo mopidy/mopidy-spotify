@@ -146,8 +146,11 @@ Feature release.
 
 - Require Requests >= 2.0.
 
-- Support connecting to Spotify through a proxy. This was forgotten in the 2.0
-  reimplementation. (Fixes: #68)
+- Support using a proxy when connecting to Spotify. This was forgotten in the
+  2.0 reimplementation. (Fixes: #68)
+
+- Support using a proxy when accessing Spotify's web API to get cover and
+  artist imagery.
 
 v2.0.1 (2015-08-23)
 -------------------

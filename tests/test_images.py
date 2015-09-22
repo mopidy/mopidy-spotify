@@ -8,6 +8,7 @@ import pytest
 
 import responses
 
+import mopidy_spotify
 from mopidy_spotify import images
 
 
@@ -64,6 +65,8 @@ def test_get_artist_images(img_provider):
         responses.calls[0].request.url ==
         'https://api.spotify.com/v1/artists/?ids='
         '4FCGgZrVQtcbDFEap3OAb2,0Nsz79ZcE8E4i3XZhCzZ1l')
+    assert responses.calls[0].request.headers['User-Agent'].startswith(
+        'Mopidy-Spotify/%s' % mopidy_spotify.__version__)
 
     assert len(result) == 2
     assert sorted(result.keys()) == sorted(uris)

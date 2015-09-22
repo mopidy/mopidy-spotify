@@ -23,7 +23,7 @@ _cache = {}  # (type, id) -> [Image(), ...]
 logger = logging.getLogger(__name__)
 
 
-def get_images(uris):
+def get_images(requests_session, uris):
     result = {}
     uri_type_getter = operator.itemgetter('type')
     uris = sorted((_parse_uri(u) for u in uris), key=uri_type_getter)
@@ -35,9 +35,10 @@ def get_images(uris):
             else:
                 batch.append(uri)
                 if len(batch) >= _API_MAX_IDS_PER_REQUEST:
-                    result.update(_process_uris(uri_type, batch))
+                    result.update(
+                        _process_uris(requests_session, uri_type, batch))
                     batch = []
-        result.update(_process_uris(uri_type, batch))
+        result.update(_process_uris(requests_session, uri_type, batch))
     return result
 
 
@@ -58,7 +59,7 @@ def _parse_uri(uri):
     raise ValueError('Could not parse %r as a Spotify URI' % uri)
 
 
-def _process_uris(uri_type, uris):
+def _process_uris(requests_session, uri_type, uris):
     result = {}
     ids = [u['id'] for u in uris]
     ids_to_uris = {u['id']: u for u in uris}
@@ -69,7 +70,7 @@ def _process_uris(uri_type, uris):
     lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids))
 
     try:
-        response = requests.get(lookup_uri)
+        response = requests_session.get(lookup_uri)
     except requests.RequestException as exc:
         logger.debug('Fetching %s failed: %s', lookup_uri, exc)
         return result
