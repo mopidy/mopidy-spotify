@@ -1,15 +1,13 @@
 from __future__ import unicode_literals
 
 import itertools
-import json
 import logging
 import operator
-import urllib2
 import urlparse
 
 from mopidy import models
 
-from mopidy_spotify import utils
+import requests
 
 
 # NOTE: This module is independent of libspotify and built using the Spotify
@@ -25,7 +23,7 @@ _cache = {}  # (type, id) -> [Image(), ...]
 logger = logging.getLogger(__name__)
 
 
-def get_images(uris):
+def get_images(requests_session, uris):
     result = {}
     uri_type_getter = operator.itemgetter('type')
     uris = sorted((_parse_uri(u) for u in uris), key=uri_type_getter)
@@ -37,9 +35,10 @@ def get_images(uris):
             else:
                 batch.append(uri)
                 if len(batch) >= _API_MAX_IDS_PER_REQUEST:
-                    result.update(_process_uris(uri_type, batch))
+                    result.update(
+                        _process_uris(requests_session, uri_type, batch))
                     batch = []
-        result.update(_process_uris(uri_type, batch))
+        result.update(_process_uris(requests_session, uri_type, batch))
     return result
 
 
@@ -60,20 +59,26 @@ def _parse_uri(uri):
     raise ValueError('Could not parse %r as a Spotify URI' % uri)
 
 
-def _process_uris(uri_type, uris):
+def _process_uris(requests_session, uri_type, uris):
     result = {}
+    ids = [u['id'] for u in uris]
     ids_to_uris = {u['id']: u for u in uris}
 
     if not uris:
         return result
 
+    lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids))
+
     try:
-        lookup_uri = _API_BASE_URI % (
-            uri_type, ','.join(sorted(ids_to_uris.keys())))
-        data = json.load(urllib2.urlopen(lookup_uri))
-    except (ValueError, IOError) as e:
-        error_msg = utils.locale_decode(e)
-        logger.debug('Fetching %s failed: %s', lookup_uri, error_msg)
+        response = requests_session.get(lookup_uri)
+    except requests.RequestException as exc:
+        logger.debug('Fetching %s failed: %s', lookup_uri, exc)
+        return result
+
+    try:
+        data = response.json()
+    except ValueError as exc:
+        logger.debug('JSON decoding failed for %s: %s', lookup_uri, exc)
         return result
 
     for item in data.get(uri_type + 's', []):

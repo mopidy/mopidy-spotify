@@ -1,23 +1,15 @@
 from __future__ import unicode_literals
 
 import json
-import urllib2
-from StringIO import StringIO
-
-import mock
 
 from mopidy import models
 
 import pytest
 
+import responses
+
+import mopidy_spotify
 from mopidy_spotify import images
-
-
-@pytest.yield_fixture
-def urllib_mock():
-    patcher = mock.patch.object(images, 'urllib2', spec=urllib2)
-    yield patcher.start()
-    patcher.stop()
 
 
 @pytest.fixture
@@ -26,47 +18,56 @@ def img_provider(provider):
     return provider
 
 
-def test_get_artist_images(img_provider, urllib_mock):
+@responses.activate
+def test_get_artist_images(img_provider):
     uris = [
         'spotify:artist:4FCGgZrVQtcbDFEap3OAb2',
         'http://open.spotify.com/artist/0Nsz79ZcE8E4i3XZhCzZ1l',
     ]
 
-    urllib_mock.urlopen.return_value = StringIO(json.dumps({
-        'artists': [
-            {
-                'id': '4FCGgZrVQtcbDFEap3OAb2',
-                'images': [
-                    {
-                        'height': 640,
-                        'url': 'img://1/a',
-                        'width': 640,
-                    },
-                    {
-                        'height': 300,
-                        'url': 'img://1/b',
-                        'width': 300,
-                    },
-                ]
-            },
-            {
-                'id': '0Nsz79ZcE8E4i3XZhCzZ1l',
-                'images': [
-                    {
-                        'height': 64,
-                        'url': 'img://2/a',
-                        'width': 64
-                    }
-                ]
-            }
-        ]
-    }))
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/artists/',
+        body=json.dumps({
+            'artists': [
+                {
+                    'id': '4FCGgZrVQtcbDFEap3OAb2',
+                    'images': [
+                        {
+                            'height': 640,
+                            'url': 'img://1/a',
+                            'width': 640,
+                        },
+                        {
+                            'height': 300,
+                            'url': 'img://1/b',
+                            'width': 300,
+                        },
+                    ]
+                },
+                {
+                    'id': '0Nsz79ZcE8E4i3XZhCzZ1l',
+                    'images': [
+                        {
+                            'height': 64,
+                            'url': 'img://2/a',
+                            'width': 64
+                        }
+                    ]
+                }
+            ]
+        })
+    )
 
     result = img_provider.get_images(uris)
 
-    urllib_mock.urlopen.assert_called_once_with(
+    assert len(responses.calls) == 1
+    assert (
+        responses.calls[0].request.url ==
         'https://api.spotify.com/v1/artists/?ids='
-        '0Nsz79ZcE8E4i3XZhCzZ1l,4FCGgZrVQtcbDFEap3OAb2')
+        '4FCGgZrVQtcbDFEap3OAb2,0Nsz79ZcE8E4i3XZhCzZ1l')
+    assert responses.calls[0].request.headers['User-Agent'].startswith(
+        'Mopidy-Spotify/%s' % mopidy_spotify.__version__)
+
     assert len(result) == 2
     assert sorted(result.keys()) == sorted(uris)
 
@@ -92,30 +93,37 @@ def test_get_artist_images(img_provider, urllib_mock):
     assert image2a.width == 64
 
 
-def test_get_album_images(img_provider, urllib_mock):
+@responses.activate
+def test_get_album_images(img_provider):
     uris = [
         'http://play.spotify.com/album/1utFPuvgBHXzLJdqhCDOkg',
     ]
 
-    urllib_mock.urlopen.return_value = StringIO(json.dumps({
-        'albums': [
-            {
-                'id': '1utFPuvgBHXzLJdqhCDOkg',
-                'images': [
-                    {
-                        'height': 640,
-                        'url': 'img://1/a',
-                        'width': 640,
-                    }
-                ]
-            }
-        ]
-    }))
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/albums/',
+        body=json.dumps({
+            'albums': [
+                {
+                    'id': '1utFPuvgBHXzLJdqhCDOkg',
+                    'images': [
+                        {
+                            'height': 640,
+                            'url': 'img://1/a',
+                            'width': 640,
+                        }
+                    ]
+                }
+            ]
+        })
+    )
 
     result = img_provider.get_images(uris)
 
-    urllib_mock.urlopen.assert_called_once_with(
+    assert len(responses.calls) == 1
+    assert (
+        responses.calls[0].request.url ==
         'https://api.spotify.com/v1/albums/?ids=1utFPuvgBHXzLJdqhCDOkg')
+
     assert len(result) == 1
     assert sorted(result.keys()) == sorted(uris)
     assert len(result[uris[0]]) == 1
@@ -127,33 +135,40 @@ def test_get_album_images(img_provider, urllib_mock):
     assert image.width == 640
 
 
-def test_get_track_images(img_provider, urllib_mock):
+@responses.activate
+def test_get_track_images(img_provider):
     uris = [
         'spotify:track:41shEpOKyyadtG6lDclooa',
     ]
 
-    urllib_mock.urlopen.return_value = StringIO(json.dumps({
-        'tracks': [
-            {
-                'id': '41shEpOKyyadtG6lDclooa',
-                'album': {
-                    'uri': 'spotify:album:1utFPuvgBHXzLJdqhCDOkg',
-                    'images': [
-                        {
-                            'height': 640,
-                            'url': 'img://1/a',
-                            'width': 640,
-                        }
-                    ]
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/',
+        body=json.dumps({
+            'tracks': [
+                {
+                    'id': '41shEpOKyyadtG6lDclooa',
+                    'album': {
+                        'uri': 'spotify:album:1utFPuvgBHXzLJdqhCDOkg',
+                        'images': [
+                            {
+                                'height': 640,
+                                'url': 'img://1/a',
+                                'width': 640,
+                            }
+                        ]
+                    }
                 }
-            }
-        ]
-    }))
+            ]
+        })
+    )
 
     result = img_provider.get_images(uris)
 
-    urllib_mock.urlopen.assert_called_once_with(
+    assert len(responses.calls) == 1
+    assert (
+        responses.calls[0].request.url ==
         'https://api.spotify.com/v1/tracks/?ids=41shEpOKyyadtG6lDclooa')
+
     assert len(result) == 1
     assert sorted(result.keys()) == sorted(uris)
     assert len(result[uris[0]]) == 1
@@ -165,49 +180,54 @@ def test_get_track_images(img_provider, urllib_mock):
     assert image.width == 640
 
 
-def test_results_are_cached(img_provider, urllib_mock):
+@responses.activate
+def test_results_are_cached(img_provider):
     uris = [
         'spotify:track:41shEpOKyyadtG6lDclooa',
     ]
 
-    urllib_mock.urlopen.return_value = StringIO(json.dumps({
-        'tracks': [
-            {
-                'id': '41shEpOKyyadtG6lDclooa',
-                'album': {
-                    'uri': 'spotify:album:1utFPuvgBHXzLJdqhCDOkg',
-                    'images': [
-                        {
-                            'height': 640,
-                            'url': 'img://1/a',
-                            'width': 640,
-                        }
-                    ]
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/',
+        body=json.dumps({
+            'tracks': [
+                {
+                    'id': '41shEpOKyyadtG6lDclooa',
+                    'album': {
+                        'uri': 'spotify:album:1utFPuvgBHXzLJdqhCDOkg',
+                        'images': [
+                            {
+                                'height': 640,
+                                'url': 'img://1/a',
+                                'width': 640,
+                            }
+                        ]
+                    }
                 }
-            }
-        ]
-    }))
+            ]
+        })
+    )
 
     result1 = img_provider.get_images(uris)
     result2 = img_provider.get_images(uris)
 
-    assert urllib_mock.urlopen.call_count == 1
+    assert len(responses.calls) == 1
     assert result1 == result2
 
 
-def test_max_50_ids_per_request(img_provider, urllib_mock):
-    uris = ['spotify:track:%d' for i in range(51)]
+@responses.activate
+def test_max_50_ids_per_request(img_provider):
+    uris = ['spotify:track:%d' % i for i in range(51)]
 
-    urllib_mock.urlopen.return_value = StringIO('{}')
+    responses.add(responses.GET, '', body=json.dumps({}))
 
     img_provider.get_images(uris)
 
-    assert urllib_mock.urlopen.call_count == 2
+    assert len(responses.calls) == 2
 
-    request_url_1 = urllib_mock.urlopen.mock_calls[0]
+    request_url_1 = responses.calls[0].request.url
     assert request_url_1.endswith(','.join(str(i) for i in range(50)))
 
-    request_url_2 = urllib_mock.urlopen.mock_calls[1]
+    request_url_2 = responses.calls[1].request.url
     assert request_url_2.endswith('ids=50')
 
 
@@ -224,17 +244,22 @@ def test_no_uris_gives_no_results(img_provider):
     assert result == {}
 
 
-def test_service_returns_invalid_json(img_provider, urllib_mock, caplog):
-    urllib_mock.urlopen.return_value = StringIO('[}')
+@responses.activate
+def test_service_returns_invalid_json(img_provider, caplog):
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/', body='abc')
 
     result = img_provider.get_images(['spotify:track:41shEpOKyyadtG6lDclooa'])
 
     assert result == {}
-    assert "failed: No JSON object could be decoded" in caplog.text()
+    assert "JSON decoding failed for" in caplog.text()
 
 
-def test_service_returns_empty_result(img_provider, urllib_mock):
-    urllib_mock.urlopen.return_value = StringIO(json.dumps({'tracks': [{}]}))
+@responses.activate
+def test_service_returns_empty_result(img_provider):
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/',
+        body=json.dumps({'tracks': [{}]}))
 
     result = img_provider.get_images(['spotify:track:41shEpOKyyadtG6lDclooa'])
 

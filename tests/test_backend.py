@@ -101,6 +101,23 @@ def test_on_start_configures_volume_normalization(spotify_mock, config):
     volume_normalization_mock.assert_called_once_with(False)
 
 
+def test_on_start_configures_proxy(spotify_mock, config):
+    config['proxy'] = {
+        'scheme': 'https',
+        'hostname': 'my-proxy.example.com',
+        'port': 8080,
+        'username': 'alice',
+        'password': 's3cret',
+    }
+    spotify_config = spotify_mock.Config.return_value
+
+    get_backend(config).on_start()
+
+    assert spotify_config.proxy == 'https://my-proxy.example.com:8080'
+    assert spotify_config.proxy_username == 'alice'
+    assert spotify_config.proxy_password == 's3cret'
+
+
 def test_on_start_adds_connection_state_changed_handler_to_session(
         spotify_mock, config):
     session = spotify_mock.Session.return_value

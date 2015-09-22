@@ -18,6 +18,8 @@ def config(tmpdir):
             'cache_dir': '%s' % tmpdir.join('cache'),
             'data_dir': '%s' % tmpdir.join('data'),
         },
+        'proxy': {
+        },
         'spotify': {
             'username': 'alice',
             'password': 'password',

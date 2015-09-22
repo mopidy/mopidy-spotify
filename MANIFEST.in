@@ -1,5 +1,4 @@
 include *.txt
-include .coveragerc
 include .travis.yml
 include LICENSE
 include MANIFEST.in
