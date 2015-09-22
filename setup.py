@@ -27,7 +27,7 @@ setup(
         'setuptools',
         'Mopidy >= 1.1',
         'Pykka >= 1.1',
-        'pyspotify >= 2.0.4',
+        'pyspotify >= 2.0.5',
     ],
     entry_points={
         'mopidy.ext': [
