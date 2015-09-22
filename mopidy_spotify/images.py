@@ -1,15 +1,13 @@
 from __future__ import unicode_literals
 
 import itertools
-import json
 import logging
 import operator
-import urllib2
 import urlparse
 
 from mopidy import models
 
-from mopidy_spotify import utils
+import requests
 
 
 # NOTE: This module is independent of libspotify and built using the Spotify
@@ -62,18 +60,24 @@ def _parse_uri(uri):
 
 def _process_uris(uri_type, uris):
     result = {}
+    ids = [u['id'] for u in uris]
     ids_to_uris = {u['id']: u for u in uris}
 
     if not uris:
         return result
 
+    lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids))
+
     try:
-        lookup_uri = _API_BASE_URI % (
-            uri_type, ','.join(sorted(ids_to_uris.keys())))
-        data = json.load(urllib2.urlopen(lookup_uri))
-    except (ValueError, IOError) as e:
-        error_msg = utils.locale_decode(e)
-        logger.debug('Fetching %s failed: %s', lookup_uri, error_msg)
+        response = requests.get(lookup_uri)
+    except requests.RequestException as exc:
+        logger.debug('Fetching %s failed: %s', lookup_uri, exc)
+        return result
+
+    try:
+        data = response.json()
+    except ValueError as exc:
+        logger.debug('JSON decoding of %s failed: %s', lookup_uri, exc)
         return result
 
     for item in data.get(uri_type + 's', []):

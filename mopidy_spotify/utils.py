@@ -1,20 +1,12 @@
 from __future__ import unicode_literals
 
 import contextlib
-import locale
 import logging
 import time
 
 
 logger = logging.getLogger(__name__)
 TRACE = logging.getLevelName('TRACE')
-
-
-def locale_decode(bytestr):
-    try:
-        return unicode(bytestr)
-    except UnicodeError:
-        return bytes(bytestr).decode(locale.getpreferredencoding())
 
 
 @contextlib.contextmanager
