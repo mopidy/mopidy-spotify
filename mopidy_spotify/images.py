@@ -78,7 +78,7 @@ def _process_uris(requests_session, uri_type, uris):
     try:
         data = response.json()
     except ValueError as exc:
-        logger.debug('JSON decoding of %s failed: %s', lookup_uri, exc)
+        logger.debug('JSON decoding failed for %s: %s', lookup_uri, exc)
         return result
 
     for item in data.get(uri_type + 's', []):

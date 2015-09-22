@@ -252,7 +252,7 @@ def test_service_returns_invalid_json(img_provider, caplog):
     result = img_provider.get_images(['spotify:track:41shEpOKyyadtG6lDclooa'])
 
     assert result == {}
-    assert "failed: Expecting value: line 1 column 1" in caplog.text()
+    assert "JSON decoding failed for" in caplog.text()
 
 
 @responses.activate
