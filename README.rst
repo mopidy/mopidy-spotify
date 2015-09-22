@@ -139,7 +139,7 @@ Project resources
 Changelog
 =========
 
-v2.1.0 (UNRELEASED)
+v2.1.0 (2015-09-22)
 -------------------
 
 Feature release.
