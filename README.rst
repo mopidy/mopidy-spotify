@@ -133,7 +133,6 @@ Project resources
 
 - `Source code <https://github.com/mopidy/mopidy-spotify>`_
 - `Issue tracker <https://github.com/mopidy/mopidy-spotify/issues>`_
-- `Download development snapshot <https://github.com/mopidy/mopidy-spotify/tarball/develop#egg=Mopidy-Spotify-dev>`_
 
 
 Changelog
