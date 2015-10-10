@@ -44,7 +44,9 @@ def search(config, session, query=None, uris=None, exact=False):
     sp_search.load()
 
     albums = [
-        translator.to_album(sp_album) for sp_album in sp_search.albums]
+        translator.to_album(sp_album)
+        for sp_album in sp_search.albums
+        if sp_album.year != 0]
     artists = [
         translator.to_artist(sp_artist) for sp_artist in sp_search.artists]
     tracks = [
