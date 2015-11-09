@@ -138,6 +138,16 @@ Project resources
 Changelog
 =========
 
+v2.2.0 (UNRELEASED)
+-------------------
+
+Feature release.
+
+- As Spotify now exposes your "Starred" playlist as a regular playlist, we no
+  longer get your "Starred" playlist through the dedicated "Starred" API. This
+  avoids your "Starred" playlist being returned twice. Lookup of
+  ``spotify:user:<username>:starred`` URIs works as before. (Fixes: #71)
+
 v2.1.0 (2015-09-22)
 -------------------
 
