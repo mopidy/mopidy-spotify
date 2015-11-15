@@ -19,28 +19,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
-            return (
-                list(self._get_starred_playlist_ref()) +
-                list(self._get_flattened_playlist_refs()))
-
-    def _get_starred_playlist_ref(self):
-        if self._backend._session is None:
-            return
-
-        sp_starred = self._backend._session.get_starred()
-        if sp_starred is None:
-            return
-
-        if (
-                self._backend._session.connection.state is
-                spotify.ConnectionState.LOGGED_IN):
-            sp_starred.load()
-
-        starred_ref = translator.to_playlist_ref(
-            sp_starred, username=self._backend._session.user_name)
-
-        if starred_ref is not None:
-            yield starred_ref
+            return list(self._get_flattened_playlist_refs())
 
     def _get_flattened_playlist_refs(self):
         if self._backend._session is None:

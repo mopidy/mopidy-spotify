@@ -38,8 +38,10 @@ Dependencies
   The package is available as ``libspotify12`` from
   `apt.mopidy.com <http://apt.mopidy.com/>`__.
 
-- ``pyspotify`` >= 2.0. The ``libspotify`` python wrapper. The package is
+- ``pyspotify`` >= 2.0. The ``libspotify`` Python wrapper. The package is
   available as ``python-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
+  See https://pyspotify.mopidy.com/en/latest/installation/ for how to install
+  it and its dependencies on most platforms.
 
 - ``Mopidy`` >= 1.1. The music server that Mopidy-Spotify extends.
 
@@ -133,11 +135,22 @@ Project resources
 
 - `Source code <https://github.com/mopidy/mopidy-spotify>`_
 - `Issue tracker <https://github.com/mopidy/mopidy-spotify/issues>`_
-- `Download development snapshot <https://github.com/mopidy/mopidy-spotify/tarball/develop#egg=Mopidy-Spotify-dev>`_
 
 
 Changelog
 =========
+
+v2.2.0 (2015-11-15)
+-------------------
+
+Feature release.
+
+- As Spotify now exposes your "Starred" playlist as a regular playlist, we no
+  longer get your "Starred" playlist through the dedicated "Starred" API. This
+  avoids your "Starred" playlist being returned twice. Lookup of
+  ``spotify:user:<username>:starred`` URIs works as before. (Fixes: #71)
+
+- Interpret album year "0" as unknown. (Fixes: #72)
 
 v2.1.0 (2015-09-22)
 -------------------

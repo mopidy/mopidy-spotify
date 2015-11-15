@@ -16,7 +16,7 @@ from mopidy_spotify import backend, playlists
 def session_mock(
         sp_playlist_mock,
         sp_playlist_folder_start_mock, sp_playlist_folder_end_mock,
-        sp_user_mock, sp_starred_mock):
+        sp_user_mock):
 
     sp_playlist2_mock = mock.Mock(spec=spotify.Playlist)
     sp_playlist2_mock.is_loaded = True
@@ -32,7 +32,6 @@ def session_mock(
     sp_session_mock = mock.Mock(spec=spotify.Session)
     sp_session_mock.user = sp_user_mock
     sp_session_mock.user_name = 'alice'
-    sp_session_mock.get_starred.return_value = sp_starred_mock
     sp_session_mock.playlist_container = [
         sp_playlist_mock,
         sp_playlist_folder_start_mock,
@@ -62,7 +61,6 @@ def test_is_a_playlists_provider(provider):
 
 def test_as_list_when_not_logged_in(
         session_mock, provider):
-    session_mock.get_starred.return_value = None
     session_mock.playlist_container = None
 
     result = provider.as_list()
@@ -70,37 +68,30 @@ def test_as_list_when_not_logged_in(
     assert len(result) == 0
 
 
-def test_as_list_when_offline(session_mock, sp_starred_mock, provider):
+def test_as_list_when_offline(session_mock, provider):
     session_mock.connection.state = spotify.ConnectionState.OFFLINE
 
     result = provider.as_list()
 
-    assert len(result) == 3
-    assert sp_starred_mock.load.call_count == 0
+    assert len(result) == 2
 
 
-def test_as_list_when_playlist_container_isnt_loaded(
-        session_mock, provider):
+def test_as_list_when_playlist_container_isnt_loaded(session_mock, provider):
     session_mock.playlist_container = None
 
     result = provider.as_list()
 
-    assert len(result) == 1
-
-    assert result[0] == Ref.playlist(
-        uri='spotify:user:alice:starred', name='Starred')
+    assert len(result) == 0
 
 
 def test_as_list_with_folders_and_ignored_unloaded_playlist(provider):
     result = provider.as_list()
 
-    assert len(result) == 3
+    assert len(result) == 2
 
     assert result[0] == Ref.playlist(
-        uri='spotify:user:alice:starred', name='Starred')
-    assert result[1] == Ref.playlist(
         uri='spotify:user:alice:playlist:foo', name='Foo')
-    assert result[2] == Ref.playlist(
+    assert result[1] == Ref.playlist(
         uri='spotify:playlist:bob:baz', name='Bar/Baz (by bob)')
 
 
