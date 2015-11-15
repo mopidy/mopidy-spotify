@@ -148,6 +148,8 @@ Feature release.
   avoids your "Starred" playlist being returned twice. Lookup of
   ``spotify:user:<username>:starred`` URIs works as before. (Fixes: #71)
 
+- Interpret album year "0" as unknown. (Fixes: #72)
+
 v2.1.0 (2015-09-22)
 -------------------
 

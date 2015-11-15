@@ -63,7 +63,7 @@ def to_album(sp_album):
     else:
         artists = []
 
-    if sp_album.year is not None:
+    if sp_album.year is not None and sp_album.year != 0:
         date = '%d' % sp_album.year
     else:
         date = None

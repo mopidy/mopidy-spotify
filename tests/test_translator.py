@@ -96,6 +96,13 @@ class TestToAlbum(object):
 
         assert album.date is None
 
+    def test_returns_unknown_date_if_year_is_zero(self, sp_album_mock):
+        sp_album_mock.year = 0
+
+        album = translator.to_album(sp_album_mock)
+
+        assert album.date is None
+
     def test_caches_results(self, sp_album_mock):
         album1 = translator.to_album(sp_album_mock)
         album2 = translator.to_album(sp_album_mock)
