@@ -88,17 +88,17 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def delete(self, uri):
         try:
-           container = self._backend._session.playlist_container
-           if not container.is_loaded:
-               container.load()
-
-           for idx, playlist in enumerate(container):
-               if playlist.uri == uri:
-                   del container[idx]
+            container = self._backend._session.playlist_container
+            if not container.is_loaded:
+                container.load()
+            for idx, playlist in enumerate(container):
+                if playlist.uri == uri:
+                    del container[idx]
         except spotify.Error:
             logger.warning('Could not delete Spotify playlist "%s"', uri)
 
     def save(self, playlist):
+        # fetch existing playlist data
         try:
             sp_playlist = self._backend._session.get_playlist(playlist.uri)
         except spotify.Error as exc:
@@ -109,14 +109,23 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.debug(
                 'Waiting for Spotify playlist to load: %s', sp_playlist)
             sp_playlist.load()
+
+        # rename playlist if the name was changed
         if sp_playlist.name != playlist.name:
             logger.debug("Renaming playlist %s to %s",
                          sp_playlist.name, playlist.name)
             sp_playlist.name = playlist.name
 
+        # remove all elements from playlist and re-add them
+        # this may seem like overkill, however tracking changes
+        # between two lists without getting granular change events
+        # is very complex and error prone.
+        # if we need change events (track added, track moved, etc.)
+        # at some point, this will have to be redone
         try:
             idx_to_del = range(len(sp_playlist.tracks))
             sp_playlist.remove_tracks(idx_to_del)
+            # fetch tracks for all uris in the playlist and load them
             sp_tracks = map(
                 lambda t : self._backend._session.get_track(t.uri).load(),
                 playlist.tracks
