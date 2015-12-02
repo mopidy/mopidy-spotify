@@ -87,7 +87,16 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return translator.to_playlist(sp_playlist, username=username)
 
     def delete(self, uri):
-        pass  # TODO
+        try:
+           container = self._backend._session.playlist_container
+           if not container.is_loaded:
+               container.load()
+
+           for idx, playlist in enumerate(container):
+               if playlist.uri == uri:
+                   del container[idx]
+        except spotify.Error:
+            logger.warning('Could not delete Spotify playlist "%s"', uri)
 
     def save(self, playlist):
         try:
