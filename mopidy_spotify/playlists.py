@@ -93,7 +93,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         try:
             sp_playlist = self._backend._session.get_playlist(playlist.uri)
         except spotify.Error as exc:
-            logger.debug('Failed to lookup Spotify Playlist URI %s: %s', playlist.uri, exc)
+            logger.debug('Failed to lookup Spotify Playlist URI %s: %s',
+                         playlist.uri, exc)
             return
         if not sp_playlist.is_loaded:
             logger.debug(
@@ -103,7 +104,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.debug("Renaming playlist %s to %s",
                          sp_playlist.name, playlist.name)
             sp_playlist.name = playlist.name
-        if len(sp_playlist.tracks) < len(playlist.tracks): # item was added
+        if len(sp_playlist.tracks) < len(playlist.tracks):
+            # item was added
             added_uri = None
             added_idx = None
             for idx, track in enumerate(playlist.tracks):
@@ -123,7 +125,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                              added_uri, exc)
                 return
             logger.info('Added track %s to playlist', added_track)
-        elif len(sp_playlist.tracks) > len(playlist.tracks):  # item was removed
+        elif len(sp_playlist.tracks) > len(playlist.tracks):
+            # item was removed
             removed_idx = None
             removed_track = None
             for idx, track in enumerate(sp_playlist.tracks):
@@ -140,7 +143,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 logger.debug('Failed to remove track from playlist %s', exc)
                 return
             logger.info('Removed track %s from playlist', removed_track)
-        else: # item was reordered
+        else:
+            # item was reordered
             source_idx = None
             target_idx = None
             changed_uri = None
