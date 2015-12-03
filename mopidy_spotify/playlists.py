@@ -127,7 +127,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             sp_playlist.remove_tracks(idx_to_del)
             # fetch tracks for all uris in the playlist and load them
             sp_tracks = map(
-                lambda t : self._backend._session.get_track(t.uri).load(),
+                lambda t: self._backend._session.get_track(t.uri).load(),
                 playlist.tracks
             )
             sp_playlist.add_tracks(sp_tracks)
