@@ -98,7 +98,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.warning('Could not delete Spotify playlist "%s"', uri)
 
     def save(self, playlist):
-        # fetch existing playlist data
         try:
             sp_playlist = self._backend._session.get_playlist(playlist.uri)
         except spotify.Error as exc:
@@ -109,34 +108,71 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.debug(
                 'Waiting for Spotify playlist to load: %s', sp_playlist)
             sp_playlist.load()
-
-        # rename playlist if the name was changed
         if sp_playlist.name != playlist.name:
             logger.debug("Renaming playlist %s to %s",
                          sp_playlist.name, playlist.name)
             sp_playlist.name = playlist.name
-
-        # remove all elements from playlist and re-add them
-        # this may seem like overkill, however tracking changes
-        # between two lists without getting granular change events
-        # is very complex and error prone.
-        # if we need change events (track added, track moved, etc.)
-        # at some point, this will have to be redone
-        try:
-            idx_to_del = range(len(sp_playlist.tracks))
-            sp_playlist.remove_tracks(idx_to_del)
-            # fetch tracks for all uris in the playlist and load them
-            sp_tracks = map(
-                lambda t: self._backend._session.get_track(t.uri).load(),
-                playlist.tracks
-            )
-            sp_playlist.add_tracks(sp_tracks)
-        except spotify.Error as exc:
-            logger.debug('Failed to save Spotify Playlist: %s',
-                         playlist.name, exc)
-            return
-        logger.info('Saved %s tracks to playlist %s',
-                    len(playlist.tracks), playlist.name)
+        if len(sp_playlist.tracks) < len(playlist.tracks):
+            # item was added
+            added_uri = None
+            added_idx = None
+            for idx, track in enumerate(playlist.tracks):
+                try:
+                    if sp_playlist.tracks[idx].link.uri != track.uri:
+                        added_uri = track.uri
+                        added_idx = idx
+                except IndexError:  # item was added to the end
+                    added_uri = track.uri
+                    added_idx = idx
+            try:
+                added_track = self._backend._session.get_track(added_uri)
+                added_track.load()
+                sp_playlist.add_tracks(added_track, added_idx)
+            except spotify.Error as exc:
+                logger.debug('Failed to lookup Spotify URI %s: %s',
+                             added_uri, exc)
+                return
+            logger.info('Added track %s to playlist', added_track)
+        elif len(sp_playlist.tracks) > len(playlist.tracks):
+            # item was removed
+            removed_idx = None
+            removed_track = None
+            for idx, track in enumerate(sp_playlist.tracks):
+                try:
+                    if playlist.tracks[idx].uri != track.link.uri:
+                        removed_idx = idx
+                        removed_track = track
+                        break
+                except IndexError:  # last item was removed
+                    removed_idx = idx
+            try:
+                sp_playlist.remove_tracks(removed_idx)
+            except spotify.Error as exc:
+                logger.debug('Failed to remove track from playlist %s', exc)
+                return
+            logger.info('Removed track %s from playlist', removed_track)
+        else:
+            # item was reordered
+            source_idx = None
+            target_idx = None
+            changed_uri = None
+            for idx, track in enumerate(playlist.tracks):
+                if sp_playlist.tracks[idx].link.uri != track.uri:
+                    target_idx = idx
+                    changed_uri = track.uri
+                    for spidx, sptrack in enumerate(sp_playlist.tracks):
+                        if sptrack.link.uri == changed_uri:
+                            source_idx = spidx
+                    if not source_idx:  # something is wrong
+                        logger.debug('Unable to find source object '
+                                     'in playlist reorder')
+                        return
+            try:
+                sp_playlist.reorder_tracks(source_idx, target_idx)
+                logger.info('Reordered track %s in playlist',
+                            sp_playlist.tracks[source_idx])
+            except spotify.Error as exc:
+                logger.debug('Failed to reorder tracks in playlist %s', exc)
 
 
 def on_container_loaded(sp_playlist_container):
