@@ -89,7 +89,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         return super(SpotifyPlaybackProvider, self).stop()
 
     def on_seek_data(self, time_position):
-        logger.debug('Audio asked us to seek to %d', time_position)
+        logger.debug('Audio requested seek to %d', time_position)
 
         if time_position == 0 and self._first_seek:
             self._first_seek = False
@@ -105,7 +105,7 @@ def need_data_callback(push_audio_data_event, length_hint):
     # This callback is called from GStreamer/the GObject event loop.
     logger.log(
         TRACE_LOG_LEVEL,
-        'Audio asked for more data (hint=%d); accepting deliveries',
+        'Audio requested more data (hint=%d); accepting deliveries',
         length_hint)
     push_audio_data_event.set()
 
@@ -113,7 +113,7 @@ def need_data_callback(push_audio_data_event, length_hint):
 def enough_data_callback(push_audio_data_event):
     # This callback is called from GStreamer/the GObject event loop.
     logger.log(
-        TRACE_LOG_LEVEL, 'Audio says it has enough data; rejecting deliveries')
+        TRACE_LOG_LEVEL, 'Audio has enough data; rejecting deliveries')
     push_audio_data_event.clear()
 
 
