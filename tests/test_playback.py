@@ -179,8 +179,8 @@ def test_music_delivery_rejects_data_depending_on_push_audio_data_event(
         session_mock):
 
     audio_format = mock.Mock()
-    frames = b''
-    num_frames = 0
+    frames = b'123'
+    num_frames = 1
     push_audio_data_event = threading.Event()
     buffer_timestamp = mock.Mock()
     assert not push_audio_data_event.is_set()
@@ -192,12 +192,31 @@ def test_music_delivery_rejects_data_depending_on_push_audio_data_event(
     assert result == 0
 
 
+def test_music_delivery_shortcuts_if_no_data_in_frames(
+        session_mock, audio_lib_mock, audio_mock):
+
+    audio_format = mock.Mock(channels=2, sample_rate=44100, sample_type=0)
+    frames = b''
+    num_frames = 1
+    push_audio_data_event = threading.Event()
+    push_audio_data_event.set()
+    buffer_timestamp = mock.Mock()
+
+    result = playback.music_delivery_callback(
+        session_mock, audio_format, frames, num_frames,
+        audio_mock, push_audio_data_event, buffer_timestamp)
+
+    assert result == 0
+    assert audio_lib_mock.create_buffer.call_count == 0
+    assert audio_mock.emit_data.call_count == 0
+
+
 def test_music_delivery_rejects_unknown_audio_formats(
         session_mock, audio_mock):
 
     audio_format = mock.Mock(sample_type=17)
-    frames = b''
-    num_frames = 0
+    frames = b'123'
+    num_frames = 1
     push_audio_data_event = threading.Event()
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()

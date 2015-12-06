@@ -132,6 +132,9 @@ def music_delivery_callback(
     if not push_audio_data_event.is_set():
         return 0  # Reject the audio data. It will be redelivered later.
 
+    if not frames:
+        return 0  # No audio data; return immediately.
+
     known_format = (
         audio_format.sample_type == spotify.SampleType.INT16_NATIVE_ENDIAN)
     assert known_format, 'Expects 16-bit signed integer samples'
