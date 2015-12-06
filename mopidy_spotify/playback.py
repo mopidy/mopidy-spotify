@@ -59,6 +59,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         seek_data_callback_bound = functools.partial(
             seek_data_callback, self.backend._actor_proxy)
 
+        self._buffer_timestamp.set(0)
         self._first_seek = True
 
         try:
@@ -67,7 +68,6 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             self.backend._session.player.load(sp_track)
             self.backend._session.player.play()
 
-            self._buffer_timestamp.set(0)
             self.audio.set_appsrc(
                 LIBSPOTIFY_GST_CAPS,
                 need_data=need_data_callback_bound,
@@ -130,7 +130,7 @@ def music_delivery_callback(
     # Ideally, nothing here should block.
 
     if not push_audio_data_event.is_set():
-        return 0
+        return 0  # Reject the audio data. It will be redelivered later.
 
     known_format = (
         audio_format.sample_type == spotify.SampleType.INT16_NATIVE_ENDIAN)
@@ -149,8 +149,7 @@ def music_delivery_callback(
         'sample_rate': audio_format.sample_rate,
     }
 
-    duration = audio.calculate_duration(
-        num_frames, audio_format.sample_rate)
+    duration = audio.calculate_duration(num_frames, audio_format.sample_rate)
     buffer_ = audio.create_buffer(
         bytes(frames), capabilites=capabilites,
         timestamp=buffer_timestamp.get(), duration=duration)
@@ -158,7 +157,9 @@ def music_delivery_callback(
     buffer_timestamp.increase(duration)
 
     # We must block here to know if the buffer was consumed successfully.
-    if audio_actor.emit_data(buffer_).get():
+    consumed = audio_actor.emit_data(buffer_).get()
+
+    if consumed:
         return num_frames
     else:
         return 0
