@@ -29,6 +29,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._timeout = self.backend._config['spotify']['timeout']
 
         self._buffer_timestamp = BufferTimestamp(0)
+        self._seeking_event = threading.Event()
         self._first_seek = False
         self._push_audio_data_event = threading.Event()
         self._push_audio_data_event.set()
@@ -39,7 +40,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             self._events_connected = True
             self.backend._session.on(
                 spotify.SessionEvent.MUSIC_DELIVERY, music_delivery_callback,
-                self.audio, self._push_audio_data_event,
+                self.audio, self._seeking_event, self._push_audio_data_event,
                 self._buffer_timestamp)
             self.backend._session.on(
                 spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
@@ -61,7 +62,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             enough_data_callback, self._push_audio_data_event)
 
         seek_data_callback_bound = functools.partial(
-            seek_data_callback, self.backend._actor_proxy)
+            seek_data_callback, self._seeking_event, self.backend._actor_proxy)
 
         self._buffer_timestamp.set(0)
         self._first_seek = True
@@ -98,6 +99,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         logger.debug('Audio requested seek to %d', time_position)
 
         if time_position == 0 and self._first_seek:
+            self._seeking_event.clear()
             self._first_seek = False
             logger.debug('Skipping seek due to issue mopidy/mopidy#300')
             return
@@ -123,17 +125,27 @@ def enough_data_callback(push_audio_data_event):
     push_audio_data_event.clear()
 
 
-def seek_data_callback(spotify_backend, time_position):
+def seek_data_callback(seeking_event, spotify_backend, time_position):
     # This callback is called from GStreamer/the GObject event loop.
     # It forwards the call to the backend actor.
+    seeking_event.set()
     spotify_backend.playback.on_seek_data(time_position)
 
 
 def music_delivery_callback(
         session, audio_format, frames, num_frames,
-        audio_actor, push_audio_data_event, buffer_timestamp):
+        audio_actor, seeking_event, push_audio_data_event, buffer_timestamp):
     # This is called from an internal libspotify thread.
     # Ideally, nothing here should block.
+
+    if seeking_event.is_set():
+        # A seek has happened, but libspotify hasn't confirmed yet, so
+        # we're dropping all audio data from libspotify.
+        if num_frames == 0:
+            # libspotify signals that it has completed the seek. We'll accept
+            # the next audio data delivery.
+            seeking_event.clear()
+        return num_frames
 
     if not push_audio_data_event.is_set():
         return 0  # Reject the audio data. It will be redelivered later.

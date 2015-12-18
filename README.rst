@@ -140,6 +140,15 @@ Project resources
 Changelog
 =========
 
+v2.3.0 (UNRELEASED)
+-------------------
+
+Feature release.
+
+- Ignore all audio data deliveries from libspotify when when a seek is in
+  progress. This ensures that we don't deliver audio data from before the seek
+  with timestamps from after the seek.
+
 v2.2.0 (2015-11-15)
 -------------------
 
