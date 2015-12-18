@@ -51,6 +51,10 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         if track.uri is None:
             return False
 
+        logger.debug(
+            'Audio requested change of track; '
+            'loading and starting Spotify player')
+
         need_data_callback_bound = functools.partial(
             need_data_callback, self._push_audio_data_event)
         enough_data_callback_bound = functools.partial(
@@ -81,10 +85,12 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             return False
 
     def resume(self):
+        logger.debug('Audio requested resume; starting Spotify player')
         self.backend._session.player.play()
         return super(SpotifyPlaybackProvider, self).resume()
 
     def stop(self):
+        logger.debug('Audio requested stop; pausing Spotify player')
         self.backend._session.player.pause()
         return super(SpotifyPlaybackProvider, self).stop()
 
