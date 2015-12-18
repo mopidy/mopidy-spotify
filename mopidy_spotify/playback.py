@@ -33,6 +33,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._first_seek = False
         self._push_audio_data_event = threading.Event()
         self._push_audio_data_event.set()
+        self._end_of_track_event = threading.Event()
         self._events_connected = False
 
     def _connect_events(self):
@@ -44,7 +45,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
                 self._buffer_timestamp)
             self.backend._session.on(
                 spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
-                self.audio)
+                self._end_of_track_event, self.audio)
 
     def change_track(self, track):
         self._connect_events()
@@ -66,6 +67,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
         self._buffer_timestamp.set(0)
         self._first_seek = True
+        self._end_of_track_event.clear()
 
         try:
             sp_track = self.backend._session.get_track(track.uri)
@@ -186,10 +188,15 @@ def music_delivery_callback(
         return 0
 
 
-def end_of_track_callback(session, audio_actor):
+def end_of_track_callback(session, end_of_track_event, audio_actor):
     # This callback is called from the pyspotify event loop.
 
+    if end_of_track_event.is_set():
+        logger.debug('End of track already received; ignoring callback')
+        return
+
     logger.debug('End of track reached')
+    end_of_track_event.set()
     audio_actor.emit_data(None)
 
 

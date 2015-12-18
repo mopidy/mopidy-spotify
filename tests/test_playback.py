@@ -75,7 +75,8 @@ def test_connect_events_adds_end_of_track_handler_to_session(
 
     assert (mock.call(
         spotify.SessionEvent.END_OF_TRACK,
-        playback.end_of_track_callback, audio_mock)
+        playback.end_of_track_callback,
+        playback_provider._end_of_track_event, audio_mock)
         in session_mock.on.call_args_list)
 
 
@@ -330,9 +331,24 @@ def test_music_delivery_consumes_zero_frames_if_audio_fails(
 
 
 def test_end_of_track_callback(session_mock, audio_mock):
-    playback.end_of_track_callback(session_mock, audio_mock)
+    end_of_track_event = threading.Event()
 
+    playback.end_of_track_callback(
+        session_mock, end_of_track_event, audio_mock)
+
+    assert end_of_track_event.is_set()
     audio_mock.emit_data.assert_called_once_with(None)
+
+
+def test_duplicate_end_of_track_callback_is_ignored(session_mock, audio_mock):
+    end_of_track_event = threading.Event()
+    end_of_track_event.set()
+
+    playback.end_of_track_callback(
+        session_mock, end_of_track_event, audio_mock)
+
+    assert end_of_track_event.is_set()
+    assert audio_mock.emit_data.call_count == 0
 
 
 def test_buffer_timestamp_wrapper():

@@ -149,6 +149,8 @@ Feature release.
   progress. This ensures that we don't deliver audio data from before the seek
   with timestamps from after the seek.
 
+- Ignore duplicate end of track callbacks.
+
 v2.2.0 (2015-11-15)
 -------------------
 
