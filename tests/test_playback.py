@@ -327,6 +327,7 @@ def test_music_delivery_consumes_zero_frames_if_audio_fails(
         session_mock, audio_format, frames, num_frames,
         audio_mock, seeking_event, push_audio_data_event, buffer_timestamp)
 
+    assert buffer_timestamp.increase.call_count == 0
     assert result == 0
 
 

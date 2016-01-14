@@ -151,6 +151,10 @@ Feature release.
 
 - Ignore duplicate end of track callbacks.
 
+- Don't increase the audio buffer timestamp if the buffer is rejected by
+  Mopidy. This caused audio buffers delivered after one or more rejected audio
+  buffers to have too high timestamps.
+
 v2.2.0 (2015-11-15)
 -------------------
 

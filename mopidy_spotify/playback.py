@@ -177,12 +177,11 @@ def music_delivery_callback(
         bytes(frames), capabilites=capabilites,
         timestamp=buffer_timestamp.get(), duration=duration)
 
-    buffer_timestamp.increase(duration)
-
     # We must block here to know if the buffer was consumed successfully.
     consumed = audio_actor.emit_data(buffer_).get()
 
     if consumed:
+        buffer_timestamp.increase(duration)
         return num_frames
     else:
         return 0
