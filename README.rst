@@ -142,7 +142,7 @@ Credits
 
 - Original author: `Stein Magnus Jodal <https://github.com/jodal>`__
 - Current maintainer: `Stein Magnus Jodal <https://github.com/jodal>`__
-- `Contributors <https://github.com/mopidy/mopidy-gmusic/graphs/contributors>`_
+- `Contributors <https://github.com/mopidy/mopidy-spotify/graphs/contributors>`_
 
 
 Changelog
