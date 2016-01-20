@@ -163,6 +163,9 @@ Feature release.
   Mopidy. This caused audio buffers delivered after one or more rejected audio
   buffers to have too high timestamps.
 
+- When changing tracks, block until Mopidy completes the appsrc URI change.
+  Not blocking here might break gapless playback.
+
 v2.2.0 (2015-11-15)
 -------------------
 

@@ -75,12 +75,16 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             self.backend._session.player.load(sp_track)
             self.backend._session.player.play()
 
-            self.audio.set_appsrc(
+            future = self.audio.set_appsrc(
                 LIBSPOTIFY_GST_CAPS,
                 need_data=need_data_callback_bound,
                 enough_data=enough_data_callback_bound,
                 seek_data=seek_data_callback_bound)
             self.audio.set_metadata(track)
+
+            # Gapless playback requires that we block until URI change in
+            # mopidy.audio has completed before we return from change_track().
+            future.get()
 
             return True
         except spotify.Error as exc:
