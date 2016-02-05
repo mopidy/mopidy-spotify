@@ -1,23 +1,18 @@
-sudo: false
+sudo: required
+dist: trusty
 
 language: python
 
 python:
   - "2.7_with_system_site_packages"
 
-addons:
-  apt:
-    sources:
-      - mopidy-stable
-    packages:
-      - libffi-dev
-      - libspotify-dev
-      - mopidy
-      - python-all-dev
-
 env:
   - TOX_ENV=py27
   - TOX_ENV=flake8
+
+before_install:
+  - "sudo apt-get update -qq"
+  - "sudo apt-get install -y gir1.2-gst-plugins-base-1.0 gir1.2-gstreamer-1.0 python-gst-1.0 libffi-dev libspotify-dev python-all-dev"
 
 install:
   - "pip install tox"
