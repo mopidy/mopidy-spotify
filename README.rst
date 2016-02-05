@@ -166,6 +166,9 @@ Feature release.
 - When changing tracks, block until Mopidy completes the appsrc URI change.
   Not blocking here might break gapless playback.
 
+- Lookup of a playlist you're not subscribed to will now properly load all of
+  the playlist's tracks. (Fixes: #81, PR: #82)
+
 v2.2.0 (2015-11-15)
 -------------------
 
