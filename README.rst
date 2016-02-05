@@ -169,6 +169,9 @@ Feature release.
 - Lookup of a playlist you're not subscribed to will now properly load all of
   the playlist's tracks. (Fixes: #81, PR: #82)
 
+- Workaround teardown race outputing lots of short stack traces on Mopidy
+  shutdown. (See #73 for details)
+
 v2.2.0 (2015-11-15)
 -------------------
 

@@ -4,8 +4,10 @@ import logging
 
 from mopidy import backend
 
-import mopidy_spotify
-from mopidy_spotify import browse, distinct, images, lookup, search, utils
+# Workaround https://github.com/public/flake8-import-order/issues/49:
+from mopidy_spotify import Extension
+from mopidy_spotify import (
+    __version__, browse, distinct, images, lookup, search, utils)
 
 
 logger = logging.getLogger(__name__)
@@ -19,9 +21,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         self._config = backend._config['spotify']
         self._requests_session = utils.get_requests_session(
             proxy_config=backend._config['proxy'],
-            user_agent='%s/%s' % (
-                mopidy_spotify.Extension.dist_name,
-                mopidy_spotify.__version__))
+            user_agent='%s/%s' % (Extension.dist_name, __version__))
 
     def browse(self, uri):
         return browse.browse(self._config, self._backend._session, uri)
