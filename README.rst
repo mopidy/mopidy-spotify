@@ -148,7 +148,7 @@ Credits
 Changelog
 =========
 
-v2.3.0 (UNRELEASED)
+v2.3.0 (2016-02-06)
 -------------------
 
 Feature release.
