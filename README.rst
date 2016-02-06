@@ -137,8 +137,40 @@ Project resources
 - `Issue tracker <https://github.com/mopidy/mopidy-spotify/issues>`_
 
 
+Credits
+=======
+
+- Original author: `Stein Magnus Jodal <https://github.com/jodal>`__
+- Current maintainer: `Stein Magnus Jodal <https://github.com/jodal>`__
+- `Contributors <https://github.com/mopidy/mopidy-spotify/graphs/contributors>`_
+
+
 Changelog
 =========
+
+v2.3.0 (2016-02-06)
+-------------------
+
+Feature release.
+
+- Ignore all audio data deliveries from libspotify when when a seek is in
+  progress. This ensures that we don't deliver audio data from before the seek
+  with timestamps from after the seek.
+
+- Ignore duplicate end of track callbacks.
+
+- Don't increase the audio buffer timestamp if the buffer is rejected by
+  Mopidy. This caused audio buffers delivered after one or more rejected audio
+  buffers to have too high timestamps.
+
+- When changing tracks, block until Mopidy completes the appsrc URI change.
+  Not blocking here might break gapless playback.
+
+- Lookup of a playlist you're not subscribed to will now properly load all of
+  the playlist's tracks. (Fixes: #81, PR: #82)
+
+- Workaround teardown race outputing lots of short stack traces on Mopidy
+  shutdown. (See #73 for details)
 
 v2.2.0 (2015-11-15)
 -------------------

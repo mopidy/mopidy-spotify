@@ -94,6 +94,7 @@ def _lookup_playlist(config, sp_link):
     sp_playlist = sp_link.as_playlist()
     sp_playlist.load()
     for sp_track in sp_playlist.tracks:
+        sp_track.load()
         track = translator.to_track(
             sp_track, bitrate=config['bitrate'])
         if track is not None:

@@ -144,6 +144,7 @@ def test_lookup_of_playlist_uri(session_mock, sp_playlist_mock, provider):
     session_mock.get_link.assert_called_once_with('spotify:playlist:alice:foo')
     sp_playlist_mock.link.as_playlist.assert_called_once_with()
     sp_playlist_mock.load.assert_called_once_with()
+    sp_playlist_mock.tracks[0].load.assert_called_once_with()
 
     assert len(results) == 1
     track = results[0]
