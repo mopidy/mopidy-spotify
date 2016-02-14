@@ -111,13 +111,13 @@ The following configuration values are available:
   Defaults to ``true``.
 
 - ``spotify/search_album_count``: Maximum number of albums returned in search
-  results. Number between 0 and 200. Defaults to 20.
+  results. Number between 0 and 50. Defaults to 20.
 
 - ``spotify/search_artist_count``: Maximum number of artists returned in search
-  results. Number between 0 and 200. Defaults to 10.
+  results. Number between 0 and 50. Defaults to 10.
 
 - ``spotify/search_track_count``: Maximum number of tracks returned in search
-  results. Number between 0 and 200. Defaults to 50.
+  results. Number between 0 and 50. Defaults to 50.
 
 - ``spotify/toplist_countries``: Comma separated list of two letter ISO country
   codes to get toplists for. Defaults to blank, which is interpreted as all
@@ -156,6 +156,13 @@ Bug fix release.
 - Require Mopidy < 2 as Mopidy 2.0 breaks the audio API with the upgrade to
   GStreamer 1.
 
+- Use the new Spotify Web API for search. Searching through libspotify has been
+  discontinued and is not working anymore. (Fixes: #89)
+
+- Emit a warning if ``search_album_count``, ``search_artist_count`` or
+  ``search_track_count`` is greater than 50, and use 50 instead. This is
+  because this is the maximum value that the Spotify Web API allows. The
+  maximum in the config schema is not changed to not break existing configs.
 
 v2.3.0 (2016-02-06)
 -------------------
