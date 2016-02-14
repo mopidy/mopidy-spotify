@@ -5,15 +5,21 @@ import urllib
 
 from mopidy import models
 
+import requests
+
 import spotify
 
 from mopidy_spotify import lookup, translator
 
 
+_API_BASE_URI = 'https://api.spotify.com/v1/search'
+_SEARCH_TYPES = 'album,artist,track'
+
 logger = logging.getLogger(__name__)
 
 
-def search(config, session, query=None, uris=None, exact=False):
+def search(config, session, requests_session,
+           query=None, uris=None, exact=False):
     # TODO Respect `uris` argument
     # TODO Support `exact` search
 
@@ -36,19 +42,30 @@ def search(config, session, query=None, uris=None, exact=False):
         logger.info('Spotify search aborted: Spotify is offline')
         return models.SearchResult(uri=uri)
 
-    sp_search = session.search(
-        sp_query,
-        album_count=config['search_album_count'],
-        artist_count=config['search_artist_count'],
-        track_count=config['search_track_count'])
-    sp_search.load()
+    try:
+        response = requests_session.get(_API_BASE_URI, params={
+            'q': sp_query,
+            'limit': config['search_track_count'],
+            'type': _SEARCH_TYPES})
+    except requests.RequestException as exc:
+        logger.debug('Fetching %s failed: %s', uri, exc)
+        return models.SearchResult(uri=uri)
+
+    try:
+        result = response.json()
+    except ValueError as exc:
+        logger.debug('JSON decoding failed for %s: %s', uri, exc)
+        return models.SearchResult(uri=uri)
 
     albums = [
-        translator.to_album(sp_album) for sp_album in sp_search.albums]
+        translator.webapi_to_album(sp_album)
+        for sp_album in result['albums']['items']]
     artists = [
-        translator.to_artist(sp_artist) for sp_artist in sp_search.artists]
+        translator.webapi_to_artist(sp_artist)
+        for sp_artist in result['artists']['items']]
     tracks = [
-        translator.to_track(sp_track) for sp_track in sp_search.tracks]
+        translator.webapi_to_track(sp_track)
+        for sp_track in result['tracks']['items']]
 
     return models.SearchResult(
         uri=uri, albums=albums, artists=artists, tracks=tracks)

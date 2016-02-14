@@ -156,6 +156,8 @@ Bug fix release.
 - Require Mopidy < 2 as Mopidy 2.0 breaks the audio API with the upgrade to
   GStreamer 1.
 
+- Use the new Web API for search. Searching through libspotify has been
+  discontinued and is not working anymore. (Fixes: #89)
 
 v2.3.0 (2016-02-06)
 -------------------

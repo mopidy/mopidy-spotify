@@ -428,3 +428,38 @@ class TestSpotifySearchQuery(object):
         assert 'album:"Greatest Hits"' in query
         assert 'track:"Dancing Queen"' in query
         assert 'year:1970' in query
+
+
+class TestWebapiToArtist(object):
+
+    def test_successful_translation(self, webapi_artist_mock):
+        artist = translator.webapi_to_artist(webapi_artist_mock)
+
+        assert artist.uri == 'spotify:artist:abba'
+        assert artist.name == 'ABBA'
+
+
+class TestWebapiToAlbum(object):
+
+    def test_successful_translation(self, webapi_album_mock):
+        album = translator.webapi_to_album(webapi_album_mock)
+
+        assert album.uri == 'spotify:album:def'
+        assert album.name == 'DEF 456'
+
+
+class TestWebapiToTrack(object):
+
+    def test_successful_translation(self, webapi_track_mock):
+        track = translator.webapi_to_track(webapi_track_mock)
+
+        assert track.uri == 'spotify:track:abc'
+        assert track.name == 'ABC 123'
+        assert list(track.artists) == [
+            models.Artist(uri='spotify:artist:abba', name='ABBA')]
+        assert track.album == models.Album(
+            uri='spotify:album:def',
+            name='DEF 456')
+        assert track.track_no == 7
+        assert track.disc_no == 1
+        assert track.length == 174300

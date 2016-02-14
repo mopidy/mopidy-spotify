@@ -1,8 +1,14 @@
 from __future__ import unicode_literals
 
+import json
+
 from mopidy import models
 
+import responses
+
 import spotify
+
+import mopidy_spotify
 
 
 def test_search_with_no_query_returns_nothing(provider, caplog):
@@ -65,15 +71,22 @@ def test_search_when_offline_returns_nothing(session_mock, provider, caplog):
     assert len(result.tracks) == 0
 
 
+@responses.activate
 def test_search_returns_albums_and_artists_and_tracks(
-        session_mock, sp_search_mock, provider, caplog):
-    session_mock.search.return_value = sp_search_mock
+        webapi_search_mock, provider, caplog):
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/search',
+        body=json.dumps(webapi_search_mock))
 
     result = provider.search({'any': ['ABBA']})
 
-    session_mock.search.assert_called_once_with(
-        '"ABBA"', album_count=20, artist_count=10, track_count=50)
-    sp_search_mock.load.assert_called_once_with()
+    assert len(responses.calls) == 1
+    assert (
+        responses.calls[0].request.url ==
+        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
+        'type=album%2Cartist%2Ctrack&limit=50')
+    assert responses.calls[0].request.headers['User-Agent'].startswith(
+        'Mopidy-Spotify/%s' % mopidy_spotify.__version__)
 
     assert 'Searching Spotify for: "ABBA"' in caplog.text()
 
