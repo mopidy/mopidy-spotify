@@ -148,6 +148,15 @@ Credits
 Changelog
 =========
 
+v2.3.1 (UNRELEASED)
+-------------------
+
+Bug fix release.
+
+- Require Mopidy < 2 as Mopidy 2.0 breaks the audio API with the upgrade to
+  GStreamer 1.
+
+
 v2.3.0 (2016-02-06)
 -------------------
 
