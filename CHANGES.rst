@@ -1,7 +1,7 @@
 Changelog
 =========
 
-v2.3.1 (UNRELEASED)
+v2.3.1 (2016-02-14)
 -------------------
 
 Bug fix release.
