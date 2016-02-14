@@ -156,13 +156,13 @@ Bug fix release.
 - Require Mopidy < 2 as Mopidy 2.0 breaks the audio API with the upgrade to
   GStreamer 1.
 
-- Use the new Web API for search. Searching through libspotify has been
+- Use the new Spotify Web API for search. Searching through libspotify has been
   discontinued and is not working anymore. (Fixes: #89)
 
-- Emit a warning if `search_album_count`, `search_artist_count` or
-  `search_track_count` is greater than 50, and use 50 instead. This is because
-  this is the maximum value that the Web API allows. The maximum in the config
-  schema is not changed to not break existing configs.
+- Emit a warning if ``search_album_count``, ``search_artist_count`` or
+  ``search_track_count`` is greater than 50, and use 50 instead. This is
+  because this is the maximum value that the Spotify Web API allows. The
+  maximum in the config schema is not changed to not break existing configs.
 
 v2.3.0 (2016-02-06)
 -------------------

@@ -50,8 +50,9 @@ def search(config, session, requests_session,
     if search_count > 50:
         logger.warn(
             'Spotify currently allows maximum 50 search results of each type. '
-            'Please set the config options `search_album_count`, '
-            '`search_artist_count` and `search_track_count` to at most 50.')
+            'Please set the config values spotify/search_album_count, '
+            'spotify/search_artist_count and spotify/search_track_count '
+            'to at most 50.')
         search_count = 50
 
     try:
