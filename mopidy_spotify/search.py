@@ -47,6 +47,13 @@ def search(config, session, requests_session,
         config['search_artist_count'],
         config['search_track_count'])
 
+    if search_count > 50:
+        logger.warn(
+            'Spotify currently allows maximum 50 search results of each type. '
+            'Please set the config options `search_album_count`, '
+            '`search_artist_count` and `search_track_count` to at most 50.')
+        search_count = 50
+
     try:
         response = requests_session.get(_API_BASE_URI, params={
             'q': sp_query,

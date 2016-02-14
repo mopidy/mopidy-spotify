@@ -159,9 +159,10 @@ Bug fix release.
 - Use the new Web API for search. Searching through libspotify has been
   discontinued and is not working anymore. (Fixes: #89)
 
-- Change the maximum value of search_album_count, search_artist_count and
-  search_track_count to 50, because this is the maximum value that the Web API
-  allows.
+- Emit a warning if `search_album_count`, `search_artist_count` or
+  `search_track_count` is greater than 50, and use 50 instead. This is because
+  this is the maximum value that the Web API allows. The maximum in the config
+  schema is not changed to not break existing configs.
 
 v2.3.0 (2016-02-06)
 -------------------
