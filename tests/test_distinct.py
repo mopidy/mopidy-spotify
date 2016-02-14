@@ -1,8 +1,12 @@
 from __future__ import unicode_literals
 
+import mock
+
+from mopidy import models
+
 import pytest
 
-import spotify
+from mopidy_spotify import distinct, search
 
 
 @pytest.fixture
@@ -19,18 +23,14 @@ def session_mock_with_playlists(
     return session_mock
 
 
-@pytest.fixture
-def session_mock_with_search(
-        session_mock,
-        sp_album_mock, sp_unloaded_album_mock,
-        sp_artist_mock, sp_unloaded_artist_mock):
-
-    session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
-    session_mock.search.return_value.albums = [
-        sp_album_mock, sp_unloaded_album_mock]
-    session_mock.search.return_value.artists = [
-        sp_artist_mock, sp_unloaded_artist_mock]
-    return session_mock
+@pytest.yield_fixture
+def search_mock(mopidy_album_mock, mopidy_artist_mock):
+    patcher = mock.patch.object(distinct, 'search', spec=search)
+    search_mock = patcher.start()
+    search_mock.search.return_value = models.SearchResult(
+        albums=[mopidy_album_mock], artists=[mopidy_artist_mock])
+    yield search_mock
+    patcher.stop()
 
 
 @pytest.mark.parametrize('field', [
@@ -69,49 +69,36 @@ def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
     assert provider.get_distinct(field) == set()
 
 
-@pytest.mark.parametrize('field,query,expected,search_args,search_kwargs', [
+@pytest.mark.parametrize('field,query,expected,types', [
     (
         'artist',
         {'album': ['Foo']},
         {'ABBA'},
-        ('album:"Foo"',),
-        dict(album_count=0, artist_count=10, track_count=0),
+        ['artist'],
     ),
     (
         'albumartist',
         {'album': ['Foo']},
         {'ABBA'},
-        ('album:"Foo"',),
-        dict(album_count=20, artist_count=0, track_count=0),
+        ['album'],
     ),
     (
         'album',
         {'artist': ['Bar']},
         {'DEF 456'},
-        ('artist:"Bar"',),
-        dict(album_count=20, artist_count=0, track_count=0),
+        ['album'],
     ),
     (
         'date',
         {'artist': ['Bar']},
         {'2001'},
-        ('artist:"Bar"',),
-        dict(album_count=20, artist_count=0, track_count=0),
+        ['album'],
     ),
 ])
 def test_get_distinct_with_query(
-        session_mock_with_search, provider,
-        field, query, expected, search_args, search_kwargs):
+        search_mock, provider, config, session_mock,
+        field, query, expected, types):
 
     assert provider.get_distinct(field, query) == expected
-    session_mock_with_search.search.assert_called_once_with(
-        *search_args, **search_kwargs)
-
-
-def test_get_distinct_with_query_when_offline(
-        session_mock_with_search, provider):
-
-    session_mock_with_search.connection.state = spotify.ConnectionState.OFFLINE
-
-    assert provider.get_distinct('artist', {'album': ['Foo']}) == set()
-    assert session_mock_with_search.search.return_value.load.call_count == 0
+    search_mock.search.assert_called_once_with(
+        mock.ANY, mock.ANY, mock.ANY, query, types=types)

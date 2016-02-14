@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import mock
 
-from mopidy import backend as backend_api
+from mopidy import backend as backend_api, models
 
 import pytest
 
@@ -272,13 +272,80 @@ def sp_playlist_container_mock():
 
 
 @pytest.fixture
-def sp_search_mock(sp_album_mock, sp_artist_mock, sp_track_mock):
-    sp_search = mock.Mock(spec=spotify.Search)
-    sp_search.is_loaded = True
-    sp_search.albums = [sp_album_mock]
-    sp_search.artists = [sp_artist_mock]
-    sp_search.tracks = [sp_track_mock, sp_track_mock]
-    return sp_search
+def web_search_mock(
+        web_album_mock, web_artist_mock, web_track_mock):
+    return {
+        'albums': {
+            'items': [web_album_mock]
+        },
+        'artists': {
+            'items': [web_artist_mock]
+        },
+        'tracks': {
+            'items': [web_track_mock, web_track_mock]
+        }
+    }
+
+
+@pytest.fixture
+def web_search_mock_large(
+        web_album_mock, web_artist_mock, web_track_mock):
+    return {
+        'albums': {
+            'items': [web_album_mock] * 10
+        },
+        'artists': {
+            'items': [web_artist_mock] * 10
+        },
+        'tracks': {
+            'items': [web_track_mock] * 10
+        }
+    }
+
+
+@pytest.fixture
+def web_artist_mock():
+    return {
+        'name': 'ABBA',
+        'uri': 'spotify:artist:abba'
+    }
+
+
+@pytest.fixture
+def web_album_mock():
+    return {
+        'name': 'DEF 456',
+        'uri': 'spotify:album:def'
+    }
+
+
+@pytest.fixture
+def web_track_mock(web_artist_mock, web_album_mock):
+    return {
+        'album': web_album_mock,
+        'artists': [web_artist_mock],
+        'disc_number': 1,
+        'duration_ms': 174300,
+        'name': 'ABC 123',
+        'track_number': 7,
+        'uri': 'spotify:track:abc',
+    }
+
+
+@pytest.fixture
+def mopidy_artist_mock():
+    return models.Artist(
+        name='ABBA',
+        uri='spotify:artist:abba')
+
+
+@pytest.fixture
+def mopidy_album_mock(mopidy_artist_mock):
+    return models.Album(
+        artists=[mopidy_artist_mock],
+        date='2001',
+        name='DEF 456',
+        uri='spotify:album:def')
 
 
 @pytest.fixture
