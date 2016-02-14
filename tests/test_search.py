@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import json
 
+import re
+
 from mopidy import models
 
 import responses
@@ -81,10 +83,14 @@ def test_search_returns_albums_and_artists_and_tracks(
     result = provider.search({'any': ['ABBA']})
 
     assert len(responses.calls) == 1
-    assert (
-        responses.calls[0].request.url ==
-        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
-        'type=album%2Cartist%2Ctrack&limit=50')
+
+    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
+    assert (uri_parts == [
+        'https://api.spotify.com/v1/search',
+        'limit=50',
+        'q=%22ABBA%22',
+        'type=album%2Cartist%2Ctrack'])
+
     assert responses.calls[0].request.headers['User-Agent'].startswith(
         'Mopidy-Spotify/%s' % mopidy_spotify.__version__)
 
@@ -134,10 +140,14 @@ def test_sets_api_limit_to_album_count_when_max(
 
     result = provider.search({'any': ['ABBA']})
 
-    assert (
-        responses.calls[0].request.url ==
-        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
-        'type=album%2Cartist%2Ctrack&limit=6')
+    assert len(responses.calls) == 1
+
+    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
+    assert (uri_parts == [
+        'https://api.spotify.com/v1/search',
+        'limit=6',
+        'q=%22ABBA%22',
+        'type=album%2Cartist%2Ctrack'])
 
     assert len(result.albums) == 6
 
@@ -155,10 +165,14 @@ def test_sets_api_limit_to_artist_count_when_max(
 
     result = provider.search({'any': ['ABBA']})
 
-    assert (
-        responses.calls[0].request.url ==
-        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
-        'type=album%2Cartist%2Ctrack&limit=6')
+    assert len(responses.calls) == 1
+
+    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
+    assert (uri_parts == [
+        'https://api.spotify.com/v1/search',
+        'limit=6',
+        'q=%22ABBA%22',
+        'type=album%2Cartist%2Ctrack'])
 
     assert len(result.artists) == 6
 
@@ -176,10 +190,14 @@ def test_sets_api_limit_to_track_count_when_max(
 
     result = provider.search({'any': ['ABBA']})
 
-    assert (
-        responses.calls[0].request.url ==
-        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
-        'type=album%2Cartist%2Ctrack&limit=6')
+    assert len(responses.calls) == 1
+
+    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
+    assert (uri_parts == [
+        'https://api.spotify.com/v1/search',
+        'limit=6',
+        'q=%22ABBA%22',
+        'type=album%2Cartist%2Ctrack'])
 
     assert len(result.tracks) == 6
 
