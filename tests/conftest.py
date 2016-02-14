@@ -288,6 +288,22 @@ def webapi_search_mock(
 
 
 @pytest.fixture
+def webapi_search_mock_large(
+        webapi_album_mock, webapi_artist_mock, webapi_track_mock):
+    return {
+        'albums': {
+            'items': [webapi_album_mock] * 10
+        },
+        'artists': {
+            'items': [webapi_artist_mock] * 10
+        },
+        'tracks': {
+            'items': [webapi_track_mock] * 10
+        }
+    }
+
+
+@pytest.fixture
 def webapi_artist_mock():
     return {
         'name': 'ABBA',

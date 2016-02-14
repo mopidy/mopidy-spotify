@@ -42,10 +42,15 @@ def search(config, session, requests_session,
         logger.info('Spotify search aborted: Spotify is offline')
         return models.SearchResult(uri=uri)
 
+    search_count = max(
+        config['search_album_count'],
+        config['search_artist_count'],
+        config['search_track_count'])
+
     try:
         response = requests_session.get(_API_BASE_URI, params={
             'q': sp_query,
-            'limit': config['search_track_count'],
+            'limit': search_count,
             'type': _SEARCH_TYPES})
     except requests.RequestException as exc:
         logger.debug('Fetching %s failed: %s', uri, exc)
@@ -58,14 +63,14 @@ def search(config, session, requests_session,
         return models.SearchResult(uri=uri)
 
     albums = [
-        translator.webapi_to_album(sp_album)
-        for sp_album in result['albums']['items']]
+        translator.webapi_to_album(sp_album) for sp_album in
+        result['albums']['items'][:config['search_album_count']]]
     artists = [
-        translator.webapi_to_artist(sp_artist)
-        for sp_artist in result['artists']['items']]
+        translator.webapi_to_artist(sp_artist) for sp_artist in
+        result['artists']['items'][:config['search_artist_count']]]
     tracks = [
-        translator.webapi_to_track(sp_track)
-        for sp_track in result['tracks']['items']]
+        translator.webapi_to_track(sp_track) for sp_track in
+        result['tracks']['items'][:config['search_track_count']]]
 
     return models.SearchResult(
         uri=uri, albums=albums, artists=artists, tracks=tracks)

@@ -103,6 +103,87 @@ def test_search_returns_albums_and_artists_and_tracks(
     assert result.tracks[0].uri == 'spotify:track:abc'
 
 
+@responses.activate
+def test_search_limits_number_of_results(
+        webapi_search_mock_large, provider, config):
+    config['spotify']['search_album_count'] = 4
+    config['spotify']['search_artist_count'] = 5
+    config['spotify']['search_track_count'] = 6
+
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/search',
+        body=json.dumps(webapi_search_mock_large))
+
+    result = provider.search({'any': ['ABBA']})
+
+    assert len(result.albums) == 4
+    assert len(result.artists) == 5
+    assert len(result.tracks) == 6
+
+
+@responses.activate
+def test_sets_api_limit_to_album_count_when_max(
+        webapi_search_mock_large, provider, config):
+    config['spotify']['search_album_count'] = 6
+    config['spotify']['search_artist_count'] = 2
+    config['spotify']['search_track_count'] = 2
+
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/search',
+        body=json.dumps(webapi_search_mock_large))
+
+    result = provider.search({'any': ['ABBA']})
+
+    assert (
+        responses.calls[0].request.url ==
+        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
+        'type=album%2Cartist%2Ctrack&limit=6')
+
+    assert len(result.albums) == 6
+
+
+@responses.activate
+def test_sets_api_limit_to_artist_count_when_max(
+        webapi_search_mock_large, provider, config):
+    config['spotify']['search_album_count'] = 2
+    config['spotify']['search_artist_count'] = 6
+    config['spotify']['search_track_count'] = 2
+
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/search',
+        body=json.dumps(webapi_search_mock_large))
+
+    result = provider.search({'any': ['ABBA']})
+
+    assert (
+        responses.calls[0].request.url ==
+        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
+        'type=album%2Cartist%2Ctrack&limit=6')
+
+    assert len(result.artists) == 6
+
+
+@responses.activate
+def test_sets_api_limit_to_track_count_when_max(
+        webapi_search_mock_large, provider, config):
+    config['spotify']['search_album_count'] = 2
+    config['spotify']['search_artist_count'] = 2
+    config['spotify']['search_track_count'] = 6
+
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/search',
+        body=json.dumps(webapi_search_mock_large))
+
+    result = provider.search({'any': ['ABBA']})
+
+    assert (
+        responses.calls[0].request.url ==
+        'https://api.spotify.com/v1/search?q=%22ABBA%22&'
+        'type=album%2Cartist%2Ctrack&limit=6')
+
+    assert len(result.tracks) == 6
+
+
 def test_exact_is_ignored(session_mock, sp_track_mock, provider):
     session_mock.get_link.return_value = sp_track_mock.link
 
