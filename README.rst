@@ -160,13 +160,14 @@ Bug fix release.
   discontinued and is not working anymore. (Fixes: #89)
 
 - Note that search through the Spotify Web API doesn't return artists or date
-  for albums. This also means that ``get_distinct`` when given type
+  for albums. This also means that ``library.get_distinct()`` when given type
   ``albumartist`` or ``date`` and a query only returns an empty set.
 
-- Emit a warning if ``search_album_count``, ``search_artist_count`` or
-  ``search_track_count`` is greater than 50, and use 50 instead. This is
-  because this is the maximum value that the Spotify Web API allows. The
-  maximum in the config schema is not changed to not break existing configs.
+- Emit a warning if config value ``spotify/search_album_count``,
+  ``spotify/search_artist_count``, or ``spotify/search_track_count`` is greater
+  than 50, and use 50 instead. 50 is the maximum value that the Spotify Web API
+  allows. The maximum in the config schema is not changed to not break existing
+  configs.
 
 v2.3.0 (2016-02-06)
 -------------------
