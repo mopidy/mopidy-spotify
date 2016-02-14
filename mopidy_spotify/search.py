@@ -5,15 +5,21 @@ import urllib
 
 from mopidy import models
 
+import requests
+
 import spotify
 
 from mopidy_spotify import lookup, translator
 
 
+_API_BASE_URI = 'https://api.spotify.com/v1/search'
+_SEARCH_TYPES = ['album', 'artist', 'track']
+
 logger = logging.getLogger(__name__)
 
 
-def search(config, session, query=None, uris=None, exact=False):
+def search(config, session, requests_session,
+           query=None, uris=None, exact=False, types=_SEARCH_TYPES):
     # TODO Respect `uris` argument
     # TODO Support `exact` search
 
@@ -36,19 +42,48 @@ def search(config, session, query=None, uris=None, exact=False):
         logger.info('Spotify search aborted: Spotify is offline')
         return models.SearchResult(uri=uri)
 
-    sp_search = session.search(
-        sp_query,
-        album_count=config['search_album_count'],
-        artist_count=config['search_artist_count'],
-        track_count=config['search_track_count'])
-    sp_search.load()
+    search_count = max(
+        config['search_album_count'],
+        config['search_artist_count'],
+        config['search_track_count'])
+
+    if search_count > 50:
+        logger.warn(
+            'Spotify currently allows maximum 50 search results of each type. '
+            'Please set the config values spotify/search_album_count, '
+            'spotify/search_artist_count and spotify/search_track_count '
+            'to at most 50.')
+        search_count = 50
+
+    try:
+        response = requests_session.get(_API_BASE_URI, params={
+            'q': sp_query,
+            'limit': search_count,
+            'type': ','.join(types)})
+    except requests.RequestException as exc:
+        logger.debug('Fetching %s failed: %s', uri, exc)
+        return models.SearchResult(uri=uri)
+
+    try:
+        result = response.json()
+    except ValueError as exc:
+        logger.debug('JSON decoding failed for %s: %s', uri, exc)
+        return models.SearchResult(uri=uri)
 
     albums = [
-        translator.to_album(sp_album) for sp_album in sp_search.albums]
+        translator.web_to_album(web_album) for web_album in
+        result['albums']['items'][:config['search_album_count']]
+    ] if 'albums' in result else []
+
     artists = [
-        translator.to_artist(sp_artist) for sp_artist in sp_search.artists]
+        translator.web_to_artist(web_artist) for web_artist in
+        result['artists']['items'][:config['search_artist_count']]
+    ] if 'artists' in result else []
+
     tracks = [
-        translator.to_track(sp_track) for sp_track in sp_search.tracks]
+        translator.web_to_track(web_track) for web_track in
+        result['tracks']['items'][:config['search_track_count']]
+    ] if 'tracks' in result else []
 
     return models.SearchResult(
         uri=uri, albums=albums, artists=artists, tracks=tracks)

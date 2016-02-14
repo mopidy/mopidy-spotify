@@ -1,8 +1,8 @@
+include *.rst
 include *.txt
 include .travis.yml
 include LICENSE
 include MANIFEST.in
-include README.rst
 include mopidy_spotify/ext.conf
 include mopidy_spotify/spotify_appkey.key
 include tox.ini
