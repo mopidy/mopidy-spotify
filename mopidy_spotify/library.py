@@ -28,7 +28,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
     def get_distinct(self, field, query=None):
         return distinct.get_distinct(
-            self._config, self._backend._session, field, query)
+            self._config, self._backend._session, self._requests_session,
+            field, query)
 
     def get_images(self, uris):
         return images.get_images(self._requests_session, uris)

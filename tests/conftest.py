@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import mock
 
-from mopidy import backend as backend_api
+from mopidy import backend as backend_api, models
 
 import pytest
 
@@ -330,6 +330,22 @@ def web_track_mock(web_artist_mock, web_album_mock):
         'track_number': 7,
         'uri': 'spotify:track:abc',
     }
+
+
+@pytest.fixture
+def mopidy_artist_mock():
+    return models.Artist(
+        name='ABBA',
+        uri='spotify:artist:abba')
+
+
+@pytest.fixture
+def mopidy_album_mock(mopidy_artist_mock):
+    return models.Album(
+        artists=[mopidy_artist_mock],
+        date='2001',
+        name='DEF 456',
+        uri='spotify:album:def')
 
 
 @pytest.fixture
