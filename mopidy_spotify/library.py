@@ -38,5 +38,5 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
     def search(self, query=None, uris=None, exact=False):
         return search.search(
-            self._config, self._backend._session,
+            self._config, self._backend._session, self._requests_session,
             query, uris, exact)

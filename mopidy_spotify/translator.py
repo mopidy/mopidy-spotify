@@ -232,3 +232,27 @@ def _transform_year(date):
         logger.debug(
             'Excluded year from search query: '
             'Cannot parse date "%s"', date)
+
+
+def webapi_to_artist(sp_artist):
+    return models.Artist(uri=sp_artist['uri'], name=sp_artist['name'])
+
+
+def webapi_to_album(sp_album):
+    return models.Album(uri=sp_album['uri'], name=sp_album['name'])
+
+
+def webapi_to_track(sp_track):
+    artists = [
+        webapi_to_artist(sp_artist)
+        for sp_artist in sp_track['artists']]
+    album = webapi_to_album(sp_track['album'])
+
+    return models.Track(
+        uri=sp_track['uri'],
+        name=sp_track['name'],
+        artists=artists,
+        album=album,
+        length=sp_track['duration_ms'],
+        disc_no=sp_track['disc_number'],
+        track_no=sp_track['track_number'])

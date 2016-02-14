@@ -272,13 +272,64 @@ def sp_playlist_container_mock():
 
 
 @pytest.fixture
-def sp_search_mock(sp_album_mock, sp_artist_mock, sp_track_mock):
-    sp_search = mock.Mock(spec=spotify.Search)
-    sp_search.is_loaded = True
-    sp_search.albums = [sp_album_mock]
-    sp_search.artists = [sp_artist_mock]
-    sp_search.tracks = [sp_track_mock, sp_track_mock]
-    return sp_search
+def webapi_search_mock(
+        webapi_album_mock, webapi_artist_mock, webapi_track_mock):
+    return {
+        'albums': {
+            'items': [webapi_album_mock]
+        },
+        'artists': {
+            'items': [webapi_artist_mock]
+        },
+        'tracks': {
+            'items': [webapi_track_mock, webapi_track_mock]
+        }
+    }
+
+
+@pytest.fixture
+def webapi_search_mock_large(
+        webapi_album_mock, webapi_artist_mock, webapi_track_mock):
+    return {
+        'albums': {
+            'items': [webapi_album_mock] * 10
+        },
+        'artists': {
+            'items': [webapi_artist_mock] * 10
+        },
+        'tracks': {
+            'items': [webapi_track_mock] * 10
+        }
+    }
+
+
+@pytest.fixture
+def webapi_artist_mock():
+    return {
+        'name': 'ABBA',
+        'uri': 'spotify:artist:abba'
+    }
+
+
+@pytest.fixture
+def webapi_album_mock():
+    return {
+        'name': 'DEF 456',
+        'uri': 'spotify:album:def'
+    }
+
+
+@pytest.fixture
+def webapi_track_mock(webapi_artist_mock, webapi_album_mock):
+    return {
+        'album': webapi_album_mock,
+        'artists': [webapi_artist_mock],
+        'disc_number': 1,
+        'duration_ms': 174300,
+        'name': 'ABC 123',
+        'track_number': 7,
+        'uri': 'spotify:track:abc',
+    }
 
 
 @pytest.fixture
