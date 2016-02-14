@@ -69,31 +69,36 @@ def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
     assert provider.get_distinct(field) == set()
 
 
-@pytest.mark.parametrize('field,query,expected', [
+@pytest.mark.parametrize('field,query,expected,types', [
     (
         'artist',
         {'album': ['Foo']},
         {'ABBA'},
+        ['artist'],
     ),
     (
         'albumartist',
         {'album': ['Foo']},
         {'ABBA'},
+        ['album'],
     ),
     (
         'album',
         {'artist': ['Bar']},
         {'DEF 456'},
+        ['album'],
     ),
     (
         'date',
         {'artist': ['Bar']},
         {'2001'},
+        ['album'],
     ),
 ])
 def test_get_distinct_with_query(
-        search_mock, provider, config, session_mock, field, query, expected):
+        search_mock, provider, config, session_mock,
+        field, query, expected, types):
 
     assert provider.get_distinct(field, query) == expected
     search_mock.search.assert_called_once_with(
-        mock.ANY, mock.ANY, mock.ANY, query)
+        mock.ANY, mock.ANY, mock.ANY, query, types=types)

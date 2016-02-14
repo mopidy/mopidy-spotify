@@ -97,7 +97,16 @@ def _get_search(
         config, session, requests_session, query,
         album=False, artist=False, track=False):
 
-    return search.search(config, session, requests_session, query)
+    types = []
+    if album:
+        types.append('album')
+    if artist:
+        types.append('artist')
+    if track:
+        types.append('track')
+
+    return search.search(
+        config, session, requests_session, query, types=types)
 
 
 def _get_playlist_tracks(config, session):
