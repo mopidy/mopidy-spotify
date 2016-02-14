@@ -75,10 +75,10 @@ def test_search_when_offline_returns_nothing(session_mock, provider, caplog):
 
 @responses.activate
 def test_search_returns_albums_and_artists_and_tracks(
-        webapi_search_mock, provider, caplog):
+        web_search_mock, provider, caplog):
     responses.add(
         responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(webapi_search_mock))
+        body=json.dumps(web_search_mock))
 
     result = provider.search({'any': ['ABBA']})
 
@@ -111,14 +111,14 @@ def test_search_returns_albums_and_artists_and_tracks(
 
 @responses.activate
 def test_search_limits_number_of_results(
-        webapi_search_mock_large, provider, config):
+        web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 4
     config['spotify']['search_artist_count'] = 5
     config['spotify']['search_track_count'] = 6
 
     responses.add(
         responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(webapi_search_mock_large))
+        body=json.dumps(web_search_mock_large))
 
     result = provider.search({'any': ['ABBA']})
 
@@ -129,14 +129,14 @@ def test_search_limits_number_of_results(
 
 @responses.activate
 def test_sets_api_limit_to_album_count_when_max(
-        webapi_search_mock_large, provider, config):
+        web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 6
     config['spotify']['search_artist_count'] = 2
     config['spotify']['search_track_count'] = 2
 
     responses.add(
         responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(webapi_search_mock_large))
+        body=json.dumps(web_search_mock_large))
 
     result = provider.search({'any': ['ABBA']})
 
@@ -154,14 +154,14 @@ def test_sets_api_limit_to_album_count_when_max(
 
 @responses.activate
 def test_sets_api_limit_to_artist_count_when_max(
-        webapi_search_mock_large, provider, config):
+        web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 2
     config['spotify']['search_artist_count'] = 6
     config['spotify']['search_track_count'] = 2
 
     responses.add(
         responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(webapi_search_mock_large))
+        body=json.dumps(web_search_mock_large))
 
     result = provider.search({'any': ['ABBA']})
 
@@ -179,14 +179,14 @@ def test_sets_api_limit_to_artist_count_when_max(
 
 @responses.activate
 def test_sets_api_limit_to_track_count_when_max(
-        webapi_search_mock_large, provider, config):
+        web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 2
     config['spotify']['search_artist_count'] = 2
     config['spotify']['search_track_count'] = 6
 
     responses.add(
         responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(webapi_search_mock_large))
+        body=json.dumps(web_search_mock_large))
 
     result = provider.search({'any': ['ABBA']})
 

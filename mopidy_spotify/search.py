@@ -63,13 +63,13 @@ def search(config, session, requests_session,
         return models.SearchResult(uri=uri)
 
     albums = [
-        translator.webapi_to_album(sp_album) for sp_album in
+        translator.web_to_album(web_album) for web_album in
         result['albums']['items'][:config['search_album_count']]]
     artists = [
-        translator.webapi_to_artist(sp_artist) for sp_artist in
+        translator.web_to_artist(web_artist) for web_artist in
         result['artists']['items'][:config['search_artist_count']]]
     tracks = [
-        translator.webapi_to_track(sp_track) for sp_track in
+        translator.web_to_track(web_track) for web_track in
         result['tracks']['items'][:config['search_track_count']]]
 
     return models.SearchResult(

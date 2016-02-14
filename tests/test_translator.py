@@ -430,28 +430,28 @@ class TestSpotifySearchQuery(object):
         assert 'year:1970' in query
 
 
-class TestWebapiToArtist(object):
+class TestWebToArtist(object):
 
-    def test_successful_translation(self, webapi_artist_mock):
-        artist = translator.webapi_to_artist(webapi_artist_mock)
+    def test_successful_translation(self, web_artist_mock):
+        artist = translator.web_to_artist(web_artist_mock)
 
         assert artist.uri == 'spotify:artist:abba'
         assert artist.name == 'ABBA'
 
 
-class TestWebapiToAlbum(object):
+class TestWebToAlbum(object):
 
-    def test_successful_translation(self, webapi_album_mock):
-        album = translator.webapi_to_album(webapi_album_mock)
+    def test_successful_translation(self, web_album_mock):
+        album = translator.web_to_album(web_album_mock)
 
         assert album.uri == 'spotify:album:def'
         assert album.name == 'DEF 456'
 
 
-class TestWebapiToTrack(object):
+class TestWebToTrack(object):
 
-    def test_successful_translation(self, webapi_track_mock):
-        track = translator.webapi_to_track(webapi_track_mock)
+    def test_successful_translation(self, web_track_mock):
+        track = translator.web_to_track(web_track_mock)
 
         assert track.uri == 'spotify:track:abc'
         assert track.name == 'ABC 123'
