@@ -13,13 +13,13 @@ from mopidy_spotify import lookup, translator
 
 
 _API_BASE_URI = 'https://api.spotify.com/v1/search'
-_SEARCH_TYPES = 'album,artist,track'
+_SEARCH_TYPES = ['album', 'artist', 'track']
 
 logger = logging.getLogger(__name__)
 
 
 def search(config, session, requests_session,
-           query=None, uris=None, exact=False):
+           query=None, uris=None, exact=False, types=_SEARCH_TYPES):
     # TODO Respect `uris` argument
     # TODO Support `exact` search
 
@@ -59,7 +59,7 @@ def search(config, session, requests_session,
         response = requests_session.get(_API_BASE_URI, params={
             'q': sp_query,
             'limit': search_count,
-            'type': _SEARCH_TYPES})
+            'type': ','.join(types)})
     except requests.RequestException as exc:
         logger.debug('Fetching %s failed: %s', uri, exc)
         return models.SearchResult(uri=uri)
@@ -72,13 +72,18 @@ def search(config, session, requests_session,
 
     albums = [
         translator.web_to_album(web_album) for web_album in
-        result['albums']['items'][:config['search_album_count']]]
+        result['albums']['items'][:config['search_album_count']]
+    ] if 'albums' in result else []
+
     artists = [
         translator.web_to_artist(web_artist) for web_artist in
-        result['artists']['items'][:config['search_artist_count']]]
+        result['artists']['items'][:config['search_artist_count']]
+    ] if 'artists' in result else []
+
     tracks = [
         translator.web_to_track(web_track) for web_track in
-        result['tracks']['items'][:config['search_track_count']]]
+        result['tracks']['items'][:config['search_track_count']]
+    ] if 'tracks' in result else []
 
     return models.SearchResult(
         uri=uri, albums=albums, artists=artists, tracks=tracks)
