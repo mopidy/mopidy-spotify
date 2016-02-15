@@ -1,6 +1,15 @@
 Changelog
 =========
 
+v3.0.0 (2016-02-15)
+-------------------
+
+Feature release.
+
+- Require Mopidy 2.0.
+
+- Minor adjustments to work with GStreamer 1.
+
 v2.3.1 (2016-02-14)
 -------------------
 

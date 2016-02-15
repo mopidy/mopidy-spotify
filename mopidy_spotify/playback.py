@@ -13,10 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 # These GStreamer caps matches the audio data provided by libspotify
-LIBSPOTIFY_GST_CAPS = (
-    'audio/x-raw-int, endianness=(int)1234, channels=(int)2, '
-    'width=(int)16, depth=(int)16, signed=(boolean)true, '
-    'rate=(int)44100')
+GST_CAPS = 'audio/x-raw,format=S16LE,rate=44100,channels=2,layout=interleaved'
 
 # Extra log level with lower importance than DEBUG=10 for noisy debug logging
 TRACE_LOG_LEVEL = 5
@@ -76,7 +73,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             self.backend._session.player.play()
 
             future = self.audio.set_appsrc(
-                LIBSPOTIFY_GST_CAPS,
+                GST_CAPS,
                 need_data=need_data_callback_bound,
                 enough_data=enough_data_callback_bound,
                 seek_data=seek_data_callback_bound)
@@ -163,23 +160,9 @@ def music_delivery_callback(
         audio_format.sample_type == spotify.SampleType.INT16_NATIVE_ENDIAN)
     assert known_format, 'Expects 16-bit signed integer samples'
 
-    capabilites = """
-        audio/x-raw-int,
-        endianness=(int)1234,
-        channels=(int)%(channels)d,
-        width=(int)16,
-        depth=(int)16,
-        signed=(boolean)true,
-        rate=(int)%(sample_rate)d
-    """ % {
-        'channels': audio_format.channels,
-        'sample_rate': audio_format.sample_rate,
-    }
-
     duration = audio.calculate_duration(num_frames, audio_format.sample_rate)
     buffer_ = audio.create_buffer(
-        bytes(frames), capabilites=capabilites,
-        timestamp=buffer_timestamp.get(), duration=duration)
+        bytes(frames), timestamp=buffer_timestamp.get(), duration=duration)
 
     # We must block here to know if the buffer was consumed successfully.
     consumed = audio_actor.emit_data(buffer_).get()
