@@ -1,7 +1,7 @@
 Changelog
 =========
 
-v3.0.0 (UNRELEASED)
+v3.0.0 (2016-02-15)
 -------------------
 
 Feature release.
