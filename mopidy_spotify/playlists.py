@@ -99,30 +99,30 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def save(self, playlist):
         try:
-            spotify_playlist=self._backend._session.get_playlist(playlist.uri)
+            sp_playlist=self._backend._session.get_playlist(playlist.uri)
         except spotify.Error as exc:
             logger.debug('Failed to lookup Spotify Playlist URI %s: %s',
                          playlist.uri, exc)
             return
-        spotify_playlist.name = playlist.name
-        self._remove_tracks(spotify_playlist)
-        self._add_tracks(spotify_playlist, playlist)
+        sp_playlist.name = playlist.name
+        self._remove_tracks(sp_playlist)
+        self._add_tracks(sp_playlist, playlist)
 
-    def _remove_tracks(self, spotify_playlist):
-        for idx, track in enumerate(spotify_playlist.tracks):
+    def _remove_tracks(self, sp_playlist):
+        for idx, track in enumerate(sp_playlist.tracks):
             try:
-                spotify_playlist.remove_tracks(idx)
+                sp_playlist.remove_tracks(idx)
             except spotify.Error as exc:
                 logger.debug('Failed to remove track from playlist %s', exc)
                 return
             logger.info('Removed track %s from playlist', track)
 
-    def _add_tracks(self, spotify_playlist, playlist):
+    def _add_tracks(self, sp_playlist, playlist):
         for idx, track in enumerate(playlist.tracks):
             try:
                 added_track = self._backend._session.get_track(track.uri)
                 added_track.load()
-                spotify_playlist.add_tracks(added_track, idx)
+                sp_playlist.add_tracks(added_track, idx)
             except spotify.Error as exc:
                 logger.debug('Failed to lookup Spotify URI %s: %s',
                              track.uri, exc)
