@@ -99,14 +99,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def save(self, playlist):
         try:
-            spotify_playlist = self._backend._session.get_playlist(playlist.uri)
+            spotify_playlist=self._backend._session.get_playlist(playlist.uri)
         except spotify.Error as exc:
-            logger.debug('Failed to lookup Spotify Playlist URI %s: %s', playlist.uri, exc)
+            logger.debug('Failed to lookup Spotify Playlist URI %s: %s',
+                         playlist.uri, exc)
             return
         spotify_playlist.name = playlist.name
         self._remove_tracks(spotify_playlist)
         self._add_tracks(spotify_playlist, playlist)
-            
+
     def _remove_tracks(self, spotify_playlist):
         for idx, track in enumerate(spotify_playlist.tracks):
             try:
@@ -123,11 +124,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 added_track.load()
                 spotify_playlist.add_tracks(added_track, idx)
             except spotify.Error as exc:
-                logger.debug('Failed to lookup Spotify URI %s: %s', track.uri, exc)
+                logger.debug('Failed to lookup Spotify URI %s: %s',
+                             track.uri, exc)
                 return
             logger.info('Added track %s to playlist', added_track)
-        
-        
 
 
 def on_container_loaded(sp_playlist_container):
