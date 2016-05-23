@@ -8,3 +8,4 @@ MANIFEST
 build/
 dist/
 xunit-*.xml
+venv
