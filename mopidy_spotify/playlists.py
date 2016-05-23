@@ -99,7 +99,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def save(self, playlist):
         try:
-            sp_playlist=self._backend._session.get_playlist(playlist.uri)
+            uri = playlist.uri
+            sp_playlist = self._backend._session.get_playlist(uri)
         except spotify.Error as exc:
             logger.debug('Failed to lookup Spotify Playlist URI %s: %s',
                          playlist.uri, exc)
