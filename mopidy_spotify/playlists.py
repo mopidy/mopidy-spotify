@@ -87,10 +87,47 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return translator.to_playlist(sp_playlist, username=username)
 
     def delete(self, uri):
-        pass  # TODO
+        try:
+            container = self._backend._session.playlist_container
+            if not container.is_loaded:
+                container.load()
+            for idx, playlist in enumerate(container):
+                if playlist == uri:
+                    del container[idx]
+        except spotify.Error:
+            logger.warning('Could not delete Spotify playlist "%s"', uri)
 
     def save(self, playlist):
-        pass  # TODO
+        try:
+            spotify_playlist = self._backend._session.get_playlist(playlist.uri)
+        except spotify.Error as exc:
+            logger.debug('Failed to lookup Spotify Playlist URI %s: %s', playlist.uri, exc)
+            return
+        spotify_playlist.name = playlist.name
+        self._remove_tracks(spotify_playlist)
+        self._add_tracks(spotify_playlist, playlist)
+            
+    def _remove_tracks(self, spotify_playlist):
+        for idx, track in enumerate(spotify_playlist.tracks):
+            try:
+                spotify_playlist.remove_tracks(idx)
+            except spotify.Error as exc:
+                logger.debug('Failed to remove track from playlist %s', exc)
+                return
+            logger.info('Removed track %s from playlist', track)
+
+    def _add_tracks(self, spotify_playlist, playlist):
+        for idx, track in enumerate(playlist.tracks):
+            try:
+                added_track = self._backend._session.get_track(track.uri)
+                added_track.load()
+                spotify_playlist.add_tracks(added_track, idx)
+            except spotify.Error as exc:
+                logger.debug('Failed to lookup Spotify URI %s: %s', track.uri, exc)
+                return
+            logger.info('Added track %s to playlist', added_track)
+        
+        
 
 
 def on_container_loaded(sp_playlist_container):
