@@ -14,6 +14,7 @@ from mopidy_spotify import lookup, translator
 
 _API_BASE_URI = 'https://api.spotify.com/v1/search'
 _SEARCH_TYPES = ['album', 'artist', 'track']
+_USER_MARKET = config['user_market']
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +57,16 @@ def search(config, session, requests_session,
         search_count = 50
 
     try:
-        response = requests_session.get(_API_BASE_URI, params={
+	
+		params={
             'q': sp_query,
             'limit': search_count,
-            'type': ','.join(types)})
+            'type': ','.join(types)}
+			
+		if _USER_MARKET:
+			params['market'] = _USER_MARKET
+	
+        response = requests_session.get(_API_BASE_URI, params)
     except requests.RequestException as exc:
         logger.debug('Fetching %s failed: %s', uri, exc)
         return models.SearchResult(uri=uri)
