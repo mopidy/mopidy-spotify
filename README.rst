@@ -6,10 +6,6 @@ Mopidy-Spotify
     :target: https://pypi.python.org/pypi/Mopidy-Spotify/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/pypi/dm/Mopidy-Spotify.svg?style=flat
-    :target: https://pypi.python.org/pypi/Mopidy-Spotify/
-    :alt: Number of PyPI downloads
-
 .. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/develop.svg?style=flat
     :target: https://travis-ci.org/mopidy/mopidy-spotify
     :alt: Travis CI build status
