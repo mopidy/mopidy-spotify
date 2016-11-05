@@ -72,7 +72,7 @@ def test_search_when_offline_returns_nothing(session_mock, provider, caplog):
     assert 'Spotify search aborted: Spotify is offline' in caplog.text()
 
     assert isinstance(result, models.SearchResult)
-    assert result.uri == 'spotify:search:%22ABBA%22'
+    assert result.uri == 'spotify:search:ABBA'
     assert len(result.tracks) == 0
 
 
@@ -91,16 +91,16 @@ def test_search_returns_albums_and_artists_and_tracks(
     assert (uri_parts == [
         'https://api.spotify.com/v1/search',
         'limit=50',
-        'q=%22ABBA%22',
+        'q=ABBA',
         'type=album%2Cartist%2Ctrack'])
 
     assert responses.calls[0].request.headers['User-Agent'].startswith(
         'Mopidy-Spotify/%s' % mopidy_spotify.__version__)
 
-    assert 'Searching Spotify for: "ABBA"' in caplog.text()
+    assert 'Searching Spotify for: ABBA' in caplog.text()
 
     assert isinstance(result, models.SearchResult)
-    assert result.uri == 'spotify:search:%22ABBA%22'
+    assert result.uri == 'spotify:search:ABBA'
 
     assert len(result.albums) == 1
     assert result.albums[0].uri == 'spotify:album:def'
@@ -149,7 +149,7 @@ def test_sets_api_limit_to_album_count_when_max(
     assert (uri_parts == [
         'https://api.spotify.com/v1/search',
         'limit=6',
-        'q=%22ABBA%22',
+        'q=ABBA',
         'type=album%2Cartist%2Ctrack'])
 
     assert len(result.albums) == 6
@@ -174,7 +174,7 @@ def test_sets_api_limit_to_artist_count_when_max(
     assert (uri_parts == [
         'https://api.spotify.com/v1/search',
         'limit=6',
-        'q=%22ABBA%22',
+        'q=ABBA',
         'type=album%2Cartist%2Ctrack'])
 
     assert len(result.artists) == 6
@@ -199,7 +199,7 @@ def test_sets_api_limit_to_track_count_when_max(
     assert (uri_parts == [
         'https://api.spotify.com/v1/search',
         'limit=6',
-        'q=%22ABBA%22',
+        'q=ABBA',
         'type=album%2Cartist%2Ctrack'])
 
     assert len(result.tracks) == 6
@@ -222,7 +222,7 @@ def test_sets_types_parameter(
     assert (uri_parts == [
         'https://api.spotify.com/v1/search',
         'limit=50',
-        'q=%22ABBA%22',
+        'q=ABBA',
         'type=album%2Cartist'])
 
 
@@ -236,7 +236,7 @@ def test_handles_empty_response(
     result = provider.search({'any': ['ABBA']})
 
     assert isinstance(result, models.SearchResult)
-    assert result.uri == 'spotify:search:%22ABBA%22'
+    assert result.uri == 'spotify:search:ABBA'
 
     assert len(result.albums) == 0
     assert len(result.artists) == 0

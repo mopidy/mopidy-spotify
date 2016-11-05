@@ -1,6 +1,13 @@
 Changelog
 =========
 
+v3.x.x (UNRELEASED)
+-------------------
+
+- Don't quote the any field of search queries. This allows you do get non-exact
+  matches. Exact matches can still be done by including quotes ("") in the
+  search query yourself. (PR: #119)
+
 v3.0.0 (2016-02-15)
 -------------------
 

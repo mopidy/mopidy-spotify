@@ -364,7 +364,7 @@ class TestSpotifySearchQuery(object):
     def test_any_maps_to_no_field(self):
         query = translator.sp_search_query({'any': ['ABC', 'DEF']})
 
-        assert query == '"ABC" "DEF"'
+        assert query == 'ABC DEF'
 
     def test_artist_maps_to_artist(self):
         query = translator.sp_search_query({'artist': ['ABBA', 'ACDC']})
@@ -422,8 +422,8 @@ class TestSpotifySearchQuery(object):
             'year': ['1970-01-02'],
         })
 
-        assert '"ABC"' in query
-        assert '"DEF"' in query
+        assert 'ABC' in query
+        assert 'DEF' in query
         assert 'artist:"ABBA"' in query
         assert 'album:"Greatest Hits"' in query
         assert 'track:"Dancing Queen"' in query
