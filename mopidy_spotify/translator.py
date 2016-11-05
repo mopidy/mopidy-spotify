@@ -218,7 +218,7 @@ def sp_search_query(query):
                 if value is not None:
                     result.append('%s:%d' % (field, value))
             elif field == 'any':
-                result.append('"%s"' % value)
+                result.append('%s' % value)
             else:
                 result.append('%s:"%s"' % (field, value))
 
