@@ -1,6 +1,13 @@
 Changelog
 =========
 
+v3.1.0 (UNRELEASED)
+-------------------
+
+Feature release.
+
+ - Include the artists of each album in the search results. (PR: #118)
+
 v3.0.0 (2016-02-15)
 -------------------
 
