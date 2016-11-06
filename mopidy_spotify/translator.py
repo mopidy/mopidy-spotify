@@ -239,7 +239,13 @@ def web_to_artist(web_artist):
 
 
 def web_to_album(web_album):
-    return models.Album(uri=web_album['uri'], name=web_album['name'])
+    artists = [
+        web_to_artist(web_artist) for web_artist in web_album['artists']]
+
+    return models.Album(
+        uri=web_album['uri'],
+        name=web_album['name'],
+        artists=artists)
 
 
 def web_to_track(web_track):

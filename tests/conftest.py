@@ -312,10 +312,11 @@ def web_artist_mock():
 
 
 @pytest.fixture
-def web_album_mock():
+def web_album_mock(web_artist_mock):
     return {
         'name': 'DEF 456',
-        'uri': 'spotify:album:def'
+        'uri': 'spotify:album:def',
+        'artists': [web_artist_mock]
     }
 
 
