@@ -27,7 +27,11 @@ Dependencies
 - A non-Facebook Spotify username and password. If you created your account
   through Facebook you'll need to create a "device password" to be able to use
   Mopidy-Spotify. Go to http://www.spotify.com/account/set-device-password/,
-  login with your Facebook account, and follow the instructions.
+  login with your Facebook account, and follow the instructions. However,
+  sometimes that process can fail for users with Facebook logins, in which case
+  you can create an app-specific password on Facebook by going to facebook.com >
+  Settings > Security > App passwords > Generate app passwords, and generate one
+  to use with Mopidy-Spotify.
 
 - ``libspotify`` >= 12, < 13. The official C library from the `Spotify
   developer site <https://developer.spotify.com/technologies/libspotify/>`_.
