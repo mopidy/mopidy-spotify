@@ -42,6 +42,8 @@ class Extension(ext.Extension):
         schema['search_track_count'] = config.Integer(minimum=0, maximum=200)
 
         schema['toplist_countries'] = config.List(optional=True)
+		
+		schema['user_market'] = config.String()
 
         return schema
 
