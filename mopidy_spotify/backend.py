@@ -10,7 +10,7 @@ import pykka
 
 import spotify
 
-from mopidy_spotify import Extension, library, playback, playlists
+from mopidy_spotify import Extension, library, playback, playlists, web
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._session = None
         self._event_loop = None
         self._bitrate = None
+        self._web_client = None
 
         self.library = library.SpotifyLibraryProvider(backend=self)
         self.playback = playback.SpotifyPlaybackProvider(
@@ -58,6 +59,12 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._session.login(
             self._config['spotify']['username'],
             self._config['spotify']['password'])
+
+        self._web_client = web.OAuthClient(
+            refresh_url='https://auth.mopidy.com/spotify/token',
+            client_id=self._config['spotify']['client_id'],
+            client_secret=self._config['spotify']['client_secret'],
+            proxy_config=self._config['proxy'])
 
     def on_stop(self):
         logger.debug('Logging out of Spotify')

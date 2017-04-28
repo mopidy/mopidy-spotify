@@ -18,7 +18,7 @@ _SEARCH_TYPES = ['album', 'artist', 'track']
 logger = logging.getLogger(__name__)
 
 
-def search(config, session, requests_session,
+def search(config, session, web_client,
            query=None, uris=None, exact=False, types=_SEARCH_TYPES):
     # TODO Respect `uris` argument
     # TODO Support `exact` search
@@ -56,7 +56,7 @@ def search(config, session, requests_session,
         search_count = 50
 
     try:
-        response = requests_session.get(_API_BASE_URI, params={
+        response = web_client.get(_API_BASE_URI, params={
             'q': sp_query,
             'limit': search_count,
             'type': ','.join(types)})
