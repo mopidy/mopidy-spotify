@@ -64,13 +64,15 @@ def browse(config, session, uri):
 def _browse_playlist(session, uri, config):
     sp_playlist = session.get_playlist(uri)
     sp_playlist.load(config['timeout'])
-    return list(translator.to_track_refs(sp_playlist.tracks, timeout=config['timeout']))
+    return list(translator.to_track_refs(
+        sp_playlist.tracks, timeout=config['timeout']))
 
 
 def _browse_album(session, uri, config):
     sp_album_browser = session.get_album(uri).browse()
     sp_album_browser.load(config['timeout'])
-    return list(translator.to_track_refs(sp_album_browser.tracks, timeout=config['timeout']))
+    return list(translator.to_track_refs(
+        sp_album_browser.tracks, timeout=config['timeout']))
 
 
 def _browse_artist(session, uri, config):
@@ -79,7 +81,8 @@ def _browse_artist(session, uri, config):
     sp_artist_browser.load(config['timeout'])
     top_tracks = list(translator.to_track_refs(
         sp_artist_browser.tophit_tracks, timeout=config['timeout']))
-    albums = list(translator.to_album_refs(sp_artist_browser.albums, timeout=config['timeout']))
+    albums = list(translator.to_album_refs(
+        sp_artist_browser.albums, timeout=config['timeout']))
     return top_tracks + albums
 
 
@@ -127,8 +130,10 @@ def _browse_toplist(config, session, variant, region):
     if variant == 'tracks':
         return list(translator.to_track_refs(sp_toplist.tracks))
     elif variant == 'albums':
-        return list(translator.to_album_refs(sp_toplist.albums, timeout=config['timeout']))
+        return list(translator.to_album_refs(
+            sp_toplist.albums, timeout=config['timeout']))
     elif variant == 'artists':
-        return list(translator.to_artist_refs(sp_toplist.artists, timeout=config['timeout']))
+        return list(translator.to_artist_refs(
+            sp_toplist.artists, timeout=config['timeout']))
     else:
         return []
