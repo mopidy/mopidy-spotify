@@ -5,8 +5,6 @@ import urllib
 
 from mopidy import models
 
-import requests
-
 import spotify
 
 from mopidy_spotify import lookup, translator
@@ -55,20 +53,10 @@ def search(config, session, web_client,
             'to at most 50.')
         search_count = 50
 
-    try:
-        response = web_client.get(_API_BASE_URI, params={
-            'q': sp_query,
-            'limit': search_count,
-            'type': ','.join(types)})
-    except requests.RequestException as exc:
-        logger.debug('Fetching %s failed: %s', uri, exc)
-        return models.SearchResult(uri=uri)
-
-    try:
-        result = response.json()
-    except ValueError as exc:
-        logger.debug('JSON decoding failed for %s: %s', uri, exc)
-        return models.SearchResult(uri=uri)
+    result = web_client.get(_API_BASE_URI, params={
+        'q': sp_query,
+        'limit': search_count,
+        'type': ','.join(types)})
 
     albums = [
         translator.web_to_album(web_album) for web_album in

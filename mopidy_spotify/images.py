@@ -7,8 +7,6 @@ import urlparse
 
 from mopidy import models
 
-import requests
-
 
 # NOTE: This module is independent of libspotify and built using the Spotify
 # Web APIs. As such it does not tie in with any of the regular code used
@@ -69,17 +67,7 @@ def _process_uris(web_client, uri_type, uris):
 
     lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids))
 
-    try:
-        response = web_client.get(lookup_uri)
-    except requests.RequestException as exc:
-        logger.debug('Fetching %s failed: %s', lookup_uri, exc)
-        return result
-
-    try:
-        data = response.json()
-    except ValueError as exc:
-        logger.debug('JSON decoding failed for %s: %s', lookup_uri, exc)
-        return result
+    data = web_client.get(lookup_uri)
 
     for item in data.get(uri_type + 's', []):
         if not item:

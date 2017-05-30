@@ -73,11 +73,15 @@ Configuration
 =============
 
 Before starting Mopidy, you must add your Spotify Premium username and password
-to your Mopidy configuration file::
+to your Mopidy configuration file and also visit 
+https://www.mopidy.com/authenticate/#spotify to authorize this extension against
+your Spotify account::
 
     [spotify]
     username = alice
     password = secret
+    client_id = ... client_id value you got from mopidy.com ...
+    client_secret = ... client_secret value you got from mopidy.com ...
 
 The following configuration values are available:
 
@@ -87,6 +91,10 @@ The following configuration values are available:
 - ``spotify/username``: Your Spotify Premium username. You *must* provide this.
 
 - ``spotify/password``: Your Spotify Premium password. You *must* provide this.
+
+- ``spotify/client_id``: Your Spotify application client id. You *must* provide this.
+
+- ``spotify/client_secret``: Your Spotify application secret key. You *must* provide this.
 
 - ``spotify/bitrate``: Audio bitrate in kbps. ``96``, ``160``, or ``320``.
   Defaults to ``160``.

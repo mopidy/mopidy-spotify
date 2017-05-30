@@ -10,7 +10,13 @@ from mopidy_spotify import utils
 logger = logging.getLogger(__name__)
 
 
-class Error(Exception):
+class OAuthTokenRefreshError(Exception):
+    def __init__(self, reason):
+        message = 'OAuth token refresh failed: %s' % reason
+        super(OAuthTokenRefreshError, self).__init__(message)
+
+
+class OAuthClientError(Exception):
     pass
 
 
@@ -38,13 +44,14 @@ class OAuthClient(object):
             resp.raise_for_status()
             return resp
         except requests.RequestException as e:
-            raise Error('Fetching %s failed: %s' % (url, e))
+            raise OAuthClientError('Fetching %s failed: %s' % (url, e))
 
     def _decode(self, resp):
         try:
             return resp.json()
         except ValueError as e:
-            raise Error('JSON decoding %s failed: %s' % (resp.request.url, e))
+            raise OAuthClientError('JSON decoding %s failed: %s' % (
+                resp.request.url, e))
 
     def _should_refresh_token(self):
         return not self._auth or time.time() > self._expires - self._margin
@@ -57,14 +64,13 @@ class OAuthClient(object):
         data = self._decode(resp)
 
         if data.get('error'):
-            raise Error('OAuth response returned error: %s %s' % (
-                        data['error'], data.get('error_description', '')))
+            raise OAuthTokenRefreshError('%s %s' % (
+                data['error'], data.get('error_description', '')))
         elif not data.get('access_token'):
-            raise Error('OAuth response missing access_token.' %
-                        self._refresh_url)
+            raise OAuthTokenRefreshError('missing access_token')
         elif data.get('token_type') != 'Bearer':
-            raise Error('OAuth response from %s has wrong token_type: %s' % (
-                        self._refresh_url, data.get('token_type')))
+            raise OAuthTokenRefreshError('wrong token_type: %s' %
+                                         data.get('token_type'))
 
         self._headers['Authorization'] = 'Bearer %s' % data['access_token']
         self._expires = time.time() + data.get('expires_in', float('Inf'))
@@ -75,7 +81,14 @@ class OAuthClient(object):
             logger.debug('Token scopes: %s', data['scope'])
 
     def get(self, url, **kwargs):
-        if self._should_refresh_token():
-            self._refresh_token()
-        kwargs.setdefault('headers', {}).update(self._headers)
-        return self._request('GET', url, **kwargs)
+        result = {}
+        try:
+            if self._should_refresh_token():
+                self._refresh_token()
+            kwargs.setdefault('headers', {}).update(self._headers)
+            response = self._request('GET', url, **kwargs)
+            result = self._decode(response)
+        except (OAuthTokenRefreshError, OAuthClientError) as e:
+            logger.error(e)
+
+        return result

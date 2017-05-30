@@ -8,7 +8,7 @@ import pytest
 
 import spotify
 
-from mopidy_spotify import backend, library
+from mopidy_spotify import backend, library, web
 
 
 @pytest.fixture
@@ -34,6 +34,8 @@ def config(tmpdir):
             'search_artist_count': 10,
             'search_track_count': 50,
             'toplist_countries': ['GB', 'US'],
+            'client_id': 'abcd1234',
+            'client_secret': 'YWJjZDEyMzQ='
         }
     }
 
@@ -334,6 +336,16 @@ def web_track_mock(web_artist_mock, web_album_mock):
 
 
 @pytest.fixture
+def web_oauth_mock():
+    return {
+        'access_token': 'NgCXRK...MzYjw',
+        'token_type': 'Bearer',
+        'scope': 'user-read-private user-read-email',
+        'expires_in': 3600,
+    }
+
+
+@pytest.fixture
 def mopidy_artist_mock():
     return models.Artist(
         name='ABBA',
@@ -358,11 +370,18 @@ def session_mock():
 
 
 @pytest.fixture
-def backend_mock(session_mock, config):
+def web_client_mock():
+    web_client_mock = mock.Mock(spec=web.OAuthClient)
+    return web_client_mock
+
+
+@pytest.fixture
+def backend_mock(session_mock, config, web_client_mock):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
     backend_mock._session = session_mock
     backend_mock._bitrate = 160
+    backend_mock._web_client = web_client_mock
     return backend_mock
 
 
