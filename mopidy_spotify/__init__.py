@@ -24,6 +24,9 @@ class Extension(ext.Extension):
         schema['username'] = config.String()
         schema['password'] = config.Secret()
 
+        schema['client_id'] = config.String()
+        schema['client_secret'] = config.Secret()
+
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
         schema['volume_normalization'] = config.Boolean()
         schema['private_session'] = config.Boolean()
@@ -42,9 +45,6 @@ class Extension(ext.Extension):
         schema['search_track_count'] = config.Integer(minimum=0, maximum=200)
 
         schema['toplist_countries'] = config.List(optional=True)
-
-        schema['client_id'] = config.String()
-        schema['client_secret'] = config.Secret()
 
         return schema
 
