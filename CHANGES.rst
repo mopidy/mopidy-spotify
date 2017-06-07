@@ -6,7 +6,15 @@ v3.1.0 (UNRELEASED)
 
 Feature release.
 
- - Include the artists of each album in the search results. (PR: #118)
+- Include the artists of each album in the search results. (PR: #118)
+
+- Respect `spotify/timeout` setting when loading data from Spotify. (#129, PR:
+  #139)
+
+- Use OAuth to authenticate Spotify Web API requests, which has required
+  authentication since 2017-05-29. The new config value `spotify/client_id` and
+  `spotify/client_secret` must be set. Refer to the README for details. (#130,
+  #142, PR: #143)
 
 v3.0.0 (2016-02-15)
 -------------------
