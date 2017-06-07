@@ -1,7 +1,7 @@
 Changelog
 =========
 
-v3.1.0 (UNRELEASED)
+v3.1.0 (2017-06-08)
 -------------------
 
 Feature release.
