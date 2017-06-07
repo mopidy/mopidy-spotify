@@ -8,12 +8,15 @@ from mopidy import httpclient
 
 import requests
 
+from mopidy_spotify import Extension, __version__
+
 
 logger = logging.getLogger(__name__)
 TRACE = logging.getLevelName('TRACE')
 
 
-def get_requests_session(proxy_config, user_agent):
+def get_requests_session(proxy_config):
+    user_agent = '%s/%s' % (Extension.dist_name, __version__)
     proxy = httpclient.format_proxy(proxy_config)
     full_user_agent = httpclient.format_user_agent(user_agent)
 

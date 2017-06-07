@@ -1,18 +1,9 @@
 from __future__ import unicode_literals
 
-import json
-
-import re
-
 from mopidy import models
-
-import requests
-
-import responses
 
 import spotify
 
-import mopidy_spotify
 from mopidy_spotify import search
 
 
@@ -76,26 +67,17 @@ def test_search_when_offline_returns_nothing(session_mock, provider, caplog):
     assert len(result.tracks) == 0
 
 
-@responses.activate
 def test_search_returns_albums_and_artists_and_tracks(
-        web_search_mock, provider, caplog):
-    responses.add(
-        responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(web_search_mock))
-
+        web_client_mock, web_search_mock, provider, caplog):
+    web_client_mock.get.return_value = web_search_mock
     result = provider.search({'any': ['ABBA']})
 
-    assert len(responses.calls) == 1
-
-    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
-    assert (uri_parts == [
+    web_client_mock.get.assert_called_once_with(
         'https://api.spotify.com/v1/search',
-        'limit=50',
-        'q=%22ABBA%22',
-        'type=album%2Cartist%2Ctrack'])
-
-    assert responses.calls[0].request.headers['User-Agent'].startswith(
-        'Mopidy-Spotify/%s' % mopidy_spotify.__version__)
+        params={
+            'q': '"ABBA"',
+            'limit': 50,
+            'type': 'album,artist,track'})
 
     assert 'Searching Spotify for: "ABBA"' in caplog.text()
 
@@ -112,16 +94,13 @@ def test_search_returns_albums_and_artists_and_tracks(
     assert result.tracks[0].uri == 'spotify:track:abc'
 
 
-@responses.activate
 def test_search_limits_number_of_results(
-        web_search_mock_large, provider, config):
+        web_client_mock, web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 4
     config['spotify']['search_artist_count'] = 5
     config['spotify']['search_track_count'] = 6
 
-    responses.add(
-        responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(web_search_mock_large))
+    web_client_mock.get.return_value = web_search_mock_large
 
     result = provider.search({'any': ['ABBA']})
 
@@ -130,108 +109,85 @@ def test_search_limits_number_of_results(
     assert len(result.tracks) == 6
 
 
-@responses.activate
 def test_sets_api_limit_to_album_count_when_max(
-        web_search_mock_large, provider, config):
+        web_client_mock, web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 6
     config['spotify']['search_artist_count'] = 2
     config['spotify']['search_track_count'] = 2
 
-    responses.add(
-        responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(web_search_mock_large))
+    web_client_mock.get.return_value = web_search_mock_large
 
     result = provider.search({'any': ['ABBA']})
 
-    assert len(responses.calls) == 1
-
-    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
-    assert (uri_parts == [
+    web_client_mock.get.assert_called_once_with(
         'https://api.spotify.com/v1/search',
-        'limit=6',
-        'q=%22ABBA%22',
-        'type=album%2Cartist%2Ctrack'])
+        params={
+            'q': '"ABBA"',
+            'limit': 6,
+            'type': 'album,artist,track'})
 
     assert len(result.albums) == 6
 
 
-@responses.activate
 def test_sets_api_limit_to_artist_count_when_max(
-        web_search_mock_large, provider, config):
+        web_client_mock, web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 2
     config['spotify']['search_artist_count'] = 6
     config['spotify']['search_track_count'] = 2
 
-    responses.add(
-        responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(web_search_mock_large))
+    web_client_mock.get.return_value = web_search_mock_large
 
     result = provider.search({'any': ['ABBA']})
 
-    assert len(responses.calls) == 1
-
-    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
-    assert (uri_parts == [
+    web_client_mock.get.assert_called_once_with(
         'https://api.spotify.com/v1/search',
-        'limit=6',
-        'q=%22ABBA%22',
-        'type=album%2Cartist%2Ctrack'])
+        params={
+            'q': '"ABBA"',
+            'limit': 6,
+            'type': 'album,artist,track'})
 
     assert len(result.artists) == 6
 
 
-@responses.activate
 def test_sets_api_limit_to_track_count_when_max(
-        web_search_mock_large, provider, config):
+        web_client_mock, web_search_mock_large, provider, config):
     config['spotify']['search_album_count'] = 2
     config['spotify']['search_artist_count'] = 2
     config['spotify']['search_track_count'] = 6
 
-    responses.add(
-        responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(web_search_mock_large))
+    web_client_mock.get.return_value = web_search_mock_large
 
     result = provider.search({'any': ['ABBA']})
 
-    assert len(responses.calls) == 1
-
-    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
-    assert (uri_parts == [
+    web_client_mock.get.assert_called_once_with(
         'https://api.spotify.com/v1/search',
-        'limit=6',
-        'q=%22ABBA%22',
-        'type=album%2Cartist%2Ctrack'])
+        params={
+            'q': '"ABBA"',
+            'limit': 6,
+            'type': 'album,artist,track'})
 
     assert len(result.tracks) == 6
 
 
-@responses.activate
 def test_sets_types_parameter(
-        web_search_mock_large, provider, config, session_mock):
-    responses.add(
-        responses.GET, 'https://api.spotify.com/v1/search',
-        body=json.dumps(web_search_mock_large))
+        web_client_mock, web_search_mock_large, provider, config,
+        session_mock):
+    web_client_mock.get.return_value = web_search_mock_large
 
     search.search(
-        config['spotify'], session_mock, requests.Session(),
+        config['spotify'], session_mock, web_client_mock,
         {'any': ['ABBA']}, types=['album', 'artist'])
 
-    assert len(responses.calls) == 1
-
-    uri_parts = sorted(re.split('[?&]', responses.calls[0].request.url))
-    assert (uri_parts == [
+    web_client_mock.get.assert_called_once_with(
         'https://api.spotify.com/v1/search',
-        'limit=50',
-        'q=%22ABBA%22',
-        'type=album%2Cartist'])
+        params={
+            'q': '"ABBA"',
+            'limit': 50,
+            'type': 'album,artist'})
 
 
-@responses.activate
-def test_handles_empty_response(
-        web_search_mock_large, provider):
-    responses.add(
-        responses.GET, 'https://api.spotify.com/v1/search',
-        body={})
+def test_handles_empty_response(web_client_mock, provider):
+    web_client_mock.get.return_value = {}
 
     result = provider.search({'any': ['ABBA']})
 
@@ -243,7 +199,8 @@ def test_handles_empty_response(
     assert len(result.tracks) == 0
 
 
-def test_exact_is_ignored(session_mock, sp_track_mock, provider):
+def test_exact_is_ignored(
+        session_mock, sp_track_mock, web_client_mock, provider):
     session_mock.get_link.return_value = sp_track_mock.link
 
     result1 = provider.search({'uri': ['spotify:track:abc']})

@@ -111,11 +111,27 @@ def test_on_start_configures_proxy(spotify_mock, config):
     }
     spotify_config = spotify_mock.Config.return_value
 
-    get_backend(config).on_start()
+    backend = get_backend(config)
+    backend.on_start()
 
     assert spotify_config.proxy == 'https://my-proxy.example.com:8080'
     assert spotify_config.proxy_username == 'alice'
     assert spotify_config.proxy_password == 's3cret'
+
+    assert (backend._web_client._session.proxies['https'] ==
+            'https://alice:s3cret@my-proxy.example.com:8080')
+
+
+def test_on_start_configures_web_client(spotify_mock, config):
+    config['spotify']['client_id'] = '1234567'
+    config['spotify']['client_secret'] = 'AbCdEfG'
+
+    backend = get_backend(config)
+    backend.on_start()
+
+    assert backend._web_client._auth == ('1234567', 'AbCdEfG')
+    assert (backend._web_client._refresh_url ==
+            'https://auth.mopidy.com/spotify/token')
 
 
 def test_on_start_adds_connection_state_changed_handler_to_session(

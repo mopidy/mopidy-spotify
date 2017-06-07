@@ -43,6 +43,9 @@ class Extension(ext.Extension):
 
         schema['toplist_countries'] = config.List(optional=True)
 
+        schema['client_id'] = config.String()
+        schema['client_secret'] = config.Secret()
+
         return schema
 
     def setup(self, registry):
