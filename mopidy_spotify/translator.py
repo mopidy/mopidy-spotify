@@ -45,9 +45,9 @@ def to_artist_ref(sp_artist):
     return models.Ref.artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
-def to_artist_refs(sp_artists):
+def to_artist_refs(sp_artists, timeout=None):
     for sp_artist in sp_artists:
-        sp_artist.load()
+        sp_artist.load(timeout)
         ref = to_artist_ref(sp_artist)
         if ref is not None:
             yield ref
@@ -88,9 +88,9 @@ def to_album_ref(sp_album):
     return models.Ref.album(uri=sp_album.link.uri, name=name)
 
 
-def to_album_refs(sp_albums):
+def to_album_refs(sp_albums, timeout=None):
     for sp_album in sp_albums:
-        sp_album.load()
+        sp_album.load(timeout)
         ref = to_album_ref(sp_album)
         if ref is not None:
             yield ref
@@ -142,9 +142,9 @@ def to_track_ref(sp_track):
     return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
 
 
-def to_track_refs(sp_tracks):
+def to_track_refs(sp_tracks, timeout=None):
     for sp_track in sp_tracks:
-        sp_track.load()
+        sp_track.load(timeout)
         ref = to_track_ref(sp_track)
         if ref is not None:
             yield ref
@@ -239,7 +239,13 @@ def web_to_artist(web_artist):
 
 
 def web_to_album(web_album):
-    return models.Album(uri=web_album['uri'], name=web_album['name'])
+    artists = [
+        web_to_artist(web_artist) for web_artist in web_album['artists']]
+
+    return models.Album(
+        uri=web_album['uri'],
+        name=web_album['name'],
+        artists=artists)
 
 
 def web_to_track(web_track):

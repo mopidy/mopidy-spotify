@@ -444,8 +444,11 @@ class TestWebToAlbum(object):
     def test_successful_translation(self, web_album_mock):
         album = translator.web_to_album(web_album_mock)
 
+        artists = [models.Artist(uri='spotify:artist:abba', name='ABBA')]
+
         assert album.uri == 'spotify:album:def'
         assert album.name == 'DEF 456'
+        assert list(album.artists) == artists
 
 
 class TestWebToTrack(object):
@@ -453,13 +456,15 @@ class TestWebToTrack(object):
     def test_successful_translation(self, web_track_mock):
         track = translator.web_to_track(web_track_mock)
 
+        artists = [models.Artist(uri='spotify:artist:abba', name='ABBA')]
+
         assert track.uri == 'spotify:track:abc'
         assert track.name == 'ABC 123'
-        assert list(track.artists) == [
-            models.Artist(uri='spotify:artist:abba', name='ABBA')]
+        assert list(track.artists) == artists
         assert track.album == models.Album(
             uri='spotify:album:def',
-            name='DEF 456')
+            name='DEF 456',
+            artists=artists)
         assert track.track_no == 7
         assert track.disc_no == 1
         assert track.length == 174300

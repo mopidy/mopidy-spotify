@@ -6,10 +6,6 @@ Mopidy-Spotify
     :target: https://pypi.python.org/pypi/Mopidy-Spotify/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/pypi/dm/Mopidy-Spotify.svg?style=flat
-    :target: https://pypi.python.org/pypi/Mopidy-Spotify/
-    :alt: Number of PyPI downloads
-
 .. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/develop.svg?style=flat
     :target: https://travis-ci.org/mopidy/mopidy-spotify
     :alt: Travis CI build status
@@ -31,19 +27,23 @@ Dependencies
 - A non-Facebook Spotify username and password. If you created your account
   through Facebook you'll need to create a "device password" to be able to use
   Mopidy-Spotify. Go to http://www.spotify.com/account/set-device-password/,
-  login with your Facebook account, and follow the instructions.
+  login with your Facebook account, and follow the instructions. However,
+  sometimes that process can fail for users with Facebook logins, in which case
+  you can create an app-specific password on Facebook by going to facebook.com >
+  Settings > Security > App passwords > Generate app passwords, and generate one
+  to use with Mopidy-Spotify.
 
 - ``libspotify`` >= 12, < 13. The official C library from the `Spotify
   developer site <https://developer.spotify.com/technologies/libspotify/>`_.
   The package is available as ``libspotify12`` from
   `apt.mopidy.com <http://apt.mopidy.com/>`__.
 
-- ``pyspotify`` >= 2.0. The ``libspotify`` Python wrapper. The package is
+- ``pyspotify`` >= 2.0.5. The ``libspotify`` Python wrapper. The package is
   available as ``python-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
   See https://pyspotify.mopidy.com/en/latest/installation/ for how to install
   it and its dependencies on most platforms.
 
-- ``Mopidy`` >= 1.1. The music server that Mopidy-Spotify extends.
+- ``Mopidy`` >= 2.0. The music server that Mopidy-Spotify extends.
 
 If you install Mopidy-Spotify from apt.mopidy.com, AUR, or Homebrew, these
 dependencies are installed automatically.
@@ -77,11 +77,15 @@ Configuration
 =============
 
 Before starting Mopidy, you must add your Spotify Premium username and password
-to your Mopidy configuration file::
+to your Mopidy configuration file and also visit 
+https://www.mopidy.com/authenticate/#spotify to authorize this extension against
+your Spotify account::
 
     [spotify]
     username = alice
     password = secret
+    client_id = ... client_id value you got from mopidy.com ...
+    client_secret = ... client_secret value you got from mopidy.com ...
 
 The following configuration values are available:
 
@@ -91,6 +95,10 @@ The following configuration values are available:
 - ``spotify/username``: Your Spotify Premium username. You *must* provide this.
 
 - ``spotify/password``: Your Spotify Premium password. You *must* provide this.
+
+- ``spotify/client_id``: Your Spotify application client id. You *must* provide this.
+
+- ``spotify/client_secret``: Your Spotify application secret key. You *must* provide this.
 
 - ``spotify/bitrate``: Audio bitrate in kbps. ``96``, ``160``, or ``320``.
   Defaults to ``160``.

@@ -10,34 +10,34 @@ from mopidy_spotify import search
 logger = logging.getLogger(__name__)
 
 
-def get_distinct(config, session, requests_session, field, query=None):
+def get_distinct(config, session, web_client, field, query=None):
     # To make the returned data as interesting as possible, we limit
     # ourselves to data extracted from the user's playlists when no search
     # query is included.
 
     if field == 'artist':
         result = _get_distinct_artists(
-            config, session, requests_session, query)
+            config, session, web_client, query)
     elif field == 'albumartist':
         result = _get_distinct_albumartists(
-            config, session, requests_session, query)
+            config, session, web_client, query)
     elif field == 'album':
         result = _get_distinct_albums(
-            config, session, requests_session, query)
+            config, session, web_client, query)
     elif field == 'date':
         result = _get_distinct_dates(
-            config, session, requests_session, query)
+            config, session, web_client, query)
     else:
         result = set()
 
     return result - {None}
 
 
-def _get_distinct_artists(config, session, requests_session, query):
+def _get_distinct_artists(config, session, web_client, query):
     logger.debug('Getting distinct artists: %s', query)
     if query:
         search_result = _get_search(
-            config, session, requests_session, query, artist=True)
+            config, session, web_client, query, artist=True)
         return {artist.name for artist in search_result.artists}
     else:
         return {
@@ -46,12 +46,12 @@ def _get_distinct_artists(config, session, requests_session, query):
             for artist in track.artists}
 
 
-def _get_distinct_albumartists(config, session, requests_session, query):
+def _get_distinct_albumartists(config, session, web_client, query):
     logger.debug(
         'Getting distinct albumartists: %s', query)
     if query:
         search_result = _get_search(
-            config, session, requests_session, query, album=True)
+            config, session, web_client, query, album=True)
         return {
             artist.name
             for album in search_result.albums
@@ -64,11 +64,11 @@ def _get_distinct_albumartists(config, session, requests_session, query):
             if track.album and track.album.artist}
 
 
-def _get_distinct_albums(config, session, requests_session, query):
+def _get_distinct_albums(config, session, web_client, query):
     logger.debug('Getting distinct albums: %s', query)
     if query:
         search_result = _get_search(
-            config, session, requests_session, query, album=True)
+            config, session, web_client, query, album=True)
         return {album.name for album in search_result.albums}
     else:
         return {
@@ -77,11 +77,11 @@ def _get_distinct_albums(config, session, requests_session, query):
             if track.album}
 
 
-def _get_distinct_dates(config, session, requests_session, query):
+def _get_distinct_dates(config, session, web_client, query):
     logger.debug('Getting distinct album years: %s', query)
     if query:
         search_result = _get_search(
-            config, session, requests_session, query, album=True)
+            config, session, web_client, query, album=True)
         return {
             album.date
             for album in search_result.albums
@@ -94,7 +94,7 @@ def _get_distinct_dates(config, session, requests_session, query):
 
 
 def _get_search(
-        config, session, requests_session, query,
+        config, session, web_client, query,
         album=False, artist=False, track=False):
 
     types = []
@@ -106,7 +106,7 @@ def _get_search(
         types.append('track')
 
     return search.search(
-        config, session, requests_session, query, types=types)
+        config, session, web_client, query, types=types)
 
 
 def _get_playlist_tracks(config, session):
@@ -116,10 +116,10 @@ def _get_playlist_tracks(config, session):
     for playlist in session.playlist_container:
         if not isinstance(playlist, spotify.Playlist):
             continue
-        playlist.load()
+        playlist.load(config['timeout'])
         for track in playlist.tracks:
             try:
-                track.load()
+                track.load(config['timeout'])
                 yield track
             except spotify.Error:  # TODO Why did we get "General error"?
                 continue

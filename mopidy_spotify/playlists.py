@@ -16,6 +16,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def __init__(self, backend):
         self._backend = backend
+        self._timeout = self._backend._config['spotify']['timeout']
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
@@ -62,7 +63,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if not sp_playlist.is_loaded:
             logger.debug(
                 'Waiting for Spotify playlist to load: %s', sp_playlist)
-            sp_playlist.load()
+            sp_playlist.load(self._timeout)
 
         username = self._backend._session.user_name
         return translator.to_playlist(

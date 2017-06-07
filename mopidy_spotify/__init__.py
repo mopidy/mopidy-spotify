@@ -5,7 +5,7 @@ import os
 from mopidy import config, ext
 
 
-__version__ = '3.0.0'
+__version__ = '3.1.0'
 
 
 class Extension(ext.Extension):
@@ -23,6 +23,9 @@ class Extension(ext.Extension):
 
         schema['username'] = config.String()
         schema['password'] = config.Secret()
+
+        schema['client_id'] = config.String()
+        schema['client_secret'] = config.Secret()
 
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
         schema['volume_normalization'] = config.Boolean()
