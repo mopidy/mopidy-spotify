@@ -43,8 +43,9 @@ def session_mock(
 
 
 @pytest.fixture
-def backend_mock(session_mock):
+def backend_mock(session_mock, config):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
+    backend_mock._config = config
     backend_mock._session = session_mock
     backend_mock._bitrate = 160
     return backend_mock
@@ -131,7 +132,7 @@ def test_lookup_loads_playlist_when_a_playlist_isnt_loaded(
 
     playlist = provider.lookup('spotify:user:alice:playlist:foo')
 
-    sp_playlist_mock.load.assert_called_once_with()
+    sp_playlist_mock.load.assert_called_once_with(10)
     assert playlist.uri == 'spotify:user:alice:playlist:foo'
     assert playlist.name == 'Foo'
 

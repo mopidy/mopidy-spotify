@@ -47,7 +47,7 @@ def test_lookup_of_track_uri(session_mock, sp_track_mock, provider):
 
     session_mock.get_link.assert_called_once_with('spotify:track:abc')
     sp_track_mock.link.as_track.assert_called_once_with()
-    sp_track_mock.load.assert_called_once_with()
+    sp_track_mock.load.assert_called_once_with(10)
 
     assert len(results) == 1
     track = results[0]
@@ -66,7 +66,7 @@ def test_lookup_of_album_uri(session_mock, sp_album_browser_mock, provider):
     sp_album_mock.link.as_album.assert_called_once_with()
 
     sp_album_mock.browse.assert_called_once_with()
-    sp_album_browser_mock.load.assert_called_once_with()
+    sp_album_browser_mock.load.assert_called_once_with(10)
 
     assert len(results) == 2
     track = results[0]
@@ -88,7 +88,7 @@ def test_lookup_of_artist_uri(
 
     sp_artist_mock.browse.assert_called_once_with(
         type=spotify.ArtistBrowserType.NO_TRACKS)
-    sp_artist_browser_mock.load.assert_called_once_with()
+    sp_artist_browser_mock.load.assert_called_once_with(10)
 
     assert sp_album_mock.browse.call_count == 2
     assert sp_album_browser_mock.load.call_count == 2
@@ -143,8 +143,8 @@ def test_lookup_of_playlist_uri(session_mock, sp_playlist_mock, provider):
 
     session_mock.get_link.assert_called_once_with('spotify:playlist:alice:foo')
     sp_playlist_mock.link.as_playlist.assert_called_once_with()
-    sp_playlist_mock.load.assert_called_once_with()
-    sp_playlist_mock.tracks[0].load.assert_called_once_with()
+    sp_playlist_mock.load.assert_called_once_with(10)
+    sp_playlist_mock.tracks[0].load.assert_called_once_with(10)
 
     assert len(results) == 1
     track = results[0]
@@ -160,7 +160,7 @@ def test_lookup_of_starred_uri(session_mock, sp_starred_mock, provider):
 
     session_mock.get_link.assert_called_once_with('spotify:user:alice:starred')
     sp_starred_mock.link.as_playlist.assert_called_once_with()
-    sp_starred_mock.load.assert_called_once_with()
+    sp_starred_mock.load.assert_called_once_with(10)
 
     assert len(results) == 2
     track = results[0]

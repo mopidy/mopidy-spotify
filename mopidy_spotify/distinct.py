@@ -116,10 +116,10 @@ def _get_playlist_tracks(config, session):
     for playlist in session.playlist_container:
         if not isinstance(playlist, spotify.Playlist):
             continue
-        playlist.load()
+        playlist.load(config['timeout'])
         for track in playlist.tracks:
             try:
-                track.load()
+                track.load(config['timeout'])
                 yield track
             except spotify.Error:  # TODO Why did we get "General error"?
                 continue
