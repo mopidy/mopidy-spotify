@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import logging
+import os
 import time
 
 import requests
@@ -22,14 +23,15 @@ class OAuthClientError(Exception):
 
 class OAuthClient(object):
 
-    def __init__(self, refresh_url, client_id=None, client_secret=None,
-                 proxy_config=None, expiry_margin=60):
+    def __init__(self, base_url, refresh_url, client_id=None,
+                 client_secret=None, proxy_config=None, expiry_margin=60):
 
         if client_id and client_secret:
             self._auth = (client_id, client_secret)
         else:
             self._auth = None
 
+        self._base_url = base_url
         self._refresh_url = refresh_url
 
         self._margin = expiry_margin
@@ -54,6 +56,7 @@ class OAuthClient(object):
                 resp.request.url, e))
 
     def _should_refresh_token(self):
+        # TODO: Add jitter to margin?
         return not self._auth or time.time() > self._expires - self._margin
 
     def _refresh_token(self):
@@ -80,15 +83,18 @@ class OAuthClient(object):
         if data.get('scope'):
             logger.debug('Token scopes: %s', data['scope'])
 
-    def get(self, url, **kwargs):
+    def get(self, path, **kwargs):
         result = {}
         try:
             if self._should_refresh_token():
                 self._refresh_token()
             kwargs.setdefault('headers', {}).update(self._headers)
+            # TODO: Add retries.
+            url = os.path.join(self._base_url, path)
             response = self._request('GET', url, **kwargs)
             result = self._decode(response)
         except (OAuthTokenRefreshError, OAuthClientError) as e:
+            # TODO: Don't silently error out.
             logger.error(e)
 
         return result
