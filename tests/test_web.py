@@ -13,6 +13,7 @@ from mopidy_spotify import web
 @pytest.fixture
 def oauth_client(config):
     return web.OAuthClient(
+        base_url='https://api.spotify.com/v1',
         refresh_url='https://auth.mopidy.com/spotify/token',
         client_id=config['spotify']['client_id'],
         client_secret=config['spotify']['client_secret'],
@@ -60,7 +61,7 @@ def test_get_uses_new_access_token(
         json=web_track_mock)
     mock_time.return_value = 1000
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert len(responses.calls) == 2
     assert (responses.calls[0].request.url ==
@@ -89,7 +90,7 @@ def test_get_uses_existing_access_token(
 
     oauth_client._headers['Authorization'] = 'Bearer 01234...abcde'
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert len(responses.calls) == 1
     assert (responses.calls[0].request.url ==
@@ -110,7 +111,7 @@ def test_bad_client_credentials(oauth_client):
         responses.POST, 'https://auth.mopidy.com/spotify/token',
         json=bad_response, status=401)
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert result == {}
 
@@ -120,7 +121,7 @@ def test_auth_returns_invalid_json(oauth_client, caplog):
     responses.add(
         responses.POST, 'https://auth.mopidy.com/spotify/token', body='scope')
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert result == {}
     assert ('JSON decoding https://auth.mopidy.com/spotify/token failed' in
@@ -134,7 +135,7 @@ def test_spotify_returns_invalid_json(mock_time, oauth_client, caplog):
         body='abc')
     mock_time.return_value = -1000
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert result == {}
     assert ('JSON decoding https://api.spotify.com/v1/tracks/abc failed' in
@@ -147,7 +148,7 @@ def test_auth_offline(oauth_client, caplog):
         responses.POST, 'https://auth.mopidy.com/spotify/token',
         json={"error": "not found"}, status=404)
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert result == {}
     assert ('Fetching https://auth.mopidy.com/spotify/token failed' in
@@ -163,7 +164,7 @@ def test_spotify_offline(web_oauth_mock, oauth_client, caplog):
         responses.GET, 'https://api.spotify.com/v1/tracks/abc',
         json={"error": "not found"}, status=404)
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert result == {}
     assert ('Fetching https://api.spotify.com/v1/tracks/abc failed' in
@@ -180,7 +181,7 @@ def test_auth_missing_access_token(web_oauth_mock, oauth_client, caplog):
 
     oauth_client._headers['Authorization'] = 'Bearer 01234...abcde'
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert len(responses.calls) == 1
     assert oauth_client._headers['Authorization'] == 'Bearer 01234...abcde'
@@ -198,7 +199,7 @@ def test_auth_wrong_token_type(web_oauth_mock, oauth_client, caplog):
 
     oauth_client._headers['Authorization'] = 'Bearer 01234...abcde'
 
-    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+    result = oauth_client.get('tracks/abc')
 
     assert len(responses.calls) == 1
     assert oauth_client._headers['Authorization'] == 'Bearer 01234...abcde'
