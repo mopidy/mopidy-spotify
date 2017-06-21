@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import time
+import urlparse
 
 import requests
 
@@ -48,8 +49,7 @@ class OAuthClient(object):
         self._headers = {'Content-Type': 'application/json'}
         self._session = utils.get_requests_session(proxy_config or {})
 
-    def get(self, path, **kwargs):
-        # TODO: Take in *args and apply as path.format(*args)
+    def get(self, path, *args, **kwargs):
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
         try:
@@ -61,10 +61,7 @@ class OAuthClient(object):
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault('headers', {}).update(self._headers)
-
-        # TODO: Switch to more fancy URL rewriting that was prototyped.
-        url = os.path.join(self._base_url, path)
-        result = self._request_with_retries('GET', url, **kwargs)
+        result = self._request_with_retries('GET', path, *args, **kwargs)
 
         if result is None or 'error' in result:
             return {}
@@ -100,9 +97,9 @@ class OAuthClient(object):
         if result.get('scope'):
             logger.debug('Token scopes: %s', result['scope'])
 
-    def _request_with_retries(self, method, url, **kwargs):
+    def _request_with_retries(self, method, url, *args, **kwargs):
         prepared_request = self._session.prepare_request(
-            requests.Request(method, url, **kwargs))
+            requests.Request(method, self._prepare_url(url, *args), **kwargs))
 
         try_until = time.time() + self._timeout
 
@@ -151,6 +148,17 @@ class OAuthClient(object):
         # indicating that the auth is invalid and just shortcut all queries.
 
         return result
+
+    def _prepare_url(self, url, *args):
+        url = url.format(*args)
+
+        u = urlparse.urlsplit(url)
+        if u.scheme or u.netloc:
+            return url
+
+        b = urlparse.urlsplit(self._base_url)
+        path = os.path.normpath(os.path.join(b.path, u.path))
+        return urlparse.urlunsplit((b.scheme, b.netloc, path, u.query, ''))
 
     def _decode(self, response):
         # Deal with 204 and other responses with empty body.
