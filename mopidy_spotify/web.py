@@ -120,7 +120,7 @@ class OAuthClient(object):
                 response = self._session.send(
                     prepared_request, timeout=remaining_timeout)
             except requests.RequestException as e:
-                logger.debug('Fetching %s failed: %s', url, e)
+                logger.debug('Fetching %s failed: %s', prepared_request.url, e)
                 status_code = None
                 backoff_time = None
                 result = None
@@ -130,7 +130,8 @@ class OAuthClient(object):
                 result = self._decode(response)
 
             if status_code >= 400:
-                logger.debug('Fetching %s failed: %s', url, status_code)
+                logger.debug('Fetching %s failed: %s',
+                             prepared_request.url, status_code)
 
             # Filter out cases where we should not retry.
             if status_code and status_code not in self._retry_statuses:
@@ -143,7 +144,8 @@ class OAuthClient(object):
 
             # Decide how long to sleep in the next iteration.
             backoff_time = backoff_time or (2**i * self._backoff_factor)
-            logger.debug('Retrying %s in %.3f seconds.', url, backoff_time)
+            logger.debug('Retrying %s in %.3f seconds.',
+                         prepared_request.url, backoff_time)
 
         # TODO: Check if status code is 401, in which case we should set a flag
         # indicating that the auth is invalid and just shortcut all queries.
