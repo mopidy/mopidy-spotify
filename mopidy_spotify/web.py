@@ -134,7 +134,7 @@ class OAuthClient(object):
                 backoff_time = self._parse_retry_after(response)
                 result = self._decode(response)
 
-            if status_code >= 400:
+            if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
                              prepared_request.url, status_code)
 
