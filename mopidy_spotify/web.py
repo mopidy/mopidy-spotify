@@ -41,6 +41,7 @@ class OAuthClient(object):
 
         self._margin = expiry_margin
         self._expires = 0
+        self._authorization_failed = False
 
         self._timeout = timeout
         self._number_of_retries = retries
@@ -51,6 +52,10 @@ class OAuthClient(object):
         self._session = utils.get_requests_session(proxy_config or {})
 
     def get(self, path, *args, **kwargs):
+        if self._authorization_failed:
+            logger.debug('Blocking request as previous authorization failed.')
+            return {}
+
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
         try:
@@ -147,9 +152,12 @@ class OAuthClient(object):
             logger.debug('Retrying %s in %.3f seconds.',
                          prepared_request.url, backoff_time)
 
-        # TODO: Check if status code is 401, in which case we should set a flag
-        # indicating that the auth is invalid and just shortcut all queries.
-
+        if status_code == 401:
+            self._authorization_failed = True
+            logger.error('Authorization failed, not attempting Spotify API '
+                         'request. Please get new credentials from '
+                         'https://www.mopidy.com/authenticate and/or restart '
+                         'Mopidy to resolve this problem.')
         return result
 
     def _prepare_url(self, url, *args, **kwargs):
