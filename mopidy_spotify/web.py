@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import time
+import urllib
 import urlparse
 
 import requests
@@ -149,16 +150,27 @@ class OAuthClient(object):
 
         return result
 
-    def _prepare_url(self, url, *args):
-        url = url.format(*args)
-
-        u = urlparse.urlsplit(url)
-        if u.scheme or u.netloc:
-            return url
-
+    def _prepare_url(self, url, *args, **kwargs):
+        # TODO: Move this out as a helper and unit-test it directly?
         b = urlparse.urlsplit(self._base_url)
-        path = os.path.normpath(os.path.join(b.path, u.path))
-        return urlparse.urlunsplit((b.scheme, b.netloc, path, u.query, ''))
+        u = urlparse.urlsplit(url.format(*args))
+
+        if u.scheme or u.netloc:
+            scheme, netloc, path = u.scheme, u.netloc, u.path
+            query = urlparse.parse_qsl(u.query, keep_blank_values=True)
+        else:
+            scheme, netloc = b.scheme, b.netloc
+            path = os.path.normpath(os.path.join(b.path, u.path))
+            query = urlparse.parse_qsl(b.query, keep_blank_values=True)
+            query.extend(urlparse.parse_qsl(u.query, keep_blank_values=True))
+
+        for key, value in kwargs.items():
+            if isinstance(value, unicode):
+                value = value.encode('utf-8')
+            query.append((key, value))
+
+        encoded_query = urllib.urlencode(dict(query))
+        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
     def _decode(self, response):
         # Deal with 204 and other responses with empty body.
