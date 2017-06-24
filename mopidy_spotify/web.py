@@ -46,7 +46,7 @@ class OAuthClient(object):
         self._timeout = timeout
         self._number_of_retries = retries
         self._retry_statuses = retry_statuses
-        self._backoff_factor = 0.1
+        self._backoff_factor = 0.5
 
         self._headers = {'Content-Type': 'application/json'}
         self._session = utils.get_requests_session(proxy_config or {})
