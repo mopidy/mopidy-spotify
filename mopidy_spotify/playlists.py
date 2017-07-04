@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
+import collections
 import logging
+import time
 
 from mopidy import backend
 
@@ -14,11 +16,52 @@ _API_BASE_URI = 'https://api.spotify.com/v1'
 logger = logging.getLogger(__name__)
 
 
+CachedItem = collections.namedtuple('CachedItem', ['item', 'version', 'expires'])
+
+
+class ItemCache(object):
+
+    def __init__(self, lifetime):
+        self._data = collections.OrderedDict()
+        self.expires = 0
+        self.lifetime = lifetime
+
+    def update(self, item=None, version=0):
+        self.expires = time.time() + self.lifetime
+        if item:
+            self._data[item.uri] = CachedItem(item, version, self.expires)
+
+    def clear(self):
+        self._data.clear()
+        self.expires = 0
+
+    def valid(self, uri=None):
+        if uri is None:
+            expires = self.expires
+        elif uri in self._data:
+            expires = self._data[uri].expires
+        else:
+            return False 
+        return expires > time.time()
+
+    @property
+    def items(self):
+        for v in self._data.values():
+            yield v
+
+    def validate(self, item):
+        uri = item.get('uri')
+        if uri in self._data:
+            if self._data[uri].version != item.get('snapshot_id'):
+                del self._data[uri]
+
+
 class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def __init__(self, backend):
         self._backend = backend
-        self._cache = None
+        self._ref_cache = ItemCache(60)
+        self._full_cache = ItemCache(60*60)
         self._cache2 = {}
 
     def as_list(self):
@@ -41,29 +84,34 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def _get_flattened_playlist_refs(self):
         logger.error("_get_flattened_playlist_refs")
+
+        if self._ref_cache.valid():
+            logger.error("USING CACHE!!")
+            for p in self._ref_cache.items:
+                yield p.item
+            return
+
+        self._ref_cache.clear()
         if self._backend._session is None:
-            logger.info("NO session")
             return
 
         username = self._backend._session.user_name
 
-        if self._cache is not None:
-            logger.info("USING CACHE")
-            result = self._cache
-        else:
-            result = self._backend._web_client.get('me/playlists', params={
-                'limit': 50})
-            self._cache = result
+        result = self._backend._web_client.get('me/playlists', params={
+            'limit': 50})
 
         if result is None:
-            logger.error("No playlists found")
+            logger.error("No playlists found") # is this an error condition or normal?
+            self._ref_cache.update()
             return
 
         for web_playlist in self._get_all_items(result):
+            self._full_cache.validate(web_playlist)
             playlist_ref = translator.web_to_playlist_ref(
                 web_playlist, username=username)
             if playlist_ref is not None:
-                logger.info("Got playlist %s %s" % (playlist_ref.name, playlist_ref.uri))
+                self._ref_cache.update(playlist_ref)
+                logger.info("Got playlist ref %s %s" % (playlist_ref.name, playlist_ref.uri))
                 yield playlist_ref
 
     def get_items(self, uri):
@@ -75,6 +123,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
+        logger.error("_get_playlist %s", uri)
         def gen_fields(name, fields=[]):
             fields = ['uri', 'name'] + fields
             return '%s(%s)' % (name, ','.join(fields))
@@ -120,7 +169,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             as_items=as_items)
 
     def refresh(self):
-        pass  # Not needed as long as we don't cache anything.
+        self._ref_cache.clear()
 
     def create(self, name):
         try:
