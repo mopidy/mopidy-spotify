@@ -60,11 +60,41 @@ class ItemCache(object):
 
 
 class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
-
     def __init__(self, backend):
         self._backend = backend
         self._ref_cache = ItemCache(60)
         self._full_cache = ItemCache(60*60)
+
+        if 'offline_playlists' in self._backend._config['spotify']:
+            with open(self._backend._config['spotify']['offline_playlists']) as f:
+                self._offline_playlists = [l.strip() for l in f.readlines()]
+
+        if self._backend._session is not None:
+            offlinecount = self._backend._session.offline.num_playlists
+            logger.info("offline playlist count:%d", offlinecount)
+            if offlinecount > 0:
+                self.print_offline_sync_status()
+
+
+
+
+    def print_offline_sync_status(self):
+        offlineS = self._backend._session.offline
+        syncstatus = offlineS.sync_status
+        if syncstatus:
+            queued = offlineS.sync_status.queued_tracks
+            done = offlineS.sync_status.done_tracks
+            errored = offlineS.sync_status.error_tracks
+            logger.info(
+                "Offline sync status: Queued= %d, Done=%d, Error=%d",
+                queued, done, errored)
+        else:
+            logger.info("Offline sync status: Not syncing")
+            seconds = offlineS.time_left
+            logger.info(
+                "Time until user must go online %d hours",
+                seconds / 3600)
+            logger.info(_self.backend._session.type)
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
@@ -163,6 +193,19 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.debug('Failed to lookup Spotify URI %s', uri)
             return
 
+        if not sp_playlist.is_loaded:
+            logger.debug(
+                'Waiting for Spotify playlist to load: %s', sp_playlist)
+            sp_playlist.load(self._timeout)
+
+        #logger.info("Loaded playlist %s", sp_playlist.name)
+        #logger.info(self._offline_playlists)
+        sp_playlist.set_offline_mode(offline=sp_playlist.name in self._offline_playlists)
+        if (sp_playlist.name in self._offline_playlists):
+            self.print_offline_sync_status()
+        #else:
+        #    logger.info("not syncing this one")
+
         username = self._backend._session.user_name
         playlist_ref = translator.web_to_playlist(
             web_playlist, username=username, bitrate=self._backend._bitrate,
@@ -178,7 +221,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         try:
             sp_playlist = (
                 self._backend._session.playlist_container
-                .add_new_playlist(name))
+                    .add_new_playlist(name))
         except ValueError as exc:
             logger.warning(
                 'Failed creating new Spotify playlist "%s": %s', name, exc)

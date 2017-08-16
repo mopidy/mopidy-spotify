@@ -46,6 +46,8 @@ class Extension(ext.Extension):
 
         schema['toplist_countries'] = config.List(optional=True)
 
+        schema['offline_playlists'] = config.String()
+
         return schema
 
     def setup(self, registry):
