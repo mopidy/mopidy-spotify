@@ -59,6 +59,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._session.login(
             self._config['spotify']['username'],
             self._config['spotify']['password'])
+        self._session.connection.type = spotify.ConnectionType.WIFI
 
         self._web_client = web.OAuthClient(
             refresh_url='https://auth.mopidy.com/spotify/token',
@@ -134,6 +135,9 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._session.playlist_container.on(
             spotify.PlaylistContainerEvent.PLAYLIST_MOVED,
             playlists.on_playlist_moved)
+        self._session.on(
+            spotify.SessionEvent.OFFLINE_STATUS_UPDATED,
+            on_offline_status_updated)
 
     def on_play_token_lost(self):
         if self._session.player.state == spotify.PlayerState.PLAYING:
@@ -168,3 +172,17 @@ def on_play_token_lost(session, backend):
     # Called from the pyspotify event loop, and not in an actor context.
     logger.debug('Spotify play token lost')
     backend.on_play_token_lost()
+
+
+def on_offline_status_updated(session):
+    offlineS = session.offline
+    syncstatus = offlineS.sync_status
+    if syncstatus:
+        queued = offlineS.sync_status.queued_tracks
+        done = offlineS.sync_status.done_tracks
+        errored = offlineS.sync_status.error_tracks
+        logger.info(
+            "Offline sync status: Queued= %d, Done=%d, Error=%d",
+            queued, done, errored)
+    else:
+        logger.info("No offline sync status")
