@@ -94,7 +94,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.info(
                 "Time until user must go online %d hours",
                 seconds / 3600)
-            logger.info(_self.backend._session.type)
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
