@@ -85,9 +85,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             queued = offlineS.sync_status.queued_tracks
             done = offlineS.sync_status.done_tracks
             errored = offlineS.sync_status.error_tracks
+            copied = offlineS.sync_status.copied_tracks
             logger.info(
-                "Offline sync status: Queued= %d, Done=%d, Error=%d",
-                queued, done, errored)
+                "Offline sync status: Queued= %d, Done=%d, Error=%d, Copied=%d",
+                queued, done, errored, copied)
         else:
             logger.info("Offline sync status: Not syncing")
             seconds = offlineS.time_left
@@ -197,10 +198,11 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 'Waiting for Spotify playlist to load: %s', sp_playlist)
             sp_playlist.load(self._timeout)
 
-        #logger.info("Loaded playlist %s", sp_playlist.name)
+        #
         #logger.info(self._offline_playlists)
         sp_playlist.set_offline_mode(offline=sp_playlist.name in self._offline_playlists)
         if (sp_playlist.name in self._offline_playlists):
+            logger.info("Syncing playlist %s", sp_playlist.name)
             self.print_offline_sync_status()
         #else:
         #    logger.info("not syncing this one")
