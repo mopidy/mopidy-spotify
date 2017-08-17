@@ -100,7 +100,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         #logger.info(self._offline_playlists)
         sp_playlist.set_offline_mode(offline=sp_playlist.name in self._offline_playlists)
         if (sp_playlist.name in self._offline_playlists):
-            logger.info("Syncing playlist %s", sp_playlist.name)
+            logger.info("Offline playlist %s: statis %s / %s", sp_playlist.name, str(sp_playlist.offline_status), str(sp_playlist.offline_download_completed))
             self.print_offline_sync_status()
         #else:
         #    logger.info("not syncing this one")
