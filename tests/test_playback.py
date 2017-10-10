@@ -132,6 +132,12 @@ def test_stop_pauses_spotify_playback(session_mock, provider):
     session_mock.player.pause.assert_called_once_with()
 
 
+def test_pause_pauses_spotify_playback(session_mock, provider):
+    provider.pause()
+
+    session_mock.player.pause.assert_called_once_with()
+
+
 def test_on_seek_data_updates_timestamp_and_seeks_in_spotify(
         session_mock, provider):
     provider.on_seek_data(1780)
