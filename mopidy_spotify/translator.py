@@ -68,10 +68,17 @@ def to_album(sp_album):
     else:
         date = None
 
+    cover_link = sp_album.cover_link()
+    if cover_link is not None and cover_link.url:
+        images = [cover_link.url]
+    else:
+        images = None
+
     return models.Album(
         uri=sp_album.link.uri,
         name=sp_album.name,
         artists=artists,
+        images=images,
         date=date)
 
 
