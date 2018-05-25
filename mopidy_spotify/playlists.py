@@ -41,7 +41,7 @@ class ItemCache(object):
         elif uri in self._data:
             expires = self._data[uri].expires
         else:
-            return False 
+            return False
         return expires > time.time()
 
     @property
@@ -128,20 +128,21 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             fields = ['uri', 'name'] + fields
             return '%s(%s)' % (name, ','.join(fields))
 
-        
-        fields = ['name', 'owner', 'type', 'uri']
-        if as_items:
-            fields.append('tracks')
-            #artists_fields = gen_fields('artists')
-            #album_fields = gen_fields('album', [artists_fields])
-            #track_fields = ['duration_ms', 'disc_number', 'track_number',
-                            #album_fields, artists_fields]
-            #fields = 'items(%s)' % gen_fields('track', track_fields)
-            #items(track(uri,name,duration_ms,disc_number,track_number,album(uri,name,artists(uri,name)),artists(uri,name))
+
+        fields = ['name', 'owner', 'type', 'uri', 'tracks']
+        # if as_items:
+        #     fields.append('tracks')
+        #     artists_fields = gen_fields('artists')
+        #     album_fields = gen_fields('album', [artists_fields])
+        #     track_fields = ['duration_ms', 'disc_number', 'track_number',
+        #                     album_fields, artists_fields]
+        #     fields = 'items(%s)' % gen_fields('track', track_fields)
+        #     items(track(uri,name,duration_ms,disc_number,track_number,album(uri,name,artists(uri,name)),artists(uri,name))
 
         link = translator.parse_uri(uri)
 
         web_playlist = self._cache2.get(uri, None)
+
         if web_playlist is not None:
             logger.info('found %s in cache', uri)
             if as_items and 'tracks' not in web_playlist:
@@ -153,12 +154,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             web_playlist = self._backend._web_client.get(
                 'users/%s/playlists/%s' % (link.owner, link.id),
                 params=params)
+
             if web_playlist is not None:
                 if as_items and 'tracks' in web_playlist:
-                    all_tracks = self._get_all_items(web_playlist['tracks'])
+                    all_tracks = self._get_all_items(web_playlist['tracks']['items'])
                     web_playlist['tracks'] = [t['track'] for t in all_tracks]
                 self._cache2[uri] = web_playlist
-            
+
         if web_playlist is None:
             logger.debug('Failed to lookup Spotify URI %s', uri)
             return
@@ -166,7 +168,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         username = self._backend._session.user_name
         return translator.web_to_playlist(
             web_playlist, username=username, bitrate=self._backend._bitrate,
-            as_items=as_items)
+            as_items=as_items, web_client=self._backend._web_client)
 
     def refresh(self):
         self._ref_cache.clear()

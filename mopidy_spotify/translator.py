@@ -283,11 +283,25 @@ def web_to_playlist_ref(web_playlist, folders=None, username=None):
 
 
 def web_to_playlist(web_playlist, folders=None, username=None, bitrate=None,
-        as_ref=False, as_items=False):
+        as_ref=False, as_items=False, web_client=None):
     if web_playlist['type'] != 'playlist':
         return
 
-    web_tracks = web_playlist.get('tracks', [])
+    if 'tracks' in web_playlist:
+        web_tracks = web_playlist['tracks']
+        if isinstance(web_tracks, dict):
+            if 'items' in web_tracks:
+                web_tracks = [t['track'] for t in web_tracks['items']]
+            elif 'href' in web_tracks and web_client:
+                web_tracks = web_client.get(
+                    web_playlist['tracks']['href'], params = {'fields':'tracks'})
+
+                if web_tracks and web_tracks['tracks']:
+                    web_tracks = [t['track'] for t in web_tracks['tracks']['items']]
+        else:
+            web_tracks = web_playlist['tracks']
+    else:
+        web_tracks = []
 
     if as_items:
         return list(web_to_track_refs(web_tracks))
@@ -296,7 +310,7 @@ def web_to_playlist(web_playlist, folders=None, username=None, bitrate=None,
 
     if not as_ref:
         tracks = [
-            web_to_track(web_track, bitrate=bitrate) 
+            web_to_track(web_track, bitrate=bitrate)
             for web_track in web_tracks]
         tracks = filter(None, tracks)
         if name is None:
