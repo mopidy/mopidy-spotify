@@ -98,6 +98,11 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self.backend._session.player.pause()
         return super(SpotifyPlaybackProvider, self).stop()
 
+    def pause(self):
+        logger.debug('Audio requested pause; pausing Spotify player')
+        self.backend._session.player.pause()
+        return super(SpotifyPlaybackProvider, self).pause()
+
     def on_seek_data(self, time_position):
         logger.debug('Audio requested seek to %d', time_position)
 
