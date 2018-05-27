@@ -52,8 +52,8 @@ def test_get_artist_images(web_client_mock, img_provider):
     result = img_provider.get_images(uris)
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/artists/?ids='
-        '4FCGgZrVQtcbDFEap3OAb2,0Nsz79ZcE8E4i3XZhCzZ1l')
+        'artists',
+        params={'ids': '4FCGgZrVQtcbDFEap3OAb2,0Nsz79ZcE8E4i3XZhCzZ1l'})
 
     assert len(result) == 2
     assert sorted(result.keys()) == sorted(uris)
@@ -103,7 +103,7 @@ def test_get_album_images(web_client_mock, img_provider):
     result = img_provider.get_images(uris)
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/albums/?ids=1utFPuvgBHXzLJdqhCDOkg')
+        'albums', params={'ids': '1utFPuvgBHXzLJdqhCDOkg'})
 
     assert len(result) == 1
     assert sorted(result.keys()) == sorted(uris)
@@ -142,7 +142,7 @@ def test_get_track_images(web_client_mock, img_provider):
     result = img_provider.get_images(uris)
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/tracks/?ids=41shEpOKyyadtG6lDclooa')
+        'tracks', params={'ids': '41shEpOKyyadtG6lDclooa'})
 
     assert len(result) == 1
     assert sorted(result.keys()) == sorted(uris)
@@ -181,7 +181,7 @@ def test_results_are_cached(web_client_mock, img_provider):
     result1 = img_provider.get_images(uris)
     result2 = img_provider.get_images(uris)
 
-    web_client_mock.get.assert_called_once()
+    assert web_client_mock.get.call_count == 1
     assert result1 == result2
 
 
@@ -194,11 +194,11 @@ def test_max_50_ids_per_request(web_client_mock, img_provider):
 
     assert web_client_mock.get.call_count == 2
 
-    request_url_1 = web_client_mock.get.call_args_list[0][0][0]
-    assert request_url_1.endswith(','.join(str(i) for i in range(50)))
+    request_ids_1 = web_client_mock.get.call_args_list[0][1]['params']['ids']
+    assert request_ids_1 == ','.join(str(i) for i in range(50))
 
-    request_url_2 = web_client_mock.get.call_args_list[1][0][0]
-    assert request_url_2.endswith('ids=50')
+    request_ids_2 = web_client_mock.get.call_args_list[1][1]['params']['ids']
+    assert request_ids_2 == '50'
 
 
 def test_invalid_uri_fails(img_provider):

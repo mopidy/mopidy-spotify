@@ -73,7 +73,7 @@ def test_search_returns_albums_and_artists_and_tracks(
     result = provider.search({'any': ['ABBA']})
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/search',
+        'search',
         params={
             'q': '"ABBA"',
             'limit': 50,
@@ -121,7 +121,7 @@ def test_sets_api_limit_to_album_count_when_max(
     result = provider.search({'any': ['ABBA']})
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/search',
+        'search',
         params={
             'q': '"ABBA"',
             'limit': 6,
@@ -142,7 +142,7 @@ def test_sets_api_limit_to_artist_count_when_max(
     result = provider.search({'any': ['ABBA']})
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/search',
+        'search',
         params={
             'q': '"ABBA"',
             'limit': 6,
@@ -163,7 +163,7 @@ def test_sets_api_limit_to_track_count_when_max(
     result = provider.search({'any': ['ABBA']})
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/search',
+        'search',
         params={
             'q': '"ABBA"',
             'limit': 6,
@@ -183,7 +183,7 @@ def test_sets_types_parameter(
         {'any': ['ABBA']}, types=['album', 'artist'])
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/search',
+        'search',
         params={
             'q': '"ABBA"',
             'limit': 50,
@@ -199,7 +199,7 @@ def test_sets_market_parameter_from_user_country(
     provider.search({'any': ['ABBA']})
 
     web_client_mock.get.assert_called_once_with(
-        'https://api.spotify.com/v1/search',
+        'search',
         params={
             'q': '"ABBA"',
             'limit': 50,
