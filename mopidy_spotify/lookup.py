@@ -14,7 +14,7 @@ _VARIOUS_ARTISTS_URIS = [
 ]
 
 
-def lookup(config, session, uri):
+def lookup(config, session, uri, web_client):
     try:
         web_link = translator.parse_uri(uri)
         sp_link = session.get_link(uri)
