@@ -150,46 +150,65 @@ def to_track_refs(sp_tracks, timeout=None):
             yield ref
 
 
-def to_playlist(
-        sp_playlist, folders=None, username=None, bitrate=None,
-        as_ref=False, as_items=False):
-    if not isinstance(sp_playlist, spotify.Playlist):
+def web_to_track_ref(web_track):
+    if web_track.get('type') != 'track':
         return
 
-    if not sp_playlist.is_loaded:
+    # TODO: Check availability
+    
+    return models.Ref.track(
+        uri=web_track.get('uri'), name=web_track.get('name'))
+
+
+def web_to_track_refs(web_tracks):
+    for web_track in web_tracks:
+        ref = web_to_track_ref(web_track.get('track', {}))
+        if ref is not None:
+            yield ref
+
+
+def to_playlist(
+        web_playlist, username=None, bitrate=None,
+        as_ref=False, as_items=False):
+    if web_playlist.get('type') != 'playlist':
         return
+
+    web_tracks = web_playlist.get('tracks', {}).get('items')
+    if (as_items or not as_ref) and not isinstance(web_tracks, list):
+        logger.error('No playlist track data present') 
+        return        
 
     if as_items:
-        return list(to_track_refs(sp_playlist.tracks))
+        return list(web_to_track_refs(web_tracks))
 
-    name = sp_playlist.name
+    name = web_playlist.get('name')
 
     if not as_ref:
         tracks = [
-            to_track(sp_track, bitrate=bitrate)
-            for sp_track in sp_playlist.tracks]
+            web_to_track(web_track.get('track', {}), bitrate=bitrate)
+            for web_track in web_tracks]
         tracks = filter(None, tracks)
         if name is None:
+            # FIX: Starred not supported by Web API
             # Use same starred order as the Spotify client
             tracks = list(reversed(tracks))
 
     if name is None:
-        name = 'Starred'
-    if folders is not None:
-        name = '/'.join(folders + [name])
-    if username is not None and sp_playlist.owner.canonical_name != username:
-        name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
+        # FIX: Starred not supported by Web API
+        name = 'Starred' 
+    owner = web_playlist.get('owner', {}).get('id', username)
+    if username is not None and owner != username:
+        name = '%s (by %s)' % (name, owner)
 
     if as_ref:
-        return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
+        return models.Ref.playlist(uri=web_playlist.get('uri'), name=name)
     else:
         return models.Playlist(
-            uri=sp_playlist.link.uri, name=name, tracks=tracks)
+            uri=web_playlist.get('uri'), name=name, tracks=tracks)
 
 
-def to_playlist_ref(sp_playlist, folders=None, username=None):
-    return to_playlist(
-        sp_playlist, folders=folders, username=username, as_ref=True)
+def to_playlist_ref(web_playlist, username=None):
+    return to_playlist(web_playlist, username=username, as_ref=True)
 
 
 # Maps from Mopidy search query field to Spotify search query field.
@@ -248,16 +267,29 @@ def web_to_album(web_album):
         artists=artists)
 
 
-def web_to_track(web_track):
+def web_to_track(web_track, bitrate=None):
+    if web_track.get('type') != 'track':
+        return
+
+    # TODO: Check availability
+
+    artists = [
+        web_to_artist(web_artist) for web_artist in web_track.get('artists', [])]
+    artists = filter(None, artists)
+
+    album = web_to_album(web_track.get('album', {}))
+    
     artists = [
         web_to_artist(web_artist) for web_artist in web_track['artists']]
     album = web_to_album(web_track['album'])
 
     return models.Track(
-        uri=web_track['uri'],
-        name=web_track['name'],
+        uri=web_track.get('uri'),
+        name=web_track.get('name'),
         artists=artists,
         album=album,
-        length=web_track['duration_ms'],
-        disc_no=web_track['disc_number'],
-        track_no=web_track['track_number'])
+        length=web_track.get('duration_ms'),
+        disc_no=web_track.get('disc_number'),
+        track_no=web_track.get('track_number'),
+        bitrate=bitrate)
+

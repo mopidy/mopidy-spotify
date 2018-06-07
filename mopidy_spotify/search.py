@@ -15,7 +15,7 @@ _SEARCH_TYPES = ['album', 'artist', 'track']
 logger = logging.getLogger(__name__)
 
 
-def search(config, session, web_client,
+def search(config, session, web_session,
            query=None, uris=None, exact=False, types=_SEARCH_TYPES):
     # TODO Respect `uris` argument
     # TODO Support `exact` search
@@ -25,7 +25,7 @@ def search(config, session, web_client,
         return models.SearchResult(uri='spotify:search')
 
     if 'uri' in query:
-        return _search_by_uri(config, session, query)
+        return _search_by_uri(config, session, web_session, query)
 
     sp_query = translator.sp_search_query(query)
     if not sp_query:
@@ -35,7 +35,8 @@ def search(config, session, web_client,
     uri = 'spotify:search:%s' % urllib.quote(sp_query.encode('utf-8'))
     logger.info('Searching Spotify for: %s', sp_query)
 
-    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
+    if web_session is None:
+        # TODO: Verify auth status?
         logger.info('Spotify search aborted: Spotify is offline')
         return models.SearchResult(uri=uri)
 
@@ -52,7 +53,7 @@ def search(config, session, web_client,
             'to at most 50.')
         search_count = 50
 
-    result = web_client.get('search', params={
+    result = web_session._client.get('search', params={
         'q': sp_query,
         'limit': search_count,
         'market': session.user_country,
@@ -77,10 +78,10 @@ def search(config, session, web_client,
         uri=uri, albums=albums, artists=artists, tracks=tracks)
 
 
-def _search_by_uri(config, session, query):
+def _search_by_uri(config, session, web_session, query):
     tracks = []
     for uri in query['uri']:
-        tracks += lookup.lookup(config, session, uri)
+        tracks += lookup.lookup(config, session, web_session, uri)
 
     uri = 'spotify:search'
     if len(query['uri']) == 1:

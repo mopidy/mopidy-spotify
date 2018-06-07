@@ -4,7 +4,7 @@ import logging
 
 import spotify
 
-from mopidy_spotify import translator, utils
+from mopidy_spotify import translator, utils, web
 
 
 logger = logging.getLogger(__name__)
@@ -14,8 +14,9 @@ _VARIOUS_ARTISTS_URIS = [
 ]
 
 
-def lookup(config, session, uri):
+def lookup(config, session, web_session, uri):
     try:
+        web_link = web.parse_uri(uri)
         sp_link = session.get_link(uri)
     except ValueError as exc:
         logger.info('Failed to lookup "%s": %s', uri, exc)
@@ -29,10 +30,10 @@ def lookup(config, session, uri):
         elif sp_link.type is spotify.LinkType.ARTIST:
             with utils.time_logger('Artist lookup'):
                 return list(_lookup_artist(config, sp_link))
-        elif sp_link.type is spotify.LinkType.PLAYLIST:
-            return list(_lookup_playlist(config, sp_link))
-        elif sp_link.type is spotify.LinkType.STARRED:
-            return list(reversed(list(_lookup_playlist(config, sp_link))))
+        elif web_link.type == 'playlist':
+            return list(_lookup_playlist(web_session, config, uri))
+        elif web_link.type == 'starred':
+            return list(reversed(list(_lookup_playlist(web_session, config, uri))))
         else:
             logger.info(
                 'Failed to lookup "%s": Cannot handle %r',
@@ -90,12 +91,10 @@ def _lookup_artist(config, sp_link):
                 yield track
 
 
-def _lookup_playlist(config, sp_link):
-    sp_playlist = sp_link.as_playlist()
-    sp_playlist.load(config['timeout'])
-    for sp_track in sp_playlist.tracks:
-        sp_track.load(config['timeout'])
-        track = translator.to_track(
-            sp_track, bitrate=config['bitrate'])
+def _lookup_playlist(web_session, config, uri):
+    web_playlist = web_session.get_playlist(uri)
+    web_tracks = web_playlist.get('tracks', {}).get('items', [])
+    for web_track in web_tracks:
+        track = translator.web_to_track(web_track, bitrate=config['bitrate'])
         if track is not None:
             yield track

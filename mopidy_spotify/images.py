@@ -20,6 +20,7 @@ _cache = {}  # (type, id) -> [Image(), ...]
 logger = logging.getLogger(__name__)
 
 
+# TODO: Merge some/all of this into WebSession
 def get_images(web_client, uris):
     result = {}
     uri_type_getter = operator.itemgetter('type')

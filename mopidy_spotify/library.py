@@ -22,16 +22,18 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
     def get_distinct(self, field, query=None):
         return distinct.get_distinct(
-            self._config, self._backend._session, self._backend._web_client,
-            field, query)
+            self._config, self._backend._session,
+            self._backend._web_session._client, field, query)
 
     def get_images(self, uris):
-        return images.get_images(self._backend._web_client, uris)
+        return images.get_images(self._backend._web_session._client, uris)
 
     def lookup(self, uri):
-        return lookup.lookup(self._config, self._backend._session, uri)
+        return lookup.lookup(
+            self._config, self._backend._session, self._backend._web_session,
+            uri)
 
     def search(self, query=None, uris=None, exact=False):
         return search.search(
-            self._config, self._backend._session, self._backend._web_client,
-            query, uris, exact)
+            self._config, self._backend._session,
+            self._backend._web_session, query, uris, exact)

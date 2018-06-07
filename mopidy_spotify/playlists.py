@@ -1,12 +1,13 @@
 from __future__ import unicode_literals
 
 import logging
+import time
 
 from mopidy import backend
 
 import spotify
 
-from mopidy_spotify import translator, utils
+from mopidy_spotify import translator, utils, web
 
 
 logger = logging.getLogger(__name__)
@@ -23,25 +24,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return list(self._get_flattened_playlist_refs())
 
     def _get_flattened_playlist_refs(self):
-        if self._backend._session is None:
-            return
-
-        if self._backend._session.playlist_container is None:
+        if self._backend._web_session is None:
             return
 
         username = self._backend._session.user_name
-        folders = []
 
-        for sp_playlist in self._backend._session.playlist_container:
-            if isinstance(sp_playlist, spotify.PlaylistFolder):
-                if sp_playlist.type is spotify.PlaylistType.START_FOLDER:
-                    folders.append(sp_playlist.name)
-                elif sp_playlist.type is spotify.PlaylistType.END_FOLDER:
-                    folders.pop()
-                continue
-
-            playlist_ref = translator.to_playlist_ref(
-                sp_playlist, folders=folders, username=username)
+        for web_playlist in self._backend._web_session.get_user_playlists(username):
+            playlist_ref = translator.to_playlist_ref(web_playlist, username)
             if playlist_ref is not None:
                 yield playlist_ref
 
@@ -54,24 +43,19 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
-        try:
-            sp_playlist = self._backend._session.get_playlist(uri)
-        except spotify.Error as exc:
-            logger.debug('Failed to lookup Spotify URI %s: %s', uri, exc)
+        web_playlist = self._backend._web_session.get_playlist(uri)
+        playlist = translator.to_playlist(
+                web_playlist, username=self._backend._session.user_name,
+                bitrate=self._backend._bitrate, as_items=as_items)
+
+        if playlist is None:
+            logger.error('Failed to lookup Spotify URI %s: %s', uri, exc)
             return
 
-        if not sp_playlist.is_loaded:
-            logger.debug(
-                'Waiting for Spotify playlist to load: %s', sp_playlist)
-            sp_playlist.load(self._timeout)
-
-        username = self._backend._session.user_name
-        return translator.to_playlist(
-            sp_playlist, username=username, bitrate=self._backend._bitrate,
-            as_items=as_items)
+        return playlist
 
     def refresh(self):
-        pass  # Not needed as long as we don't cache anything.
+        pass  # TODO: Clear/invalidate all caches on refresh?
 
     def create(self, name):
         try:

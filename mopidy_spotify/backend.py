@@ -38,7 +38,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._session = None
         self._event_loop = None
         self._bitrate = None
-        self._web_client = None
+        self._web_session = None
 
         self.library = library.SpotifyLibraryProvider(backend=self)
         self.playback = playback.SpotifyPlaybackProvider(
@@ -60,12 +60,10 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             self._config['spotify']['username'],
             self._config['spotify']['password'])
 
-        self._web_client = web.OAuthClient(
-            base_url='https://api.spotify.com/v1',
-            refresh_url='https://auth.mopidy.com/spotify/token',
-            client_id=self._config['spotify']['client_id'],
-            client_secret=self._config['spotify']['client_secret'],
-            proxy_config=self._config['proxy'])
+        self._web_session = web.WebSession(
+            self._config['spotify']['client_id'],
+            self._config['spotify']['client_secret'], self._config['proxy'])
+        self._web_session.login()
 
     def on_stop(self):
         logger.debug('Logging out of Spotify')

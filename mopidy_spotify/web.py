@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import collections
 import email
 import logging
 import os
@@ -71,7 +72,18 @@ class OAuthClient(object):
 
         if result is None or 'error' in result:
             return {}
+
+        if isinstance(result, WebResponse):
+            cache = kwargs.pop('cache', None)
+            if cache is not None and self._should_cache_response(result):
+                logger.debug('Caching response for %s' % result.url)
+                cache[result.url] = result
+
         return result
+
+    def _should_cache_response(self, response):
+        if response._expires is not None:
+            return response.status_code >= 200 and response.status_code < 400
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
@@ -104,8 +116,17 @@ class OAuthClient(object):
             logger.debug('Token scopes: %s', result['scope'])
 
     def _request_with_retries(self, method, url, *args, **kwargs):
+        cache = kwargs.pop('cache', None)
+
         prepared_request = self._session.prepare_request(
             requests.Request(method, self._prepare_url(url, *args), **kwargs))
+
+        if cache is not None:
+            result = cache.get(prepared_request.url)
+            logger.debug('Cache lookup "%s" found %d', prepared_request.url, len(result or []))
+            if result is not None and not result.expired():
+                logger.debug("Using cached data for %s", prepared_request.url)
+                return result
 
         try_until = time.time() + self._timeout
 
@@ -128,11 +149,14 @@ class OAuthClient(object):
                 logger.debug('Fetching %s failed: %s', prepared_request.url, e)
                 status_code = None
                 backoff_time = None
+                expires = None
                 result = None
             else:
                 status_code = response.status_code
                 backoff_time = self._parse_retry_after(response)
-                result = self._decode(response)
+                expires = self._parse_cache_control(response)
+                data = self._decode(response)
+                result = WebResponse(data, url=prepared_request.url, expires=expires, status_code=status_code)
 
             if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
@@ -208,3 +232,111 @@ class OAuthClient(object):
             else:
                 seconds = time.mktime(date_tuple) - time.time()
         return max(0, seconds)
+
+    def _parse_cache_control(self, response):
+        """Parse Cache-Control header from response if it is set."""
+        value = response.headers.get('Cache-Control', 'no-store').lower()
+
+        if 'no-store' in value:
+            seconds = 0
+        else:
+            max_age = re.match(r'.*max-age=\s*([0-9]+)\s*', value)
+
+            if not max_age:
+                seconds = 0
+            else:
+                seconds = int(max_age.groups()[0])
+        logger.debug("Expires in %d seconds (%s)", seconds, value)
+        return time.time() + seconds
+
+
+class WebResponse(dict):
+    def __init__(self, *args, **kwargs):
+        self.url = kwargs.pop('url', None)
+        self._expires = kwargs.pop('expires', None)
+        self.status_code = kwargs.pop('status_code', None)
+        dict.__init__(self, *args, **kwargs)
+
+    def expired(self):
+        return self._expires <= time.time()
+
+
+TRACK_FIELDS = ['type', 'uri', 'name', 'duration_ms', 'disc_number', 'track_number', 'artists', 'album']
+PLAYLIST_TRACK_FIELDS = 'tracks(next,items(track(' + ','.join(TRACK_FIELDS) + ')))'
+PLAYLIST_FIELDS = ','.join(['name', 'owner.id', 'type', 'uri', PLAYLIST_TRACK_FIELDS])
+
+
+class WebSession(object):
+
+    def __init__(self, client_id, client_secret, proxy_config):
+        # TODO: Separate caches so can persist them differently?
+        self._cache = {}
+        self._client = OAuthClient(
+            base_url='https://api.spotify.com/v1',
+            refresh_url='https://auth.mopidy.com/spotify/token',
+            client_id=client_id, client_secret=client_secret,
+            proxy_config=proxy_config)
+
+    def login(self):
+        # TODO: Test auth?
+        # TODO: Load persisted cache data?
+        # TODO: Refresh user playlists?
+        pass
+
+    def _get_pages(self, url, *args, **kwargs):
+        while url is not None:
+            logger.debug('Fetching page "%s"', url)
+            result = self._client.get(url, *args, **kwargs)
+            url = result.get('next')
+            yield result
+
+    def get_playlist(self, uri):
+        logger.info('Fetching playlist "%s"', uri)
+        link = parse_uri(uri)
+        url = 'users/%s/playlists/%s' % (link.owner, link.id)
+        params = {'fields': PLAYLIST_FIELDS, 'market': 'from_token'}
+        web_playlist = self._client.get(url, params=params, cache=self._cache)
+        tracks_url = web_playlist.get('tracks', {}).get('next')
+        for page in self._get_pages(tracks_url, cache=self._cache):
+            web_playlist['tracks']['items'] += page.get('items', [])
+        return web_playlist
+
+    def get_user_playlists(self, username):
+        logger.info('Fetching playlists for user "%s"', username)
+        url = 'users/%s/playlists' % username
+        for page in self._get_pages(url, cache=self._cache):
+            for web_playlist in page.get('items', []):
+                yield web_playlist
+
+
+WebLink = collections.namedtuple('WebLink', ['uri', 'type', 'id', 'owner'])
+
+
+# TODO: Make a WebSession class method?
+def parse_uri(uri):
+    parsed_uri = urlparse.urlparse(uri)
+
+    schemes = ('http', 'https')
+    netlocs = ('open.spotify.com', 'play.spotify.com')
+
+    if parsed_uri.scheme == 'spotify':
+        parts = parsed_uri.path.split(':')
+    elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
+        parts = parsed_uri.path[1:].split('/')
+    else:
+        parts = []
+
+    # Strip out empty parts to ensure we are strict about URI parsing.
+    parts = [p for p in parts if p.strip()]
+
+    if len(parts) == 2 and parts[0] in ('track', 'album', 'artist'):
+        return WebLink(uri, parts[0],  parts[1], None)
+    elif len(parts) == 3 and parts[0] == 'user' and parts[2] == 'starred':
+        if parsed_uri.scheme == 'spotify':
+            return WebLink(uri, 'starred',  None, parts[1])
+    elif len(parts) == 3 and parts[0] == 'playlist':
+        return WebLink(uri, 'playlist',  parts[2], parts[1])
+    elif len(parts) == 4 and parts[0] == 'user' and parts[2] == 'playlist':
+        return WebLink(uri, 'playlist',  parts[3], parts[1])
+
+    raise ValueError('Could not parse %r as a Spotify URI' % uri)
