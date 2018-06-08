@@ -283,39 +283,15 @@ def web_to_playlist_ref(web_playlist, folders=None, username=None):
 
 
 def web_to_playlist(web_playlist, folders=None, username=None, bitrate=None,
-        as_ref=False, as_items=False, web_client=None):
-    def _get_all_items(first_result, params=None):
-        # TODO this logic is more or less copied from playlists.py,
-        # refactor the code to do the playlist expansion playlist only once
-        if params is None:
-            params = {}
-        items = first_result['items']
-        uri = first_result['next']
-        while uri is not None:
-            logger.error("DOING NEXT")
-            next_result = web_client.get(uri, params=params)
-            items.extend(next_result['items'])
-            uri = next_result.get('next', None)
-        return items
-
+        as_ref=False, as_items=False):
     if web_playlist['type'] != 'playlist':
         return
 
     if 'tracks' in web_playlist:
         web_tracks = web_playlist['tracks']
-        if isinstance(web_tracks, dict):
-            if 'items' in web_tracks:
-                web_tracks = [t['track'] for t in _get_all_items(web_tracks)]
-                web_playlist['tracks'] = web_tracks
-            elif 'href' in web_tracks and web_client:
-                web_tracks = web_client.get(
-                    web_playlist['tracks']['href'], params = {'fields':'tracks'})
-
-                if web_tracks and web_tracks['tracks']:
-                    web_tracks = [t['track'] for t in _get_all_items(web_tracks)]
-                    web_playlist['tracks'] = web_tracks
-        else:
-            web_tracks = web_playlist['tracks']
+        if isinstance(web_tracks, dict) and 'items' in web_tracks:
+            web_tracks = [t['track'] for t in web_tracks['items']]
+            web_playlist['tracks'] = web_tracks
     else:
         web_tracks = []
 
