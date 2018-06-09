@@ -98,7 +98,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         username = self._backend._session.user_name
 
-        result = self._backend._web_client.get('me/playlists')
+        result = self._backend._web_client.get('me/playlists', params={
+            'limit': 50 })
 
         if result is None:
             logger.error("No playlists found") # is this an error condition or normal?
@@ -153,10 +154,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 'users/%s/playlists/%s' % (link.owner, link.id),
                 params=params)
 
-            if web_playlist is not None:
-                if as_items and 'tracks' in web_playlist:
-                    all_tracks = self._get_all_items(web_playlist['tracks']['items'])
-                    web_playlist['tracks'] = [t['track'] for t in all_tracks]
+            if web_playlist is not None and 'tracks' in web_playlist:
+                web_playlist['tracks'] = [
+                    t['track'] for t in
+                    self._get_all_items(web_playlist['tracks'])]
 
         if web_playlist is None:
             logger.debug('Failed to lookup Spotify URI %s', uri)
