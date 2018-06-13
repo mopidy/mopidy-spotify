@@ -29,7 +29,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         username = self._backend._session.user_name
 
-        for web_playlist in self._backend._web_session.get_user_playlists(username):
+        for web_playlist in self._backend._web_session.get_user_playlists(username, include_tracks=False):
             playlist_ref = translator.to_playlist_ref(web_playlist, username)
             if playlist_ref is not None:
                 yield playlist_ref

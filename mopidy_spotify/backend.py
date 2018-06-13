@@ -63,7 +63,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._web_session = web.WebSession(
             self._config['spotify']['client_id'],
             self._config['spotify']['client_secret'], self._config['proxy'])
-        self._web_session.login()
+        self._web_session.login(self._config['spotify']['username'])
 
     def on_stop(self):
         logger.debug('Logging out of Spotify')

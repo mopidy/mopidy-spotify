@@ -9,6 +9,9 @@ import time
 import urllib
 import urlparse
 
+from contextlib import contextmanager
+from datetime import datetime
+
 import requests
 
 from mopidy_spotify import utils
@@ -76,14 +79,12 @@ class OAuthClient(object):
         if isinstance(result, WebResponse):
             cache = kwargs.pop('cache', None)
             if cache is not None and self._should_cache_response(result):
-                logger.debug('Caching response for %s' % result.url)
-                cache[result.url] = result
+                cache.store(result)
 
         return result
 
     def _should_cache_response(self, response):
-        if response._expires is not None:
-            return response.status_code >= 200 and response.status_code < 400
+        return response.status_code >= 200 and response.status_code < 400
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
@@ -255,10 +256,42 @@ class WebResponse(dict):
         self.url = kwargs.pop('url', None)
         self._expires = kwargs.pop('expires', None)
         self.status_code = kwargs.pop('status_code', None)
+        self._from_cache = False
         dict.__init__(self, *args, **kwargs)
 
     def expired(self):
         return self._expires <= time.time()
+
+
+class WebCache(object):
+
+    def __init__(self, *args, **kwargs):
+        self._store = {}
+        self._force_expiry = None
+
+    def load(self):
+        # TODO: Load persisted cache data
+        pass
+
+    def get(self, url):
+        return self._store.get(url)
+
+    def store(self, response):
+        if not response._expires or response._from_cache:
+            return
+
+        response._from_cache = True
+        if self._force_expiry is not None:
+            response._expires = self._force_expiry
+        logger.debug('Caching %s until %s', response.url, datetime.fromtimestamp(response._expires))
+        self._store[response.url] = response
+
+    @contextmanager
+    def expiry_override(self, seconds=30):
+        logger.debug('Forcing cache expiry to %d seconds from now', seconds)
+        self._force_expiry = time.time() + seconds
+        yield
+        self._force_expiry = None
 
 
 TRACK_FIELDS = ['type', 'uri', 'name', 'duration_ms', 'disc_number', 'track_number', 'artists', 'album']
@@ -270,43 +303,54 @@ class WebSession(object):
 
     def __init__(self, client_id, client_secret, proxy_config):
         # TODO: Separate caches so can persist them differently?
-        self._cache = {}
+        self._cache = WebCache()
         self._client = OAuthClient(
             base_url='https://api.spotify.com/v1',
             refresh_url='https://auth.mopidy.com/spotify/token',
             client_id=client_id, client_secret=client_secret,
             proxy_config=proxy_config)
 
-    def login(self):
+    def login(self, username):
         # TODO: Test auth?
-        # TODO: Load persisted cache data?
-        # TODO: Refresh user playlists?
-        pass
+        self._cache.load()
+        with self._cache.expiry_override():
+            playlists = list(self.get_user_playlists(username))
+            for playlist in playlists:
+               self.get_playlist(playlist.get('uri'))
+            logger.info('Loaded %d playlists', len(playlists))
 
     def _get_pages(self, url, *args, **kwargs):
         while url is not None:
-            logger.debug('Fetching page "%s"', url)
+            logger.debug('Fetching "%s"', url)
             result = self._client.get(url, *args, **kwargs)
             url = result.get('next')
             yield result
 
     def get_playlist(self, uri):
-        logger.info('Fetching playlist "%s"', uri)
-        link = parse_uri(uri)
-        url = 'users/%s/playlists/%s' % (link.owner, link.id)
-        params = {'fields': PLAYLIST_FIELDS, 'market': 'from_token'}
-        web_playlist = self._client.get(url, params=params, cache=self._cache)
-        tracks_url = web_playlist.get('tracks', {}).get('next')
-        for page in self._get_pages(tracks_url, cache=self._cache):
-            web_playlist['tracks']['items'] += page.get('items', [])
-        return web_playlist
+        try:
+            link = parse_uri(uri)
+        except ValueError as exc:
+            logger.info(exc)
+            return {}
 
-    def get_user_playlists(self, username):
-        logger.info('Fetching playlists for user "%s"', username)
-        url = 'users/%s/playlists' % username
-        for page in self._get_pages(url, cache=self._cache):
-            for web_playlist in page.get('items', []):
-                yield web_playlist
+        with utils.time_logger('get_playlist(%s)' % uri, logging.INFO):
+            url = 'users/%s/playlists/%s' % (link.owner, link.id)
+            params = {'fields': PLAYLIST_FIELDS, 'market': 'from_token'}
+            web_playlist = self._client.get(url, params=params, cache=self._cache)
+            tracks_url = web_playlist.get('tracks', {}).get('next')
+            for page in self._get_pages(tracks_url, cache=self._cache):
+                web_playlist['tracks']['items'] += page.get('items', [])
+            return web_playlist
+
+    def get_user_playlists(self, username, include_tracks=True):
+        with utils.time_logger('get_user_playlists(%s, %s)' % (username, include_tracks), logging.INFO):
+            url = 'users/%s/playlists' % username
+            for page in self._get_pages(url, cache=self._cache):
+                for web_playlist in page.get('items', []):
+                    uri = web_playlist.get('uri')
+                    if uri and include_tracks:
+                        web_playlist = self.get_playlist(uri)
+                    yield web_playlist
 
 
 WebLink = collections.namedtuple('WebLink', ['uri', 'type', 'id', 'owner'])
