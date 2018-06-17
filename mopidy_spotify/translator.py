@@ -150,48 +150,6 @@ def to_track_refs(sp_tracks, timeout=None):
             yield ref
 
 
-def to_playlist(
-        sp_playlist, folders=None, username=None, bitrate=None,
-        as_ref=False, as_items=False):
-    if not isinstance(sp_playlist, spotify.Playlist):
-        return
-
-    if not sp_playlist.is_loaded:
-        return
-
-    if as_items:
-        return list(to_track_refs(sp_playlist.tracks))
-
-    name = sp_playlist.name
-
-    if not as_ref:
-        tracks = [
-            to_track(sp_track, bitrate=bitrate)
-            for sp_track in sp_playlist.tracks]
-        tracks = filter(None, tracks)
-        if name is None:
-            # Use same starred order as the Spotify client
-            tracks = list(reversed(tracks))
-
-    if name is None:
-        name = 'Starred'
-    if folders is not None:
-        name = '/'.join(folders + [name])
-    if username is not None and sp_playlist.owner.canonical_name != username:
-        name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
-
-    if as_ref:
-        return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
-    else:
-        return models.Playlist(
-            uri=sp_playlist.link.uri, name=name, tracks=tracks)
-
-
-def to_playlist_ref(sp_playlist, folders=None, username=None):
-    return to_playlist(
-        sp_playlist, folders=folders, username=username, as_ref=True)
-
-
 # Maps from Mopidy search query field to Spotify search query field.
 # `None` if there is no matching concept.
 SEARCH_FIELD_MAP = {
@@ -234,6 +192,35 @@ def _transform_year(date):
             'Cannot parse date "%s"', date)
 
 
+def _web_playlist_name(web_playlist, username=None):
+    name = web_playlist['name']
+    owner_id = web_playlist['owner']['id']
+    owner_name = web_playlist['owner']['display_name']
+
+    if username is not None and owner_id != username:
+        name = '%s (by %s)' % (name, owner_name)
+
+    return name
+
+
+def web_to_playlist_ref(web_playlist, username=None):
+    name = _web_playlist_name(web_playlist, username=username)
+    return models.Ref.playlist(
+        uri=web_playlist['uri'], name=name)
+
+
+def web_to_playlist(web_playlist, username=None):
+    name = _web_playlist_name(web_playlist, username=username)
+    if web_playlist['tracks']['items'] is not None:
+        tracks = [web_to_track(web_track['track'])
+                  for web_track in web_playlist['tracks']['items']]
+    else:
+        tracks = []
+
+    return models.Playlist(
+        uri=web_playlist['uri'], name=name, tracks=tracks)
+
+
 def web_to_artist(web_artist):
     return models.Artist(uri=web_artist['uri'], name=web_artist['name'])
 
@@ -246,6 +233,12 @@ def web_to_album(web_album):
         uri=web_album['uri'],
         name=web_album['name'],
         artists=artists)
+
+
+def web_to_track_ref(web_track):
+    return models.Ref.track(
+        uri=web_track['uri'],
+        name=web_track['name'])
 
 
 def web_to_track(web_track):
