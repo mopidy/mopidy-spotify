@@ -60,6 +60,9 @@ class OAuthClient(object):
             logger.debug('Blocking request as previous authorization failed.')
             return {}
 
+        # Pop this first as we don't want to cache the refresh token.
+        cache = kwargs.pop('cache', None)
+
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
         try:
@@ -71,20 +74,19 @@ class OAuthClient(object):
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault('headers', {}).update(self._headers)
-        result = self._request_with_retries('GET', path, *args, **kwargs)
+        result = self._request_with_retries('GET', path, cache, *args, **kwargs)
 
         if result is None or 'error' in result:
             return {}
 
-        if isinstance(result, WebResponse):
-            cache = kwargs.pop('cache', None)
-            if cache is not None and self._should_cache_response(result):
-                cache.store(result)
+        if self._should_cache_response(cache, result):
+            cache[result.url] = result
 
         return result
 
-    def _should_cache_response(self, response):
-        return response.status_code >= 200 and response.status_code < 400
+    def _should_cache_response(self, cache, response):
+        if cache is not None:
+            return response.status_code >= 200 and response.status_code < 400
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
@@ -116,15 +118,12 @@ class OAuthClient(object):
         if result.get('scope'):
             logger.debug('Token scopes: %s', result['scope'])
 
-    def _request_with_retries(self, method, url, *args, **kwargs):
-        cache = kwargs.pop('cache', None)
-
+    def _request_with_retries(self, method, url, cache=None, *args, **kwargs):
         prepared_request = self._session.prepare_request(
             requests.Request(method, self._prepare_url(url, *args), **kwargs))
 
         if cache is not None:
             result = cache.get(prepared_request.url)
-            logger.debug('Cache lookup "%s" found %d', prepared_request.url, len(result or []))
             if result is not None and not result.expired():
                 logger.debug("Using cached data for %s", prepared_request.url)
                 return result
@@ -157,7 +156,7 @@ class OAuthClient(object):
                 backoff_time = self._parse_retry_after(response)
                 expires = self._parse_cache_control(response)
                 data = self._decode(response)
-                result = WebResponse(data, url=prepared_request.url, expires=expires, status_code=status_code)
+                result = WebResponse(prepared_request.url, data, expires, status_code)
 
             if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
@@ -252,46 +251,48 @@ class OAuthClient(object):
 
 
 class WebResponse(dict):
-    def __init__(self, *args, **kwargs):
-        self.url = kwargs.pop('url', None)
-        self._expires = kwargs.pop('expires', None)
-        self.status_code = kwargs.pop('status_code', None)
-        self._from_cache = False
-        dict.__init__(self, *args, **kwargs)
+
+    def __init__(self, url, data, expires=0.0, status_code=400):
+        self.url = url
+        self._expires = expires
+        self.status_code = status_code
+        self._is_cached = False
+        super(WebResponse, self).__init__(data)
 
     def expired(self):
         return self._expires <= time.time()
 
 
-class WebCache(object):
+class WebResponseCache(dict):
 
     def __init__(self, *args, **kwargs):
-        self._store = {}
+        super(WebResponseCache, self).__init__(*args, **kwargs)
         self._force_expiry = None
 
     def load(self):
         # TODO: Load persisted cache data
         pass
 
-    def get(self, url):
-        return self._store.get(url)
-
-    def store(self, response):
-        if not response._expires or response._from_cache:
+    def __setitem__(self, url, response):
+        if not isinstance(response, WebResponse):
             return
 
-        response._from_cache = True
+        if response._is_cached:
+            return
+
+        response._is_cached = True
         if self._force_expiry is not None:
             response._expires = self._force_expiry
-        logger.debug('Caching %s until %s', response.url, datetime.fromtimestamp(response._expires))
-        self._store[response.url] = response
+        logger.debug('Caching %s until %s', url, datetime.fromtimestamp(response._expires))
+        super(WebResponseCache, self).__setitem__(url, response)
 
     @contextmanager
     def expiry_override(self, seconds=30):
         logger.debug('Forcing cache expiry to %d seconds from now', seconds)
+        old_expiry = self._force_expiry
         self._force_expiry = time.time() + seconds
         yield
-        self._force_expiry = None
+        self._force_expiry = old_expiry
 
 
 TRACK_FIELDS = ['type', 'uri', 'name', 'duration_ms', 'disc_number', 'track_number', 'artists', 'album']
@@ -303,7 +304,7 @@ class WebSession(object):
 
     def __init__(self, client_id, client_secret, proxy_config):
         # TODO: Separate caches so can persist them differently?
-        self._cache = WebCache()
+        self._cache = WebResponseCache()
         self._client = OAuthClient(
             base_url='https://api.spotify.com/v1',
             refresh_url='https://auth.mopidy.com/spotify/token',
@@ -313,7 +314,7 @@ class WebSession(object):
     def login(self, username):
         # TODO: Test auth?
         self._cache.load()
-        with self._cache.expiry_override():
+        with self._cache.expiry_override(60):
             playlists = list(self.get_user_playlists(username))
             for playlist in playlists:
                self.get_playlist(playlist.get('uri'))
@@ -384,3 +385,4 @@ def parse_uri(uri):
         return WebLink(uri, 'playlist',  parts[3], parts[1])
 
     raise ValueError('Could not parse %r as a Spotify URI' % uri)
+
