@@ -272,6 +272,9 @@ def web_to_track(web_track, bitrate=None):
         return
 
     # TODO: Check availability
+    if not web_track.get('is_playable'):
+        logger.warning('%s (%s) is not playable', web_track.get('name'), web_track.get('uri'))
+        return
 
     artists = [
         web_to_artist(web_artist) for web_artist in web_track.get('artists', [])]

@@ -295,9 +295,9 @@ class WebResponseCache(dict):
         self._force_expiry = old_expiry
 
 
-TRACK_FIELDS = ['type', 'uri', 'name', 'duration_ms', 'disc_number', 'track_number', 'artists', 'album']
-PLAYLIST_TRACK_FIELDS = 'tracks(next,items(track(' + ','.join(TRACK_FIELDS) + ')))'
-PLAYLIST_FIELDS = ','.join(['name', 'owner.id', 'type', 'uri', PLAYLIST_TRACK_FIELDS])
+TRACK_FIELDS = ['type', 'uri', 'name', 'duration_ms', 'disc_number', 'track_number', 'artists', 'album', 'is_playable']
+TRACKS_PAGE = ','.join(['next', 'items(track(' + ','.join(TRACK_FIELDS) + '))'])
+PLAYLIST_FIELDS = ','.join(['name', 'owner.id', 'type', 'uri', 'tracks(%s)' % TRACKS_PAGE])
 
 
 class WebSession(object):
@@ -339,7 +339,10 @@ class WebSession(object):
             params = {'fields': PLAYLIST_FIELDS, 'market': 'from_token'}
             web_playlist = self._client.get(url, params=params, cache=self._cache)
             tracks_url = web_playlist.get('tracks', {}).get('next')
-            for page in self._get_pages(tracks_url, cache=self._cache):
+            # Unhelpfully the Spotify API doesn't include our fields value in the *first* paging link.
+            # TODO: OAuthClient should prevent duplicate parameters. Currently can end up with these params multiple times.
+            params['fields'] = TRACKS_PAGE
+            for page in self._get_pages(tracks_url, params=params, cache=self._cache):
                 web_playlist['tracks']['items'] += page.get('items', [])
             return web_playlist
 
