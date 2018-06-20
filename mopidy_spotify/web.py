@@ -295,7 +295,7 @@ class WebResponseCache(dict):
         self._force_expiry = old_expiry
 
 
-TRACK_FIELDS = ['type', 'uri', 'name', 'duration_ms', 'disc_number', 'track_number', 'artists', 'album', 'is_playable']
+TRACK_FIELDS = ['type', 'uri', 'name', 'duration_ms', 'disc_number', 'track_number', 'artists', 'album', 'is_playable', 'linked_from.uri']
 TRACKS_PAGE = ','.join(['next', 'items(track(' + ','.join(TRACK_FIELDS) + '))'])
 PLAYLIST_FIELDS = ','.join(['name', 'owner.id', 'type', 'uri', 'tracks(%s)' % TRACKS_PAGE])
 

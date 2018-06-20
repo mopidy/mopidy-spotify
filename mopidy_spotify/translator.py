@@ -154,10 +154,16 @@ def web_to_track_ref(web_track):
     if web_track.get('type') != 'track':
         return
 
-    # TODO: Check availability
+    if not web_track.get('is_playable'):
+        logger.warning('%s (%s) is not playable', web_track.get('name'), web_track.get('uri'))
+        return
     
+    # Web API track relinking guide says to use original URI.
+    # libspotfy will handle any relinking when track is loaded for playback.
+    uri = web_track.get('linked_from', {}).get('uri') or web_track.get('uri')
+
     return models.Ref.track(
-        uri=web_track.get('uri'), name=web_track.get('name'))
+        uri=uri, name=web_track.get('name'))
 
 
 def web_to_track_refs(web_tracks):
@@ -268,12 +274,8 @@ def web_to_album(web_album):
 
 
 def web_to_track(web_track, bitrate=None):
-    if web_track.get('type') != 'track':
-        return
-
-    # TODO: Check availability
-    if not web_track.get('is_playable'):
-        logger.warning('%s (%s) is not playable', web_track.get('name'), web_track.get('uri'))
+    ref = web_to_track_ref(web_track)
+    if ref is None:
         return
 
     artists = [
@@ -287,7 +289,7 @@ def web_to_track(web_track, bitrate=None):
     album = web_to_album(web_track['album'])
 
     return models.Track(
-        uri=web_track.get('uri'),
+        uri=ref.uri,
         name=web_track.get('name'),
         artists=artists,
         album=album,
