@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import collections
+import copy
 import email
 import logging
 import os
@@ -338,12 +339,19 @@ class WebSession(object):
             url = 'users/%s/playlists/%s' % (link.owner, link.id)
             params = {'fields': PLAYLIST_FIELDS, 'market': 'from_token'}
             web_playlist = self._client.get(url, params=params, cache=self._cache)
+
+            more_tracks = []
             tracks_url = web_playlist.get('tracks', {}).get('next')
-            # Unhelpfully the Spotify API doesn't include our fields value in the *first* paging link.
-            # TODO: OAuthClient should prevent duplicate parameters. Currently can end up with these params multiple times.
+            # Spotify's response omits our fields in this *first* paging link.
             params['fields'] = TRACKS_PAGE
-            for page in self._get_pages(tracks_url, params=params, cache=self._cache):
-                web_playlist['tracks']['items'] += page.get('items', [])
+            for tracks_page in self._get_pages(tracks_url, params=params, cache=self._cache):
+                more_tracks += tracks_page.get('items', [])
+
+            if len(more_tracks) > 0:
+                # Copy result data to avoid changing what's in the cache.
+                web_playlist = copy.deepcopy(web_playlist)
+                web_playlist['tracks']['items'] += more_tracks
+
             return web_playlist
 
     def get_user_playlists(self, username, include_tracks=True):
