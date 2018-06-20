@@ -122,6 +122,7 @@ class OAuthClient(object):
     def _request_with_retries(self, method, url, cache=None, *args, **kwargs):
         prepared_request = self._session.prepare_request(
             requests.Request(method, self._prepare_url(url, *args), **kwargs))
+        prepared_request.url = self._normalise_url(prepared_request.url)
 
         if cache is not None:
             result = cache.get(prepared_request.url)
@@ -205,6 +206,15 @@ class OAuthClient(object):
             query.append((key, value))
 
         encoded_query = urllib.urlencode(dict(query))
+        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
+
+    def _normalise_url(self, url):
+        u = urlparse.urlsplit(url)
+        scheme, netloc, path = u.scheme, u.netloc, u.path
+
+        query = urlparse.parse_qsl(u.query, keep_blank_values=True)
+        sorted_unique_query = sorted(dict(query).items())
+        encoded_query = urllib.urlencode(sorted_unique_query)
         return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
     def _decode(self, response):
