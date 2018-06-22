@@ -18,6 +18,7 @@ import requests
 from mopidy_spotify import utils
 
 logger = logging.getLogger(__name__)
+# TODO: Move some of the cache logging to TRACE level
 
 
 class OAuthTokenRefreshError(Exception):
@@ -56,13 +57,20 @@ class OAuthClient(object):
         self._headers = {'Content-Type': 'application/json'}
         self._session = utils.get_requests_session(proxy_config or {})
 
-    def get(self, path, *args, **kwargs):
+    def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
             logger.debug('Blocking request as previous authorization failed.')
             return {}
 
-        # Pop this first as we don't want to cache the refresh token.
-        cache = kwargs.pop('cache', None)
+        params = kwargs.pop('params', None)
+        path = self._normalise_query_string(path, params)
+
+        if cache is not None:
+            result = cache.get(path)
+            if result and result.is_valid:
+                logger.debug('Cache valid for %s', path)
+                return result
+            # TODO: set ETag in kwargs
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
@@ -75,13 +83,13 @@ class OAuthClient(object):
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault('headers', {}).update(self._headers)
-        result = self._request_with_retries('GET', path, cache, *args, **kwargs)
+        result = self._request_with_retries('GET', path, *args, **kwargs)
 
         if result is None or 'error' in result:
             return {}
 
         if self._should_cache_response(cache, result):
-            cache[result.url] = result
+            cache[path] = result
 
         return result
 
@@ -119,16 +127,9 @@ class OAuthClient(object):
         if result.get('scope'):
             logger.debug('Token scopes: %s', result['scope'])
 
-    def _request_with_retries(self, method, url, cache=None, *args, **kwargs):
+    def _request_with_retries(self, method, url, *args, **kwargs):
         prepared_request = self._session.prepare_request(
             requests.Request(method, self._prepare_url(url, *args), **kwargs))
-        prepared_request.url = self._normalise_url(prepared_request.url)
-
-        if cache is not None:
-            result = cache.get(prepared_request.url)
-            if result is not None and not result.expired():
-                logger.debug("Using cached data for %s", prepared_request.url)
-                return result
 
         try_until = time.time() + self._timeout
 
@@ -208,12 +209,14 @@ class OAuthClient(object):
         encoded_query = urllib.urlencode(dict(query))
         return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
-    def _normalise_url(self, url):
+    def _normalise_query_string(self, url, params=None):
         u = urlparse.urlsplit(url)
         scheme, netloc, path = u.scheme, u.netloc, u.path
 
-        query = urlparse.parse_qsl(u.query, keep_blank_values=True)
-        sorted_unique_query = sorted(dict(query).items())
+        query = dict(urlparse.parse_qsl(u.query, keep_blank_values=True))
+        if isinstance(params, dict):
+            query.update(params)
+        sorted_unique_query = sorted(query.items())
         encoded_query = urllib.urlencode(sorted_unique_query)
         return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
@@ -257,7 +260,7 @@ class OAuthClient(object):
                 seconds = 0
             else:
                 seconds = int(max_age.groups()[0])
-        logger.debug("Expires in %d seconds (%s)", seconds, value)
+        logger.debug("%s response expires in %d seconds (%s)", response.request.url, seconds, value)
         return time.time() + seconds
 
 
@@ -270,8 +273,9 @@ class WebResponse(dict):
         self._is_cached = False
         super(WebResponse, self).__init__(data)
 
-    def expired(self):
-        return self._expires <= time.time()
+    @property
+    def is_valid(self):
+        return self._expires > time.time()
 
 
 class WebResponseCache(dict):
@@ -331,10 +335,10 @@ class WebSession(object):
                self.get_playlist(playlist.get('uri'))
             logger.info('Loaded %d playlists', len(playlists))
 
-    def _get_pages(self, url, *args, **kwargs):
+    def _get_pages(self, url, cache, *args, **kwargs):
         while url is not None:
             logger.debug('Fetching "%s"', url)
-            result = self._client.get(url, *args, **kwargs)
+            result = self._client.get(url, cache, *args, **kwargs)
             url = result.get('next')
             yield result
 
@@ -348,13 +352,13 @@ class WebSession(object):
         with utils.time_logger('get_playlist(%s)' % uri, logging.INFO):
             url = 'users/%s/playlists/%s' % (link.owner, link.id)
             params = {'fields': PLAYLIST_FIELDS, 'market': 'from_token'}
-            web_playlist = self._client.get(url, params=params, cache=self._cache)
+            web_playlist = self._client.get(url, self._cache, params=params)
 
             more_tracks = []
             tracks_url = web_playlist.get('tracks', {}).get('next')
             # Spotify's response omits our fields in this *first* paging link.
             params['fields'] = TRACKS_PAGE
-            for tracks_page in self._get_pages(tracks_url, params=params, cache=self._cache):
+            for tracks_page in self._get_pages(tracks_url, self._cache, params=params):
                 more_tracks += tracks_page.get('items', [])
 
             if len(more_tracks) > 0:
@@ -367,7 +371,7 @@ class WebSession(object):
     def get_user_playlists(self, username, include_tracks=True):
         with utils.time_logger('get_user_playlists(%s, %s)' % (username, include_tracks), logging.INFO):
             url = 'users/%s/playlists' % username
-            for page in self._get_pages(url, cache=self._cache):
+            for page in self._get_pages(url, self._cache):
                 for web_playlist in page.get('items', []):
                     uri = web_playlist.get('uri')
                     if uri and include_tracks:
