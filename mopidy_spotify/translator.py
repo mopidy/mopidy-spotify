@@ -16,17 +16,28 @@ class memoized(object):
         self.func = func
         self.cache = {}
 
-    def __call__(self, *args, **kwargs):
+    def _get_key(self, args, kwargs):
         # NOTE Only args, not kwargs, are part of the memoization key.
-        if not isinstance(args, collections.Hashable):
+        return args
+
+    def __call__(self, *args, **kwargs):
+        key = self._get_key(args, kwargs)
+        if key is None or not isinstance(key, collections.Hashable):
             return self.func(*args, **kwargs)
-        if args in self.cache:
-            return self.cache[args]
+        if key in self.cache:
+            return self.cache[key]
         else:
             value = self.func(*args, **kwargs)
             if value is not None:
-                self.cache[args] = value
+                self.cache[key] = value
             return value
+
+
+class web_memoized(memoized):
+    def _get_key(self, args, kwargs):
+        if len(args) > 0:
+            data = args[0]
+            return '%s.%s' % (data.get('uri'), data.get('name'))
 
 
 @memoized
@@ -150,6 +161,7 @@ def to_track_refs(sp_tracks, timeout=None):
             yield ref
 
 
+@web_memoized
 def web_to_track_ref(web_track):
     if web_track.get('type') != 'track':
         return
@@ -213,6 +225,7 @@ def to_playlist(
             uri=web_playlist.get('uri'), name=name, tracks=tracks)
 
 
+@web_memoized
 def to_playlist_ref(web_playlist, username=None):
     return to_playlist(web_playlist, username=username, as_ref=True)
 
@@ -259,10 +272,12 @@ def _transform_year(date):
             'Cannot parse date "%s"', date)
 
 
+@web_memoized
 def web_to_artist(web_artist):
     return models.Artist(uri=web_artist['uri'], name=web_artist['name'])
 
 
+@web_memoized
 def web_to_album(web_album):
     artists = [
         web_to_artist(web_artist) for web_artist in web_album['artists']]
@@ -273,6 +288,7 @@ def web_to_album(web_album):
         artists=artists)
 
 
+@web_memoized
 def web_to_track(web_track, bitrate=None):
     ref = web_to_track_ref(web_track)
     if ref is None:
