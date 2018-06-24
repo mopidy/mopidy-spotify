@@ -16,9 +16,24 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def __init__(self, backend):
         self._backend = backend
         self._timeout = self._backend._config['spotify']['timeout']
+        self._as_list_cache = []
+        self._lookup_cache = {}
+        self._get_items_cache = {}
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
+            return self._as_list()
+
+    def get_items(self, uri):
+        with utils.time_logger('playlist.get_items(%s)' % uri):
+            return self._get_items(uri)
+
+    def lookup(self, uri):
+        with utils.time_logger('playlists.lookup(%s)' % uri):
+            return self._lookup(uri)
+
+    def _as_list(self):
+        if not self._as_list_cache:
             username = self._backend._session.user_name
             web_playlists = self._backend._web_client.get(
                 'users/' + username + '/playlists', params={})
@@ -26,12 +41,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             if not web_playlists:
                 return []
 
-            return [
+            self._as_list_cache = [
                 translator.web_to_playlist_ref(web_playlist, username=username)
                 for web_playlist in web_playlists['items']]
 
-    def get_items(self, uri):
-        with utils.time_logger('playlist.get_items(%s)' % uri):
+        return self._as_list_cache
+
+    def _get_items(self, uri):
+        if uri not in self._get_items_cache:
             web_tracks = self._backend._web_client.get(
                 'users/' + self._user_from_uri(uri) + '/playlists/'
                 + self._playlist_from_uri(uri) + '/tracks', params={})
@@ -39,11 +56,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             if not web_tracks:
                 return None
 
-            return [translator.web_to_track_ref(web_track)
-                    for web_track in web_tracks['items']]
+            self._get_items_cache[uri] = [
+                translator.web_to_track_ref(web_track)
+                for web_track in web_tracks['items']]
 
-    def lookup(self, uri):
-        with utils.time_logger('playlists.lookup(%s)' % uri):
+        return self._get_items_cache[uri]
+
+    def _lookup(self, uri):
+        if uri not in self._lookup_cache:
             username = self._backend._session.user_name
             web_playlist = self._backend._web_client.get(
                 'users/' + self._user_from_uri(uri) + '/playlists/'
@@ -52,10 +72,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             if not web_playlist:
                 return None
 
-            return translator.web_to_playlist(web_playlist, username=username)
+            self._lookup_cache[uri] = translator.web_to_playlist(
+                web_playlist, username=username)
+
+        return self._lookup_cache[uri]
 
     def refresh(self):
-        pass  # Not needed as long as we don't cache anything.
+        self._as_list_cache = []
+        self._lookup_cache = {}
+        self._get_items_cache = {}
 
     def create(self, name):
         pass  # TODO
