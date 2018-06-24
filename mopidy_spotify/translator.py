@@ -209,11 +209,10 @@ def web_to_playlist_ref(web_playlist, username=None):
         uri=web_playlist['uri'], name=name)
 
 
-def web_to_playlist(web_playlist, username=None):
+def web_to_playlist(web_playlist, web_tracks=None, username=None):
     name = _web_playlist_name(web_playlist, username=username)
-    if web_playlist['tracks']['items'] is not None:
-        tracks = [web_to_track(web_track['track'])
-                  for web_track in web_playlist['tracks']['items']]
+    if web_tracks:
+        tracks = [web_to_track(web_track["track"]) for web_track in web_tracks]
     else:
         tracks = []
 
