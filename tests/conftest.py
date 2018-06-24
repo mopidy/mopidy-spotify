@@ -274,6 +274,48 @@ def sp_playlist_container_mock():
 
 
 @pytest.fixture
+def web_user_mock():
+    return {
+        "id": "alice",
+        "display_name": "Alice"
+    }
+
+
+@pytest.fixture
+def web_tracks_mock(web_track_mock):
+    return {
+        "items": [
+            web_track_mock
+        ]
+    }
+
+
+@pytest.fixture
+def web_playlist_mock(web_user_mock, web_track_mock):
+    return {
+        "name": "Foo",
+        "owner": web_user_mock,
+        "tracks": {
+            "items": [
+                {"track": web_track_mock}
+            ]
+        },
+        "type": "playlist",
+        "uri": "spotify:user:alice:playlist:foo"
+    }
+
+
+@pytest.fixture
+def web_playlists_mock(web_playlist_mock):
+    return {
+        'items': [
+            web_playlist_mock,
+            web_playlist_mock,
+        ]
+    }
+
+
+@pytest.fixture
 def web_search_mock(
         web_album_mock, web_artist_mock, web_track_mock):
     return {
