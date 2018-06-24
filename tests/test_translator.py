@@ -1,7 +1,5 @@
 from __future__ import unicode_literals
 
-import mock
-
 from mopidy import models
 
 import spotify
@@ -246,119 +244,6 @@ class TestToTrackRef(object):
         assert ref1 is ref2
 
 
-class TestToPlaylist(object):
-
-    def test_returns_none_if_unloaded(self):
-        sp_playlist = mock.Mock(spec=spotify.Playlist)
-        sp_playlist.is_loaded = False
-
-        playlist = translator.to_playlist(sp_playlist)
-
-        assert playlist is None
-
-    def test_returns_none_if_playlist_folder(self):
-        sp_playlist_folder = mock.Mock(spec=spotify.PlaylistFolder)
-
-        playlist = translator.to_playlist(sp_playlist_folder)
-
-        assert playlist is None
-
-    def test_successful_translation(self, sp_track_mock, sp_playlist_mock):
-        track = translator.to_track(sp_track_mock)
-        playlist = translator.to_playlist(sp_playlist_mock)
-
-        assert playlist.uri == 'spotify:user:alice:playlist:foo'
-        assert playlist.name == 'Foo'
-        assert playlist.length == 1
-        assert track in playlist.tracks
-        assert playlist.last_modified is None
-
-    def test_as_items(self, sp_track_mock, sp_playlist_mock):
-        track_ref = translator.to_track_ref(sp_track_mock)
-        items = translator.to_playlist(sp_playlist_mock, as_items=True)
-
-        assert track_ref in items
-
-    def test_adds_name_for_starred_playlists(self, sp_starred_mock):
-        playlist = translator.to_playlist(sp_starred_mock)
-
-        assert playlist.name == 'Starred'
-
-    def test_reorders_starred_playlists(self, sp_starred_mock):
-        playlist = translator.to_playlist(sp_starred_mock)
-
-        assert len(playlist.tracks) == 2
-        assert playlist.tracks[0].name == 'Newest'
-        assert playlist.tracks[1].name == 'Oldest'
-
-    def test_includes_by_owner_in_name_if_owned_by_another_user(
-            self, sp_playlist_mock, sp_user_mock):
-        sp_user_mock.canonical_name = 'bob'
-        sp_playlist_mock.user = sp_user_mock
-
-        playlist = translator.to_playlist(sp_playlist_mock, username='alice')
-
-        assert playlist.name == 'Foo (by bob)'
-
-    def test_includes_folders_in_name(self, sp_playlist_mock):
-        playlist = translator.to_playlist(
-            sp_playlist_mock, folders=['Bar', 'Baz'])
-
-        assert playlist.name == 'Bar/Baz/Foo'
-
-    def test_filters_out_none_tracks(self, sp_track_mock, sp_playlist_mock):
-        sp_track_mock.is_loaded = False
-
-        playlist = translator.to_playlist(sp_playlist_mock)
-
-        assert playlist.length == 0
-        assert list(playlist.tracks) == []
-
-
-class TestToPlaylistRef(object):
-
-    def test_returns_none_if_unloaded(self):
-        sp_playlist = mock.Mock(spec=spotify.Playlist)
-        sp_playlist.is_loaded = False
-
-        ref = translator.to_playlist_ref(sp_playlist)
-
-        assert ref is None
-
-    def test_returns_none_if_playlist_folder(self):
-        sp_playlist_folder = mock.Mock(spec=spotify.PlaylistFolder)
-
-        ref = translator.to_playlist_ref(sp_playlist_folder)
-
-        assert ref is None
-
-    def test_successful_translation(self, sp_track_mock, sp_playlist_mock):
-        ref = translator.to_playlist_ref(sp_playlist_mock)
-
-        assert ref.uri == 'spotify:user:alice:playlist:foo'
-        assert ref.name == 'Foo'
-
-    def test_adds_name_for_starred_playlists(self, sp_starred_mock):
-        ref = translator.to_playlist_ref(sp_starred_mock)
-
-        assert ref.name == 'Starred'
-
-    def test_includes_by_owner_in_name_if_owned_by_another_user(
-            self, sp_playlist_mock, sp_user_mock):
-        sp_user_mock.canonical_name = 'bob'
-        sp_playlist_mock.user = sp_user_mock
-
-        ref = translator.to_playlist_ref(sp_playlist_mock, username='alice')
-
-        assert ref.name == 'Foo (by bob)'
-
-    def test_includes_folders_in_name(self, sp_playlist_mock):
-        ref = translator.to_playlist_ref(
-            sp_playlist_mock, folders=['Bar', 'Baz'])
-
-        assert ref.name == 'Bar/Baz/Foo'
-
-
 class TestSpotifySearchQuery(object):
 
     def test_any_maps_to_no_field(self):
@@ -468,3 +353,33 @@ class TestWebToTrack(object):
         assert track.track_no == 7
         assert track.disc_no == 1
         assert track.length == 174300
+
+
+class TestWebToPlaylistRef(object):
+    def test_successful_translation(
+            self, web_playlist_mock):
+        playlist = translator.web_to_playlist_ref(web_playlist_mock)
+
+        assert playlist.uri == 'spotify:user:alice:playlist:foo'
+        assert playlist.name == 'Foo'
+
+
+class TestWebToPlaylist(object):
+    def test_successful_translation_with_tracks(
+            self, web_playlist_mock, web_track_mock):
+        playlist = translator.web_to_playlist(
+            web_playlist_mock, web_tracks=[{"track": web_track_mock}])
+
+        assert playlist.uri == 'spotify:user:alice:playlist:foo'
+        assert playlist.name == 'Foo'
+        assert len(playlist.tracks) == 1
+        assert playlist.tracks[0].name == 'ABC 123'
+        assert playlist.tracks[0].uri == 'spotify:track:abc'
+
+    def test_successful_translation_without_tracks(
+            self, web_playlist_mock):
+        playlist = translator.web_to_playlist(web_playlist_mock)
+
+        assert playlist.uri == 'spotify:user:alice:playlist:foo'
+        assert playlist.name == 'Foo'
+        assert len(playlist.tracks) == 0
