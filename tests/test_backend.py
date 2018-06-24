@@ -17,7 +17,6 @@ def get_backend(config, session_mock=None):
         obj._session = session_mock
     else:
         obj._session = mock.Mock()
-        obj._session.playlist_container = None
     obj._event_loop = mock.Mock()
     return obj
 
@@ -262,58 +261,6 @@ def test_on_logged_in_event_activates_private_session(
 
     assert 'Spotify private session activated' in caplog.text()
     private_session_mock.assert_called_once_with(True)
-
-
-def test_on_logged_in_event_adds_playlist_container_loaded_handler(
-        spotify_mock, config):
-    session_mock = spotify_mock.Session.return_value
-    backend = get_backend(config, session_mock)
-
-    backend.on_logged_in()
-
-    assert (mock.call(
-        spotify_mock.PlaylistContainerEvent.CONTAINER_LOADED,
-        playlists.on_container_loaded)
-        in session_mock.playlist_container.on.call_args_list)
-
-
-def test_on_logged_in_event_adds_playlist_added_handler(
-        spotify_mock, config):
-    session_mock = spotify_mock.Session.return_value
-    backend = get_backend(config, session_mock)
-
-    backend.on_logged_in()
-
-    assert (mock.call(
-        spotify_mock.PlaylistContainerEvent.PLAYLIST_ADDED,
-        playlists.on_playlist_added)
-        in session_mock.playlist_container.on.call_args_list)
-
-
-def test_on_logged_in_event_adds_playlist_removed_handler(
-        spotify_mock, config):
-    session_mock = spotify_mock.Session.return_value
-    backend = get_backend(config, session_mock)
-
-    backend.on_logged_in()
-
-    assert (mock.call(
-        spotify_mock.PlaylistContainerEvent.PLAYLIST_REMOVED,
-        playlists.on_playlist_removed)
-        in session_mock.playlist_container.on.call_args_list)
-
-
-def test_on_logged_in_event_adds_playlist_moved_handler(
-        spotify_mock, config):
-    session_mock = spotify_mock.Session.return_value
-    backend = get_backend(config, session_mock)
-
-    backend.on_logged_in()
-
-    assert (mock.call(
-        spotify_mock.PlaylistContainerEvent.PLAYLIST_MOVED,
-        playlists.on_playlist_moved)
-        in session_mock.playlist_container.on.call_args_list)
 
 
 def test_on_play_token_lost_messages_the_actor(spotify_mock, caplog):
