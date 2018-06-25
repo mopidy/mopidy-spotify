@@ -49,7 +49,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 bitrate=self._backend._bitrate, as_items=as_items)
 
         if playlist is None:
-            logger.error('Failed to lookup Spotify URI %s: %s', uri, exc)
+            logger.error('Failed to lookup Spotify URI %s', uri)
             return
 
         return playlist

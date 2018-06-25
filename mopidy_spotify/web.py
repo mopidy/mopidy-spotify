@@ -65,12 +65,15 @@ class OAuthClient(object):
         params = kwargs.pop('params', None)
         path = self._normalise_query_string(path, params)
 
+        cached_result = None
         if cache is not None:
-            result = cache.get(path)
-            if result and result.is_valid:
-                logger.debug('Cache valid for %s', path)
-                return result
-            # TODO: set ETag in kwargs
+            cached_result = cache.get(path)
+            if cached_result:
+                if cached_result.is_valid:
+                    logger.debug('Cache valid for %s', path)
+                    return cached_result
+                elif cached_result.etag:
+                    kwargs.setdefault('headers', {}).update({'If-None-Match': cached_result.etag})
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
@@ -89,7 +92,10 @@ class OAuthClient(object):
             return {}
 
         if self._should_cache_response(cache, result):
-            cache[path] = result
+            if cached_result and cached_result.still_valid(result):
+                return cached_result
+            else:
+                cache[path] = result
 
         return result
 
@@ -158,8 +164,9 @@ class OAuthClient(object):
                 status_code = response.status_code
                 backoff_time = self._parse_retry_after(response)
                 expires = self._parse_cache_control(response)
+                etag = self._parse_etag(response)
                 data = self._decode(response)
-                result = WebResponse(prepared_request.url, data, expires, status_code)
+                result = WebResponse(prepared_request.url, data, expires, etag, status_code)
 
             if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
@@ -260,22 +267,43 @@ class OAuthClient(object):
                 seconds = 0
             else:
                 seconds = int(max_age.groups()[0])
-        logger.debug("%s response expires in %d seconds (%s)", response.request.url, seconds, value)
         return time.time() + seconds
+
+    def _parse_etag(self, response):
+        """Parse ETag header from response if it is set."""
+        value = response.headers.get('ETag')
+
+        if value:
+            # 'W/' (case-sensitive) indicates that a weak validator is used,
+            # currently ignoring this.
+            # Format is string of ASCII characters placed between double quotes
+            # but can seemingly also include hyphen characters.
+            etag = re.match(r'^(W/)?("[\w-]+")$', value)
+            if etag and len(etag.groups()) == 2:
+                return etag.groups()[1]
 
 
 class WebResponse(dict):
 
-    def __init__(self, url, data, expires=0.0, status_code=400):
+    def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
         self.url = url
         self._expires = expires
+        self.etag = etag
         self.status_code = status_code
         self._is_cached = False
-        super(WebResponse, self).__init__(data)
+        logger.debug("Response %s with tag %s expires at %s",
+                     url, etag, datetime.fromtimestamp(expires))
+        super(WebResponse, self).__init__(data or {})
 
     @property
     def is_valid(self):
         return self._expires > time.time()
+
+    def still_valid(self, response):
+        if response.status_code == 304:
+            self._expires = response._expires
+            self.etag = response.etag
+            return True
 
 
 class WebResponseCache(dict):
