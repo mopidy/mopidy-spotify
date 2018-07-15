@@ -4,7 +4,7 @@ import logging
 
 import spotify
 
-from mopidy_spotify import translator, utils, web
+from mopidy_spotify import playlists, translator, utils, web
 
 
 logger = logging.getLogger(__name__)
@@ -30,10 +30,8 @@ def lookup(config, session, web_session, uri):
         elif sp_link.type is spotify.LinkType.ARTIST:
             with utils.time_logger('Artist lookup'):
                 return list(_lookup_artist(config, sp_link))
-        elif web_link.type == 'playlist':
-            return list(_lookup_playlist(web_session, config, uri))
-        elif web_link.type == 'starred':
-            return list(reversed(list(_lookup_playlist(web_session, config, uri))))
+        elif web_link.type is web.LINK_TYPE_PLAYLIST:
+            return _lookup_playlist(session, web_session, config, uri)
         else:
             logger.info(
                 'Failed to lookup "%s": Cannot handle %r',
@@ -91,10 +89,9 @@ def _lookup_artist(config, sp_link):
                 yield track
 
 
-def _lookup_playlist(web_session, config, uri):
-    web_playlist = web_session.get_playlist(uri)
-    web_tracks = web_playlist.get('tracks', {}).get('items', [])
-    for web_track in web_tracks:
-        track = translator.web_to_track(web_track, bitrate=config['bitrate'])
-        if track is not None:
-            yield track
+def lookup_playlist(session, web_session, config, uri):
+    playlist = playlists.playlist_lookup(
+            session, web_session, uri, config['bitrate'])
+    if playlist is None:
+        raise spotify.Error('Playlist Web API lookup failed')
+    return playlist.tracks

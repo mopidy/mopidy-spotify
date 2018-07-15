@@ -409,6 +409,7 @@ class WebSession(object):
 
 WebLink = collections.namedtuple('WebLink', ['uri', 'type', 'id', 'owner'])
 
+LINK_TYPE_PLAYLIST = 'playlist'
 
 # TODO: Make a WebSession class method?
 def parse_uri(uri):
@@ -431,11 +432,11 @@ def parse_uri(uri):
         return WebLink(uri, parts[0],  parts[1], None)
     elif len(parts) == 3 and parts[0] == 'user' and parts[2] == 'starred':
         if parsed_uri.scheme == 'spotify':
-            return WebLink(uri, 'starred',  None, parts[1])
+            return WebLink(uri, LINK_TYPE_PLAYLIST,  None, parts[1])
     elif len(parts) == 3 and parts[0] == 'playlist':
-        return WebLink(uri, 'playlist',  parts[2], parts[1])
+        return WebLink(uri, LINK_TYPE_PLAYLIST,  parts[2], parts[1])
     elif len(parts) == 4 and parts[0] == 'user' and parts[2] == 'playlist':
-        return WebLink(uri, 'playlist',  parts[3], parts[1])
+        return WebLink(uri, LINK_TYPE_PLAYLIST,  parts[3], parts[1])
 
     raise ValueError('Could not parse %r as a Spotify URI' % uri)
 

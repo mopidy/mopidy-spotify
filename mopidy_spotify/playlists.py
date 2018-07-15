@@ -17,7 +17,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def __init__(self, backend):
         self._backend = backend
-        self._timeout = self._backend._config['spotify']['timeout']
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
@@ -43,16 +42,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
-        web_playlist = self._backend._web_session.get_playlist(uri)
-        playlist = translator.to_playlist(
-                web_playlist, username=self._backend._session.user_name,
-                bitrate=self._backend._bitrate, as_items=as_items)
-
-        if playlist is None:
-            logger.error('Failed to lookup Spotify URI %s', uri)
-            return
-
-        return playlist
+        return playlist_lookup(
+                self._backend._session, self._backend._web_session, uri,
+                self._backend._bitrate, as_items)
 
     def refresh(self):
         pass  # TODO: Clear/invalidate all caches on refresh?
@@ -76,6 +68,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def save(self, playlist):
         pass  # TODO
+
+
+def playlist_lookup(session, web_session, uri, bitrate, as_items=False):
+    web_playlist = web_session.get_playlist(uri)
+    playlist = translator.to_playlist(
+            web_playlist, username=session.user_name, bitrate=bitrate,
+            as_items=as_items)
+    return playlist
 
 
 def on_container_loaded(sp_playlist_container):
