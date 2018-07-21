@@ -14,14 +14,19 @@ _VARIOUS_ARTISTS_URIS = [
 ]
 
 
-def lookup(config, session, uri):
+def lookup(config, session, uri, web_client):
     try:
+        web_link = translator.parse_uri(uri)
         sp_link = session.get_link(uri)
     except ValueError as exc:
         logger.info('Failed to lookup "%s": %s', uri, exc)
         return []
 
     try:
+        if web_link.type == 'playlist':
+            return list(_lookup_playlist(web_client, config, web_link))
+        elif web_link.type == 'starred':
+            return list(reversed(_lookup_starred(web_client, config, web_link)))
         if sp_link.type is spotify.LinkType.TRACK:
             return list(_lookup_track(config, sp_link))
         elif sp_link.type is spotify.LinkType.ALBUM:
@@ -29,10 +34,10 @@ def lookup(config, session, uri):
         elif sp_link.type is spotify.LinkType.ARTIST:
             with utils.time_logger('Artist lookup'):
                 return list(_lookup_artist(config, sp_link))
-        elif sp_link.type is spotify.LinkType.PLAYLIST:
-            return list(_lookup_playlist(config, sp_link))
-        elif sp_link.type is spotify.LinkType.STARRED:
-            return list(reversed(list(_lookup_playlist(config, sp_link))))
+        #elif sp_link.type is spotify.LinkType.PLAYLIST:
+            #return list(_lookup_playlist(config, sp_link))
+        #elif sp_link.type is spotify.LinkType.STARRED:
+            #return list(reversed(list(_lookup_playlist(config, sp_link))))
         else:
             logger.info(
                 'Failed to lookup "%s": Cannot handle %r',
@@ -89,13 +94,14 @@ def _lookup_artist(config, sp_link):
             if track is not None:
                 yield track
 
+_API_BASE_URI = 'https://api.spotify.com/v1'
 
-def _lookup_playlist(config, sp_link):
-    sp_playlist = sp_link.as_playlist()
-    sp_playlist.load(config['timeout'])
-    for sp_track in sp_playlist.tracks:
-        sp_track.load(config['timeout'])
-        track = translator.to_track(
-            sp_track, bitrate=config['bitrate'])
-        if track is not None:
-            yield track
+def _lookup_playlist(web_client, config, link):
+    uri = '%s/users/%s/playlists/%s' % (_API_BASE_URI, link.owner, link.id)
+    fields = ['name', 'owner', 'type', 'uri', 'tracks']
+    result = web_client.get(uri, params={'fields': ','.join(fields)})
+    if result:
+        for item in result.get('tracks', {}).get('items', []):
+            track = item.get('track', None)
+            if track:
+                yield translator.web_to_track(track, bitrate=config['bitrate'])

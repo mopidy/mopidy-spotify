@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
+import collections
 import logging
+import time
 
 from mopidy import backend
 
@@ -9,40 +11,169 @@ import spotify
 from mopidy_spotify import translator, utils
 
 
+_API_BASE_URI = 'https://api.spotify.com/v1'
+
 logger = logging.getLogger(__name__)
 
 
-class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
+CachedItem = collections.namedtuple('CachedItem', ['item', 'version', 'expires'])
 
+
+class ItemCache(object):
+
+    def __init__(self, lifetime):
+        self._data = collections.OrderedDict()
+        self.expires = 0
+        self.lifetime = lifetime
+
+    def get(self, uri, default=None):
+        return self._data[uri] if uri in self._data else default
+
+    def update(self, item=None, version=0):
+        self.expires = time.time() + self.lifetime
+        if item:
+            self._data[item.uri] = CachedItem(item, version, self.expires)
+
+    def clear(self):
+        self._data.clear()
+        self.expires = 0
+
+    def valid(self, uri=None):
+        if uri is None:
+            expires = self.expires
+        elif uri in self._data:
+            expires = self._data[uri].expires
+        else:
+            return False
+        return expires > time.time()
+
+    @property
+    def items(self):
+        for v in self._data.values():
+            yield v
+
+    def validate(self, item):
+        uri = item.get('uri')
+        if uri in self._data:
+            if self._data[uri].version != item.get('snapshot_id'):
+                del self._data[uri]
+
+
+class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def __init__(self, backend):
         self._backend = backend
-        self._timeout = self._backend._config['spotify']['timeout']
+        self._ref_cache = ItemCache(60)
+        self._full_cache = ItemCache(60*60)
+
+        if 'offline_playlists' in self._backend._config['spotify']:
+            with open(self._backend._config['spotify']['offline_playlists']) as f:
+                self._offline_playlists = [l.strip() for l in f.readlines()]
+
+        if self._backend._session is not None:
+            offlinecount = self._backend._session.offline.num_playlists
+            logger.info("offline playlist count:%d", offlinecount)
+            if offlinecount > 0:
+                self.print_offline_sync_status()
+
+
+
+
+    def print_offline_sync_status(self):
+        offlineS = self._backend._session.offline
+        syncstatus = offlineS.sync_status
+        if syncstatus:
+            queued = offlineS.sync_status.queued_tracks
+            done = offlineS.sync_status.done_tracks
+            errored = offlineS.sync_status.error_tracks
+            copied = offlineS.sync_status.copied_tracks
+            logger.info(
+                "Offline sync status: Queued= %d, Done=%d, Error=%d, Copied=%d",
+                queued, done, errored, copied)
+        else:
+            logger.info("Offline sync status: Not syncing")
+            seconds = offlineS.time_left
+            logger.info(
+                "Time until user must go online %d hours",
+                seconds / 3600)
+
+        if 'offline_playlists' in self._backend._config['spotify']:
+            with open(self._backend._config['spotify']['offline_playlists']) as f:
+                self._offline_playlists = [l.strip() for l in f.readlines()]
+
+        if self._backend._session is not None:
+            offlinecount = self._backend._session.offline.num_playlists
+            logger.info("offline playlist count:%d", offlinecount)
+            if offlinecount > 0:
+                self.print_offline_sync_status()
+
+
+
+
+    def print_offline_sync_status(self):
+        offlineS = self._backend._session.offline
+        syncstatus = offlineS.sync_status
+        if syncstatus:
+            queued = offlineS.sync_status.queued_tracks
+            done = offlineS.sync_status.done_tracks
+            errored = offlineS.sync_status.error_tracks
+            copied = offlineS.sync_status.copied_tracks
+            logger.info(
+                "Offline sync status: Queued= %d, Done=%d, Error=%d, Copied=%d",
+                queued, done, errored, copied)
+        else:
+            logger.info("Offline sync status: Not syncing")
+            seconds = offlineS.time_left
+            logger.info(
+                "Time until user must go online %d hours",
+                seconds / 3600)
 
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
             return list(self._get_flattened_playlist_refs())
 
+    def _get_all_items(self, first_result, params=None):
+        if params is None:
+            params = {}
+        items = first_result['items']
+        uri = first_result['next']
+        while uri is not None:
+            logger.debug("Getting next page")
+            next_result = self._backend._web_client.get(uri, params=params)
+            #for item in next_result.get('items', []):
+                #yield item
+            items.extend(next_result['items'])
+            uri = next_result.get('next', None)
+        return items
+
     def _get_flattened_playlist_refs(self):
+        if self._ref_cache.valid():
+            logger.debug("Getting playlist references using cache")
+            for p in self._ref_cache.items:
+                yield p.item
+            return
+
+        logger.debug("Resetting playlist references cache")
+        self._ref_cache.clear()
         if self._backend._session is None:
             return
 
-        if self._backend._session.playlist_container is None:
+        username = self._backend._session.user_name
+
+        result = self._backend._web_client.get('me/playlists', params={
+            'limit': 50 })
+
+        if result is None:
+            logger.error("No playlists found") # is this an error condition or normal?
+            self._ref_cache.update()
             return
 
-        username = self._backend._session.user_name
-        folders = []
-
-        for sp_playlist in self._backend._session.playlist_container:
-            if isinstance(sp_playlist, spotify.PlaylistFolder):
-                if sp_playlist.type is spotify.PlaylistType.START_FOLDER:
-                    folders.append(sp_playlist.name)
-                elif sp_playlist.type is spotify.PlaylistType.END_FOLDER:
-                    folders.pop()
-                continue
-
-            playlist_ref = translator.to_playlist_ref(
-                sp_playlist, folders=folders, username=username)
+        for web_playlist in self._get_all_items(result):
+            self._full_cache.validate(web_playlist)
+            playlist_ref = translator.web_to_playlist_ref(
+                web_playlist, username=username)
             if playlist_ref is not None:
+                self._ref_cache.update(playlist_ref)
+                logger.info("Got playlist ref %s %s" % (playlist_ref.name, playlist_ref.uri))
                 yield playlist_ref
 
     def get_items(self, uri):
@@ -54,30 +185,71 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
-        try:
-            sp_playlist = self._backend._session.get_playlist(uri)
-        except spotify.Error as exc:
-            logger.debug('Failed to lookup Spotify URI %s: %s', uri, exc)
+        logger.debug("Getting playlist URI %s", uri)
+        def gen_fields(name, fields=[]):
+            fields = ['uri', 'name'] + fields
+            return '%s(%s)' % (name, ','.join(fields))
+
+
+        fields = ['name', 'owner', 'type', 'uri', 'snapshot_id']
+        if as_items:
+            fields.append('tracks')
+
+        link = translator.parse_uri(uri)
+        web_playlist = self._full_cache.get(uri, None)
+
+        if web_playlist is not None:
+            if web_playlist.item.tracks:
+                logger.debug('Playlist %s found in cache', uri)
+                return web_playlist.item
+            else:
+                logger.debug('Cached copy for playlist %s without tracks so re-requesting', uri)
+                web_playlist = None
+
+        if web_playlist is None:
+            if 'tracks' not in fields:
+                fields.append('tracks')
+
+            params = {'fields': ','.join(fields), 'market': 'from_token'}
+            web_playlist = self._backend._web_client.get(
+                'users/%s/playlists/%s' % (link.owner, link.id),
+                params=params)
+
+            if web_playlist is not None and 'tracks' in web_playlist:
+                web_playlist['tracks'] = [
+                    t['track'] for t in
+                    self._get_all_items(web_playlist['tracks'])]
+
+        if web_playlist is None:
+            logger.debug('Failed to lookup Spotify URI %s', uri)
             return
 
-        if not sp_playlist.is_loaded:
+        if not web_playlist.is_loaded:
             logger.debug(
                 'Waiting for Spotify playlist to load: %s', sp_playlist)
-            sp_playlist.load(self._timeout)
+            web_playlist.load(self._timeout)
+
+        web_playlist.set_offline_mode(offline=web_playlist.name in self._offline_playlists)
+        if (web_playlist.name in self._offline_playlists):
+            logger.info("Offline playlist %s: status %s / %s", web_playlist.name, str(web_playlist.offline_status), str(web_playlist.offline_download_completed))
+            self.print_offline_sync_status()
 
         username = self._backend._session.user_name
-        return translator.to_playlist(
-            sp_playlist, username=username, bitrate=self._backend._bitrate,
+        playlist_ref = translator.web_to_playlist(
+            web_playlist, username=username, bitrate=self._backend._bitrate,
             as_items=as_items)
 
+        self._full_cache.update(playlist_ref, version=web_playlist['snapshot_id'])
+        return playlist_ref
+
     def refresh(self):
-        pass  # Not needed as long as we don't cache anything.
+        self._ref_cache.clear()
 
     def create(self, name):
         try:
             sp_playlist = (
                 self._backend._session.playlist_container
-                .add_new_playlist(name))
+                    .add_new_playlist(name))
         except ValueError as exc:
             logger.warning(
                 'Failed creating new Spotify playlist "%s": %s', name, exc)

@@ -8,11 +8,31 @@ import time
 import urllib
 import urlparse
 
+import collections
 import requests
 
-from mopidy_spotify import utils
+from mopidy_spotify import utils, translator
 
 logger = logging.getLogger(__name__)
+
+
+class memoized(object):
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+
+    def __call__(self, *args, **kwargs):
+        # NOTE Only args, not kwargs, are part of the memoization key.
+        if not isinstance(args, collections.Hashable):
+            return self.func(*args, **kwargs)
+        if args in self.cache:
+            logger.info("Cache hit for %S" % ','.join(args))
+            return self.cache[args]
+        else:
+            value = self.func(*args, **kwargs)
+            if value is not None:
+                self.cache[args] = value
+            return value
 
 
 class OAuthTokenRefreshError(Exception):
