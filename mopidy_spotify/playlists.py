@@ -10,6 +10,7 @@ import spotify
 from mopidy_spotify import translator, utils, web
 
 
+_sp_links = {}
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +48,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 self._backend._bitrate, as_items)
 
     def refresh(self):
-        pass  # TODO: Clear/invalidate all caches on refresh?
+        # TODO: Clear/invalidate memoize caches on refresh?
+        _sp_links = {}
+        with utils.time_logger('Refresh Playlists', logging.INFO):
+            self._backend._web_session.load_playlists()
+
+            # Allow libspotify to get track links so they load in the background.
+            for playlist_ref in self.as_list():
+                self.get_items(playlist_ref.uri)
 
     def create(self, name):
         try:
@@ -75,6 +83,23 @@ def playlist_lookup(session, web_session, uri, bitrate, as_items=False):
     playlist = translator.to_playlist(
             web_playlist, username=web_session.user_name, bitrate=bitrate,
             as_items=as_items)
+    if playlist is None:
+        return
+
+    if session.connection.state is spotify.ConnectionState.LOGGED_IN:
+        if as_items:
+            tracks = playlist
+        else:
+            tracks = playlist.tracks
+
+        for track in tracks:
+            if track.uri in _sp_links:
+                continue
+            try:
+                _sp_links[track.uri] = session.get_link(track.uri)
+            except ValueError as exc:
+                logger.info('Failed to get link "%s": %s', track.uri, exc)
+
     return playlist
 
 
