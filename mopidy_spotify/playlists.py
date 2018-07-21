@@ -224,19 +224,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.debug('Failed to lookup Spotify URI %s', uri)
             return
 
-        if not sp_playlist.is_loaded:
+        if not web_playlist.is_loaded:
             logger.debug(
                 'Waiting for Spotify playlist to load: %s', sp_playlist)
-            sp_playlist.load(self._timeout)
+            web_playlist.load(self._timeout)
 
-        #
-        #logger.info(self._offline_playlists)
-        sp_playlist.set_offline_mode(offline=sp_playlist.name in self._offline_playlists)
-        if (sp_playlist.name in self._offline_playlists):
-            logger.info("Offline playlist %s: status %s / %s", sp_playlist.name, str(sp_playlist.offline_status), str(sp_playlist.offline_download_completed))
+        web_playlist.set_offline_mode(offline=web_playlist.name in self._offline_playlists)
+        if (web_playlist.name in self._offline_playlists):
+            logger.info("Offline playlist %s: status %s / %s", web_playlist.name, str(web_playlist.offline_status), str(web_playlist.offline_download_completed))
             self.print_offline_sync_status()
-        #else:
-        #    logger.info("not syncing this one")
 
         username = self._backend._session.user_name
         playlist_ref = translator.web_to_playlist(
