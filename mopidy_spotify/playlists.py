@@ -96,6 +96,37 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 "Time until user must go online %d hours",
                 seconds / 3600)
 
+        if 'offline_playlists' in self._backend._config['spotify']:
+            with open(self._backend._config['spotify']['offline_playlists']) as f:
+                self._offline_playlists = [l.strip() for l in f.readlines()]
+
+        if self._backend._session is not None:
+            offlinecount = self._backend._session.offline.num_playlists
+            logger.info("offline playlist count:%d", offlinecount)
+            if offlinecount > 0:
+                self.print_offline_sync_status()
+
+
+
+
+    def print_offline_sync_status(self):
+        offlineS = self._backend._session.offline
+        syncstatus = offlineS.sync_status
+        if syncstatus:
+            queued = offlineS.sync_status.queued_tracks
+            done = offlineS.sync_status.done_tracks
+            errored = offlineS.sync_status.error_tracks
+            copied = offlineS.sync_status.copied_tracks
+            logger.info(
+                "Offline sync status: Queued= %d, Done=%d, Error=%d, Copied=%d",
+                queued, done, errored, copied)
+        else:
+            logger.info("Offline sync status: Not syncing")
+            seconds = offlineS.time_left
+            logger.info(
+                "Time until user must go online %d hours",
+                seconds / 3600)
+
     def as_list(self):
         with utils.time_logger('playlists.as_list()'):
             return list(self._get_flattened_playlist_refs())
