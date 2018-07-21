@@ -23,12 +23,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return list(self._get_flattened_playlist_refs())
 
     def _get_flattened_playlist_refs(self):
-        if self._backend._web_session is None:
+        if not self._backend._web_session.playlists_loaded:
             return
 
-        username = self._backend._session.user_name
+        username = self._backend._web_session.user_name
 
-        for web_playlist in self._backend._web_session.get_user_playlists(username, include_tracks=False):
+        for web_playlist in self._backend._web_session.get_user_playlists(include_tracks=False):
             playlist_ref = translator.to_playlist_ref(web_playlist, username)
             if playlist_ref is not None:
                 yield playlist_ref
@@ -73,7 +73,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 def playlist_lookup(session, web_session, uri, bitrate, as_items=False):
     web_playlist = web_session.get_playlist(uri)
     playlist = translator.to_playlist(
-            web_playlist, username=session.user_name, bitrate=bitrate,
+            web_playlist, username=web_session.user_name, bitrate=bitrate,
             as_items=as_items)
     return playlist
 

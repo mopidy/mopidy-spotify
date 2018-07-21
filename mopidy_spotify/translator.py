@@ -167,7 +167,6 @@ def web_to_track_ref(web_track):
         return
 
     if not web_track.get('is_playable'):
-        logger.warning('%s (%s) is not playable', web_track.get('name'), web_track.get('uri'))
         return
     
     # Web API track relinking guide says to use original URI.
