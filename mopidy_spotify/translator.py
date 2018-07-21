@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import collections
 import logging
+import urlparse
 
 from mopidy import models
 
@@ -248,10 +249,11 @@ def web_to_album(web_album):
         artists=artists)
 
 
-def web_to_track(web_track):
+def web_to_track(web_track, album=None, bitrate=None):
     artists = [
         web_to_artist(web_artist) for web_artist in web_track['artists']]
-    album = web_to_album(web_track['album'])
+    if not album:
+        album = web_to_album(web_track['album'])
 
     return models.Track(
         uri=web_track['uri'],
@@ -260,4 +262,94 @@ def web_to_track(web_track):
         album=album,
         length=web_track['duration_ms'],
         disc_no=web_track['disc_number'],
-        track_no=web_track['track_number'])
+        track_no=web_track['track_number'],
+        bitrate=bitrate)
+
+
+def web_to_track_ref(web_track):
+    return models.Ref.track(uri=web_track['uri'], name=web_track['name'])
+
+
+def web_to_track_refs(web_tracks):
+    for web_track in web_tracks:
+        ref = web_to_track_ref(web_track)
+        if ref is not None:
+            yield ref
+
+
+def web_to_playlist_ref(web_playlist, folders=None, username=None):
+    return web_to_playlist(
+        web_playlist, folders=folders, username=username, as_ref=True)
+
+
+def web_to_playlist(web_playlist, folders=None, username=None, bitrate=None,
+        as_ref=False, as_items=False):
+    if web_playlist['type'] != 'playlist':
+        return
+
+    if 'tracks' in web_playlist:
+        web_tracks = web_playlist['tracks']
+        if isinstance(web_tracks, dict) and 'items' in web_tracks:
+            web_tracks = [t['track'] for t in web_tracks['items']]
+            web_playlist['tracks'] = web_tracks
+    else:
+        web_tracks = []
+
+    if as_items:
+        return list(web_to_track_refs(web_tracks))
+
+    name = web_playlist['name']
+
+    if not as_ref:
+        tracks = [
+            web_to_track(web_track, bitrate=bitrate)
+            for web_track in web_tracks]
+        tracks = filter(None, tracks)
+        if name is None:
+            # Use same starred order as the Spotify client
+            tracks = list(reversed(tracks))
+
+    #if name is None:
+        #name = 'Starred' # Not supported by Web API
+    #if folders is not None: # Not supported by Web API
+        #name = '/'.join(folders + [name])
+    if username is not None and web_playlist['owner']['id'] != username:
+        name = '%s (by %s)' % (name, web_playlist['owner']['id'])
+
+    if as_ref:
+        return models.Ref.playlist(uri=web_playlist['uri'], name=name)
+    else:
+        return models.Playlist(
+            uri=web_playlist['uri'], name=name, tracks=tracks)
+
+
+_result = collections.namedtuple('Link', ['uri', 'type', 'id', 'owner'])
+
+
+def parse_uri(uri):
+    parsed_uri = urlparse.urlparse(uri)
+
+    schemes = ('http', 'https')
+    netlocs = ('open.spotify.com', 'play.spotify.com')
+
+    if parsed_uri.scheme == 'spotify':
+        parts = parsed_uri.path.split(':')
+    elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
+        parts = parsed_uri.path[1:].split('/')
+    else:
+        parts = []
+
+    # Strip out empty parts to ensure we are strict about URI parsing.
+    parts = [p for p in parts if p.strip()]
+
+    if len(parts) == 2 and parts[0] in ('track', 'album', 'artist'):
+        return _result(uri, parts[0],  parts[1], None)
+    elif len(parts) == 3 and parts[0] == 'user' and parts[2] == 'starred':
+        if parsed_uri.scheme == 'spotify':
+            return _result(uri, 'starred',  None, parts[1])
+    elif len(parts) == 3 and parts[0] == 'playlist':
+        return _result(uri, 'playlist',  parts[2], parts[1])
+    elif len(parts) == 4 and parts[0] == 'user' and parts[2] == 'playlist':
+        return _result(uri, 'playlist',  parts[3], parts[1])
+
+    raise ValueError('Could not parse %r as a Spotify URI' % uri)
