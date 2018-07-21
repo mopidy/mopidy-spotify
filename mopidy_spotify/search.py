@@ -10,7 +10,6 @@ import spotify
 from mopidy_spotify import lookup, translator
 
 
-_API_BASE_URI = 'https://api.spotify.com/v1/search'
 _SEARCH_TYPES = ['album', 'artist', 'track']
 
 logger = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ def search(config, session, web_client,
             'to at most 50.')
         search_count = 50
 
-    result = web_client.get(_API_BASE_URI, params={
+    result = web_client.get('search', params={
         'q': sp_query,
         'limit': search_count,
         'market': session.user_country,

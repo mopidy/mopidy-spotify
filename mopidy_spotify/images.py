@@ -14,7 +14,6 @@ from mopidy import models
 # across both the 1.x and 2.x versions.
 
 _API_MAX_IDS_PER_REQUEST = 50
-_API_BASE_URI = 'https://api.spotify.com/v1/%ss/?ids=%s'
 
 _cache = {}  # (type, id) -> [Image(), ...]
 
@@ -65,10 +64,7 @@ def _process_uris(web_client, uri_type, uris):
     if not uris:
         return result
 
-    lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids))
-
-    data = web_client.get(lookup_uri)
-
+    data = web_client.get(uri_type + 's', params={'ids': ','.join(ids)})
     for item in data.get(uri_type + 's', []):
         if not item:
             continue
