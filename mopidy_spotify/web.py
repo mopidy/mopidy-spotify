@@ -7,12 +7,19 @@ import re
 import time
 import urllib
 import urlparse
+from datetime import datetime
+
+from mopidy.internal import log
 
 import requests
 
 from mopidy_spotify import utils
 
 logger = logging.getLogger(__name__)
+
+
+def _trace(*args, **kwargs):
+    logger.log(log.TRACE_LOG_LEVEL, *args, **kwargs)
 
 
 class OAuthTokenRefreshError(Exception):
@@ -51,10 +58,23 @@ class OAuthClient(object):
         self._headers = {'Content-Type': 'application/json'}
         self._session = utils.get_requests_session(proxy_config or {})
 
-    def get(self, path, *args, **kwargs):
+    def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
             logger.debug('Blocking request as previous authorization failed.')
             return {}
+
+        params = kwargs.pop('params', None)
+        path = self._normalise_query_string(path, params)
+
+        _trace('Get "%s"', path)
+
+        cached_result = None
+        if cache is not None:
+            cached_result = cache.get(path)
+            if cached_result:
+                if not cached_result.expired:
+                    _trace('Cached data valid for %s', cached_result)
+                    return cached_result
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
@@ -71,7 +91,14 @@ class OAuthClient(object):
 
         if result is None or 'error' in result:
             return {}
+
+        if self._should_cache_response(cache, result):
+            cache[path] = result
+
         return result
+
+    def _should_cache_response(self, cache, response):
+        return cache is not None and response.valid
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
@@ -128,11 +155,14 @@ class OAuthClient(object):
                 logger.debug('Fetching %s failed: %s', prepared_request.url, e)
                 status_code = None
                 backoff_time = None
+                expires = None
                 result = None
             else:
                 status_code = response.status_code
                 backoff_time = self._parse_retry_after(response)
-                result = self._decode(response)
+                expires = self._parse_cache_control(response)
+                json = self._decode(response)
+                result = WebResponse(prepared_request.url, json, expires, status_code)
 
             if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
@@ -182,6 +212,17 @@ class OAuthClient(object):
         encoded_query = urllib.urlencode(dict(query))
         return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
+    def _normalise_query_string(self, url, params=None):
+        u = urlparse.urlsplit(url)
+        scheme, netloc, path = u.scheme, u.netloc, u.path
+
+        query = dict(urlparse.parse_qsl(u.query, keep_blank_values=True))
+        if isinstance(params, dict):
+            query.update(params)
+        sorted_unique_query = sorted(query.items())
+        encoded_query = urllib.urlencode(sorted_unique_query)
+        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
+
     def _decode(self, response):
         # Deal with 204 and other responses with empty body.
         if not response.content:
@@ -208,3 +249,38 @@ class OAuthClient(object):
             else:
                 seconds = time.mktime(date_tuple) - time.time()
         return max(0, seconds)
+
+    def _parse_cache_control(self, response):
+        """Parse Cache-Control header from response if it is set."""
+        value = response.headers.get('Cache-Control', 'no-store').lower()
+
+        if 'no-store' in value:
+            seconds = 0
+        else:
+            max_age = re.match(r'.*max-age=\s*([0-9]+)\s*', value)
+            if not max_age:
+                seconds = 0
+            else:
+                seconds = int(max_age.groups()[0])
+        return time.time() + seconds
+
+
+class WebResponse(dict):
+
+    def __init__(self, url, data, expires=0.0, status_code=400):
+        self.url = url
+        self._expires = expires
+        self._status_code = status_code
+        super(WebResponse, self).__init__(data or {})
+
+    @property
+    def expired(self):
+        return self._expires < time.time()
+
+    @property
+    def valid(self):
+        return self._status_code >= 200 and self._status_code < 400
+
+    def __str__(self):
+        return 'URL: %s Expires: %s' % (
+            self.url, datetime.fromtimestamp(self._expires))
