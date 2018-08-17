@@ -68,13 +68,11 @@ class OAuthClient(object):
 
         _trace('Get "%s"', path)
 
-        cached_result = None
-        if cache is not None:
+        if cache is not None and path in cache:
             cached_result = cache.get(path)
-            if cached_result:
-                if not cached_result.expired:
-                    _trace('Cached data valid for %s', cached_result)
-                    return cached_result
+            if not cached_result.expired:
+                return cached_result
+            kwargs.setdefault('headers', {}).update(cached_result.etag_headers)
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
@@ -93,12 +91,15 @@ class OAuthClient(object):
             return {}
 
         if self._should_cache_response(cache, result):
+            previous_result = cache.get(path)
+            if previous_result and previous_result.updated(result):
+                result = previous_result
             cache[path] = result
 
         return result
 
     def _should_cache_response(self, cache, response):
-        return cache is not None and response.valid
+        return cache is not None and response.status_ok
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
@@ -161,8 +162,10 @@ class OAuthClient(object):
                 status_code = response.status_code
                 backoff_time = self._parse_retry_after(response)
                 expires = self._parse_cache_control(response)
+                etag = self._parse_etag(response)
                 json = self._decode(response)
-                result = WebResponse(prepared_request.url, json, expires, status_code)
+                result = WebResponse(
+                    prepared_request.url, json, expires, etag, status_code)
 
             if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
@@ -264,23 +267,68 @@ class OAuthClient(object):
                 seconds = int(max_age.groups()[0])
         return time.time() + seconds
 
+    def _parse_etag(self, response):
+        """Parse ETag header from response if it is set."""
+        value = response.headers.get('ETag')
+
+        if value:
+            # 'W/' (case-sensitive) indicates that a weak validator is used,
+            # currently ignoring this.
+            # Format is string of ASCII characters placed between double quotes
+            # but can seemingly also include hyphen characters.
+            etag = re.match(r'^(W/)?("[\w-]+")$', value)
+            if etag and len(etag.groups()) == 2:
+                return etag.groups()[1]
+
 
 class WebResponse(dict):
 
-    def __init__(self, url, data, expires=0.0, status_code=400):
+    def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
         self.url = url
         self._expires = expires
+        self._etag = etag
         self._status_code = status_code
         super(WebResponse, self).__init__(data or {})
+        _trace('New WebResponse %s', self)
 
     @property
     def expired(self):
-        return self._expires < time.time()
+        status_str = {True: 'expired', False: 'fresh'}
+        result = self._expires < time.time()
+        _trace('Cached data %s for %s', status_str[result], self)
+        return result
 
     @property
-    def valid(self):
+    def status_ok(self):
         return self._status_code >= 200 and self._status_code < 400
 
+    @property
+    def etag_headers(self):
+        if self._etag is not None:
+            return {'If-None-Match': self._etag}
+        else:
+            return {}
+
+    def updated(self, response):
+        if self._etag is None:
+            return False
+        elif self.url != response.url:
+            logger.error(
+                'ETag mismatch (different URI) for %s %s', self, response)
+            return False
+        elif not response.status_ok:
+            logger.debug(
+                'ETag mismatch (bad response) for %s %s', self, response)
+            return False
+        elif response._status_code != 304:
+            _trace('ETag mismatch for %s %s', self, response)
+            return False
+
+        _trace('ETag match for %s %s', self, response)
+        self._expires = response._expires
+        self._etag = response._etag
+        return True
+
     def __str__(self):
-        return 'URL: %s Expires: %s' % (
-            self.url, datetime.fromtimestamp(self._expires))
+        return 'URL: %s ETag: %s Expires: %s' % (
+            self.url, self._etag, datetime.fromtimestamp(self._expires))
