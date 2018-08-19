@@ -164,7 +164,7 @@ class TestToTrack(object):
         assert track is None
         assert (
             'Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>'
-            in caplog.text())
+            in caplog.text)
 
     def test_returns_none_if_not_available(self, sp_track_mock):
         sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
@@ -223,7 +223,7 @@ class TestToTrackRef(object):
         assert ref is None
         assert (
             'Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>'
-            in caplog.text())
+            in caplog.text)
 
     def test_returns_none_if_not_available(self, sp_track_mock):
         sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
@@ -411,7 +411,7 @@ class TestSpotifySearchQuery(object):
         assert query == ''
         assert (
             'Excluded year from search query: Cannot parse date "abc"'
-            in caplog.text())
+            in caplog.text)
 
     def test_anything_can_be_combined(self):
         query = translator.sp_search_query({

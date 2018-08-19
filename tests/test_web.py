@@ -125,7 +125,7 @@ def test_auth_returns_invalid_json(oauth_client, caplog):
 
     assert result == {}
     assert ('JSON decoding https://auth.mopidy.com/spotify/token failed' in
-            caplog.text())
+            caplog.text)
 
 
 @responses.activate
@@ -139,7 +139,7 @@ def test_spotify_returns_invalid_json(mock_time, oauth_client, caplog):
 
     assert result == {}
     assert ('JSON decoding https://api.spotify.com/v1/tracks/abc failed' in
-            caplog.text())
+            caplog.text)
 
 
 @responses.activate
@@ -152,7 +152,7 @@ def test_auth_offline(oauth_client, caplog):
 
     assert result == {}
     assert ('Fetching https://auth.mopidy.com/spotify/token failed' in
-            caplog.text())
+            caplog.text)
 
 
 @responses.activate
@@ -168,7 +168,7 @@ def test_spotify_offline(web_oauth_mock, oauth_client, caplog):
 
     assert result == {}
     assert ('Fetching https://api.spotify.com/v1/tracks/abc failed' in
-            caplog.text())
+            caplog.text)
 
 
 @responses.activate
@@ -186,7 +186,7 @@ def test_auth_missing_access_token(web_oauth_mock, oauth_client, caplog):
     assert len(responses.calls) == 1
     assert oauth_client._headers['Authorization'] == 'Bearer 01234...abcde'
     assert result == {}
-    assert 'OAuth token refresh failed: missing access_token' in caplog.text()
+    assert 'OAuth token refresh failed: missing access_token' in caplog.text
 
 
 @responses.activate
@@ -204,4 +204,4 @@ def test_auth_wrong_token_type(web_oauth_mock, oauth_client, caplog):
     assert len(responses.calls) == 1
     assert oauth_client._headers['Authorization'] == 'Bearer 01234...abcde'
     assert result == {}
-    assert 'OAuth token refresh failed: wrong token_type' in caplog.text()
+    assert 'OAuth token refresh failed: wrong token_type' in caplog.text
