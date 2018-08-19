@@ -185,7 +185,7 @@ def test_on_stop_logs_out_and_waits_for_logout_to_complete(
 
     backend.on_stop()
 
-    assert 'Logging out of Spotify' in caplog.text()
+    assert 'Logging out of Spotify' in caplog.text
     backend._session.logout.assert_called_once_with()
     backend._logged_out.wait.assert_called_once_with()
     backend._event_loop.stop.assert_called_once_with()
@@ -201,7 +201,7 @@ def test_on_connection_state_changed_when_logged_out(spotify_mock, caplog):
     backend.on_connection_state_changed(
         session_mock, logged_in_event, logged_out_event, actor_mock)
 
-    assert 'Logged out of Spotify' in caplog.text()
+    assert 'Logged out of Spotify' in caplog.text
     assert not logged_in_event.is_set()
     assert logged_out_event.is_set()
 
@@ -216,7 +216,7 @@ def test_on_connection_state_changed_when_logged_in(spotify_mock, caplog):
     backend.on_connection_state_changed(
         session_mock, logged_in_event, logged_out_event, actor_mock)
 
-    assert 'Logged in to Spotify in online mode' in caplog.text()
+    assert 'Logged in to Spotify in online mode' in caplog.text
     assert logged_in_event.is_set()
     assert not logged_out_event.is_set()
     actor_mock.on_logged_in.assert_called_once_with()
@@ -232,7 +232,7 @@ def test_on_connection_state_changed_when_disconnected(spotify_mock, caplog):
     backend.on_connection_state_changed(
         session_mock, logged_in_event, logged_out_event, actor_mock)
 
-    assert 'Disconnected from Spotify' in caplog.text()
+    assert 'Disconnected from Spotify' in caplog.text
 
 
 def test_on_connection_state_changed_when_offline(spotify_mock, caplog):
@@ -245,7 +245,7 @@ def test_on_connection_state_changed_when_offline(spotify_mock, caplog):
     backend.on_connection_state_changed(
         session_mock, logged_in_event, logged_out_event, actor_mock)
 
-    assert 'Logged in to Spotify in offline mode' in caplog.text()
+    assert 'Logged in to Spotify in offline mode' in caplog.text
     assert logged_in_event.is_set()
     assert not logged_out_event.is_set()
 
@@ -260,7 +260,7 @@ def test_on_logged_in_event_activates_private_session(
 
     backend.on_logged_in()
 
-    assert 'Spotify private session activated' in caplog.text()
+    assert 'Spotify private session activated' in caplog.text
     private_session_mock.assert_called_once_with(True)
 
 
@@ -322,7 +322,7 @@ def test_on_play_token_lost_messages_the_actor(spotify_mock, caplog):
 
     backend.on_play_token_lost(session_mock, actor_mock)
 
-    assert 'Spotify play token lost' in caplog.text()
+    assert 'Spotify play token lost' in caplog.text
     actor_mock.on_play_token_lost.assert_called_once_with()
 
 
@@ -336,7 +336,7 @@ def test_on_play_token_lost_event_when_playing(spotify_mock, config, caplog):
 
     assert (
         'Spotify has been paused because your account is '
-        'being used somewhere else.' in caplog.text())
+        'being used somewhere else.' in caplog.text)
     backend.playback.pause.assert_called_once_with()
 
 
@@ -349,5 +349,5 @@ def test_on_play_token_lost_event_when_not_playing(
 
     backend.on_play_token_lost()
 
-    assert 'Spotify has been paused' not in caplog.text()
+    assert 'Spotify has been paused' not in caplog.text
     assert backend.playback.pause.call_count == 0

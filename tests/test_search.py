@@ -13,7 +13,7 @@ def test_search_with_no_query_returns_nothing(provider, caplog):
     assert isinstance(result, models.SearchResult)
     assert result.uri == 'spotify:search'
     assert len(result.tracks) == 0
-    assert 'Ignored search without query' in caplog.text()
+    assert 'Ignored search without query' in caplog.text
 
 
 def test_search_with_empty_query_returns_nothing(provider, caplog):
@@ -22,7 +22,7 @@ def test_search_with_empty_query_returns_nothing(provider, caplog):
     assert isinstance(result, models.SearchResult)
     assert result.uri == 'spotify:search'
     assert len(result.tracks) == 0
-    assert 'Ignored search with empty query' in caplog.text()
+    assert 'Ignored search with empty query' in caplog.text
 
 
 def test_search_by_single_uri(session_mock, sp_track_mock, provider):
@@ -60,7 +60,7 @@ def test_search_when_offline_returns_nothing(session_mock, provider, caplog):
 
     result = provider.search({'any': ['ABBA']})
 
-    assert 'Spotify search aborted: Spotify is offline' in caplog.text()
+    assert 'Spotify search aborted: Spotify is offline' in caplog.text
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == 'spotify:search:%22ABBA%22'
@@ -80,7 +80,7 @@ def test_search_returns_albums_and_artists_and_tracks(
             'market': 'GB',
             'type': 'album,artist,track'})
 
-    assert 'Searching Spotify for: "ABBA"' in caplog.text()
+    assert 'Searching Spotify for: "ABBA"' in caplog.text
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == 'spotify:search:%22ABBA%22'

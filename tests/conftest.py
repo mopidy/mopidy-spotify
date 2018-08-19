@@ -8,7 +8,13 @@ import pytest
 
 import spotify
 
-from mopidy_spotify import backend, library, web
+from mopidy_spotify import backend, library, utils, web
+
+
+@pytest.yield_fixture()
+def caplog(caplog):
+    caplog.set_level(utils.TRACE)
+    return caplog
 
 
 @pytest.fixture
