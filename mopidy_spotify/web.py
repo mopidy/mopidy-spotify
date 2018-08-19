@@ -9,8 +9,6 @@ import urllib
 import urlparse
 from datetime import datetime
 
-from mopidy.internal import log
-
 import requests
 
 from mopidy_spotify import utils
@@ -19,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _trace(*args, **kwargs):
-    logger.log(log.TRACE_LOG_LEVEL, *args, **kwargs)
+    logger.log(utils.TRACE, *args, **kwargs)
 
 
 class OAuthTokenRefreshError(Exception):
