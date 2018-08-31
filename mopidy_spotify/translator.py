@@ -35,7 +35,7 @@ class memoized(object):
 
 class web_memoized(memoized):
     def _get_key(self, args, kwargs):
-        if len(args) > 0:
+        if len(args) > 0 and args[0] is not None:
             data = args[0]
             return '%s.%s' % (data.get('uri'), data.get('name'))
 
@@ -163,6 +163,9 @@ def to_track_refs(sp_tracks, timeout=None):
 
 @web_memoized
 def web_to_track_ref(web_track):
+    if web_track is None:
+        return
+
     if web_track.get('type') != 'track':
         return
 
@@ -179,7 +182,7 @@ def web_to_track_ref(web_track):
 
 def web_to_track_refs(web_tracks):
     for web_track in web_tracks:
-        ref = web_to_track_ref(web_track.get('track', {}))
+        ref = web_to_track_ref(web_track.get('track'))
         if ref is not None:
             yield ref
 
