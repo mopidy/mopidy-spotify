@@ -192,8 +192,8 @@ def test_sets_types_parameter(
 
 
 def test_sets_market_parameter_from_user_country(
-        web_client_mock, web_search_mock_large, provider, session_mock):
-    session_mock.user_country = 'SE'
+        web_client_mock, web_search_mock_large, provider):
+    web_client_mock.user_country = 'SE'
     web_client_mock.get.return_value = web_search_mock_large
 
     provider.search({'any': ['ABBA']})

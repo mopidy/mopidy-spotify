@@ -335,3 +335,26 @@ class WebResponse(dict):
     def __str__(self):
         return 'URL: %s ETag: %s Expires: %s' % (
             self.url, self._etag, datetime.fromtimestamp(self._expires))
+
+
+class SpotifyOAuthClient(OAuthClient):
+
+    def __init__(self, client_id, client_secret, proxy_config):
+        self.user_name = None
+        self.user_country = None
+        super(SpotifyOAuthClient, self).__init__(
+            base_url='https://api.spotify.com/v1',
+            refresh_url='https://auth.mopidy.com/spotify/token',
+            client_id=client_id, client_secret=client_secret,
+            proxy_config=proxy_config)
+
+    def login(self):
+        user_profile = self.get('me')
+        if user_profile is None:
+            logger.error('Failed to load Spotify user profile')
+            return False
+        else:
+            self.user_name = user_profile.get('id')
+            self.user_country = user_profile.get('country')
+            logger.info('Logged into Spotify Web API as %s', self.user_name)
+            return True

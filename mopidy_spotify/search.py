@@ -55,7 +55,7 @@ def search(config, session, web_client,
     result = web_client.get('search', params={
         'q': sp_query,
         'limit': search_count,
-        'market': session.user_country,
+        'market': web_client.user_country,
         'type': ','.join(types)})
 
     albums = [

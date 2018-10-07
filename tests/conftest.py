@@ -396,7 +396,9 @@ def session_mock():
 
 @pytest.fixture
 def web_client_mock():
-    web_client_mock = mock.Mock(spec=web.OAuthClient)
+    web_client_mock = mock.Mock(spec=web.SpotifyOAuthClient)
+    web_client_mock.user_name = 'Jane Doe'
+    web_client_mock.user_country = 'GB'
     return web_client_mock
 
 
