@@ -31,7 +31,7 @@ def lookup(config, session, web_session, uri):
             with utils.time_logger('Artist lookup'):
                 return list(_lookup_artist(config, sp_link))
         elif web_link.type is web.LINK_TYPE_PLAYLIST:
-            return _lookup_playlist(session, web_session, config, uri)
+            return lookup_playlist(session, web_session, config, uri)
         else:
             logger.info(
                 'Failed to lookup "%s": Cannot handle %r',
