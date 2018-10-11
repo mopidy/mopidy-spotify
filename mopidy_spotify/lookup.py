@@ -17,7 +17,10 @@ _VARIOUS_ARTISTS_URIS = [
 def lookup(config, session, web_session, uri):
     try:
         web_link = web.parse_uri(uri)
-        sp_link = session.get_link(uri)
+        if web.link_is_playlist(web_link):
+            return lookup_playlist(session, web_session, config, uri)
+        else:
+            sp_link = session.get_link(uri)
     except ValueError as exc:
         logger.info('Failed to lookup "%s": %s', uri, exc)
         return []
@@ -30,8 +33,6 @@ def lookup(config, session, web_session, uri):
         elif sp_link.type is spotify.LinkType.ARTIST:
             with utils.time_logger('Artist lookup'):
                 return list(_lookup_artist(config, sp_link))
-        elif web_link.type is web.LINK_TYPE_PLAYLIST:
-            return lookup_playlist(session, web_session, config, uri)
         else:
             logger.info(
                 'Failed to lookup "%s": Cannot handle %r',
