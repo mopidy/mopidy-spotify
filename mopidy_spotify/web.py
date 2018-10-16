@@ -373,6 +373,7 @@ class WebSession(object):
             yield result
 
     def load_playlists(self):
+        self.playlists_loaded = False
         count = 0
         with self._cache.expiry_override(30):
             for playlist in self.get_user_playlists(self.user_name):

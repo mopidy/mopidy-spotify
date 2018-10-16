@@ -39,6 +39,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._event_loop = None
         self._bitrate = None
         self._web_session = None
+        self.playlists_refresher = None
 
         self.library = library.SpotifyLibraryProvider(backend=self)
         self.playback = playback.SpotifyPlaybackProvider(
@@ -62,13 +63,18 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         self._web_session = web.WebSession(
             self._config['spotify']['client_id'],
-            self._config['spotify']['client_secret'], self._config['proxy'])
+            self._config['spotify']['client_secret'],self._config['proxy'])
 
         if self.playlists:
-            self.playlists.refresh()
+            self.playlists_refresher = threading.Thread(
+                target=self.playlists.refresh).start()
+
+        logger.info('Started spotify backend')
 
     def on_stop(self):
         logger.debug('Logging out of Spotify')
+        if self.playlists_refresher is not None:
+            self.playlists_refresher.join()
         self._session.logout()
         self._logged_out.wait()
         self._event_loop.stop()

@@ -57,6 +57,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             for playlist_ref in self.as_list():
                 self.get_items(playlist_ref.uri)
 
+        on_container_loaded(None)
+
     def create(self, name):
         try:
             sp_playlist = (
@@ -79,6 +81,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
 
 def playlist_lookup(session, web_session, uri, bitrate, as_items=False):
+    if not web_session.playlists_loaded:
+        return
+
     web_playlist = web_session.get_playlist(uri)
     playlist = translator.to_playlist(
             web_playlist, username=web_session.user_name, bitrate=bitrate,
