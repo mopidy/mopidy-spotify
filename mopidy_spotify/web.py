@@ -285,7 +285,7 @@ class OAuthClient(object):
             # currently ignoring this.
             # Format is string of ASCII characters placed between double quotes
             # but can seemingly also include hyphen characters.
-            etag = re.match(r'^(W/)?("[\w-]+")$', value)
+            etag = re.match(r'^(W/)?("[!-~]+")$', value)
             if etag and len(etag.groups()) == 2:
                 return etag.groups()[1]
 
