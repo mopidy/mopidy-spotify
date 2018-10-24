@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import collections
+import copy
 import email
 import logging
 import os
@@ -339,22 +341,106 @@ class WebResponse(dict):
 
 class SpotifyOAuthClient(OAuthClient):
 
+    TRACK_FIELDS = (
+        'next,items(track(type,uri,name,duration_ms,disc_number,track_number,'
+        'artists,album,is_playable,linked_from.uri))'
+    )
+    PLAYLIST_FIELDS = (
+        'name,owner.id,type,uri,snapshot_id,tracks(%s),' % TRACK_FIELDS
+    )
+
     def __init__(self, client_id, client_secret, proxy_config):
-        self.user_name = None
-        self.user_country = None
         super(SpotifyOAuthClient, self).__init__(
             base_url='https://api.spotify.com/v1',
             refresh_url='https://auth.mopidy.com/spotify/token',
             client_id=client_id, client_secret=client_secret,
             proxy_config=proxy_config)
+        self.user_id = None
+
+    def get_all(self, path, *args, **kwargs):
+        while path is not None:
+            logger.debug('Fetching page "%s"', path)
+            result = self.get(path, *args, **kwargs)
+            path = result.get('next')
+            yield result
 
     def login(self):
-        user_profile = self.get('me')
-        if user_profile is None:
+        self.user_id = self.get('me').get('id')
+        if self.user_id is None:
             logger.error('Failed to load Spotify user profile')
             return False
         else:
-            self.user_name = user_profile.get('id')
-            self.user_country = user_profile.get('country')
-            logger.info('Logged into Spotify Web API as %s', self.user_name)
+            logger.info('Logged into Spotify Web API as %s', self.user_id)
             return True
+
+    def get_user_playlists(self, cache=None):
+        with utils.time_logger('get_user_playlists'):
+            pages = self.get_all('me/playlists', cache=cache, params={
+                'limit': 50})
+            for page in pages:
+                for playlist in page.get('items', []):
+                    yield playlist
+
+    def get_playlist(self, uri, cache=None):
+        try:
+            parsed = parse_uri(uri)
+            if parsed.type != 'playlist':
+                raise ValueError(
+                    'Could not parse %r as a Spotify playlist URI' % uri)
+        except ValueError as exc:
+            logger.error(exc)
+            return {}
+
+        playlist = self.get('playlists/%s' % parsed.id, cache=cache, params={
+            'fields': self.PLAYLIST_FIELDS,
+            'market': 'from_token'})
+
+        tracks_path = playlist.get('tracks', {}).get('next')
+        track_pages = self.get_all(tracks_path, cache=cache, params={
+            'fields': self.TRACK_FIELDS,
+            'market': 'from_token'})
+
+        more_tracks = []
+        for page in track_pages:
+            more_tracks += page.get('items', [])
+        if more_tracks:
+            # Take a copy to avoid changing the cached response.
+            playlist = copy.deepcopy(playlist)
+            playlist.setdefault('tracks', {}).setdefault('items', [])
+            playlist['tracks']['items'] += more_tracks
+
+        return playlist
+
+
+WebLink = collections.namedtuple('WebLink', ['uri', 'type', 'id', 'owner'])
+
+
+# TODO: Make a WebSession class method?
+def parse_uri(uri):
+    parsed_uri = urlparse.urlparse(uri)
+
+    schemes = ('http', 'https')
+    netlocs = ('open.spotify.com', 'play.spotify.com')
+
+    if parsed_uri.scheme == 'spotify':
+        parts = parsed_uri.path.split(':')
+    elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
+        parts = parsed_uri.path[1:].split('/')
+    else:
+        parts = []
+
+    # Strip out empty parts to ensure we are strict about URI parsing.
+    parts = [p for p in parts if p.strip()]
+
+    if len(parts) == 2 and parts[0] in (
+            'track', 'album', 'artist', 'playlist'):
+        return WebLink(uri, parts[0],  parts[1], None)
+    elif len(parts) == 3 and parts[0] == 'user' and parts[2] == 'starred':
+        if parsed_uri.scheme == 'spotify':
+            return WebLink(uri, 'playlist',  None, parts[1])
+    elif len(parts) == 3 and parts[0] == 'playlist':
+        return WebLink(uri, 'playlist',  parts[2], parts[1])
+    elif len(parts) == 4 and parts[0] == 'user' and parts[2] == 'playlist':
+        return WebLink(uri, 'playlist',  parts[3], parts[1])
+
+    raise ValueError('Could not parse %r as a Spotify URI' % uri)

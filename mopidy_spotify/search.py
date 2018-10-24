@@ -25,7 +25,7 @@ def search(config, session, web_client,
         return models.SearchResult(uri='spotify:search')
 
     if 'uri' in query:
-        return _search_by_uri(config, session, query)
+        return _search_by_uri(config, session, web_client, query)
 
     sp_query = translator.sp_search_query(query)
     if not sp_query:
@@ -55,7 +55,7 @@ def search(config, session, web_client,
     result = web_client.get('search', params={
         'q': sp_query,
         'limit': search_count,
-        'market': web_client.user_country,
+        'market': 'from_token',
         'type': ','.join(types)})
 
     albums = [
@@ -77,10 +77,10 @@ def search(config, session, web_client,
         uri=uri, albums=albums, artists=artists, tracks=tracks)
 
 
-def _search_by_uri(config, session, query):
+def _search_by_uri(config, session, web_client, query):
     tracks = []
     for uri in query['uri']:
-        tracks += lookup.lookup(config, session, uri)
+        tracks += lookup.lookup(config, session, web_client, uri)
 
     uri = 'spotify:search'
     if len(query['uri']) == 1:

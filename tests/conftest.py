@@ -47,7 +47,14 @@ def config(tmpdir):
 
 
 @pytest.yield_fixture
-def spotify_mock():
+def web_mock():
+    patcher = mock.patch.object(backend, 'web', spec=web)
+    yield patcher.start()
+    patcher.stop()
+
+
+@pytest.yield_fixture
+def spotify_mock(web_mock):
     patcher = mock.patch.object(backend, 'spotify', spec=spotify)
     yield patcher.start()
     patcher.stop()
@@ -342,6 +349,7 @@ def web_track_mock(web_artist_mock, web_album_mock):
         'name': 'ABC 123',
         'track_number': 7,
         'uri': 'spotify:track:abc',
+        'type': 'track',
     }
 
 
@@ -370,6 +378,22 @@ def web_oauth_mock():
 
 
 @pytest.fixture
+def web_playlist_mock(web_track_mock):
+    return {
+        'owner': {
+            'id': 'alice',
+        },
+        'name': 'Foo',
+        'tracks': {
+            'items': [{'track': web_track_mock}]
+        },
+        'snapshot_id': 'abcderfg12364',
+        'uri': 'spotify:user:alice:playlist:foo',
+        'type': 'playlist',
+    }
+
+
+@pytest.fixture
 def mopidy_artist_mock():
     return models.Artist(
         name='ABBA',
@@ -389,16 +413,14 @@ def mopidy_album_mock(mopidy_artist_mock):
 def session_mock():
     sp_session_mock = mock.Mock(spec=spotify.Session)
     sp_session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
-    sp_session_mock.playlist_container = []
-    sp_session_mock.user_country = 'GB'
     return sp_session_mock
 
 
 @pytest.fixture
 def web_client_mock():
     web_client_mock = mock.Mock(spec=web.SpotifyOAuthClient)
-    web_client_mock.user_name = 'Jane Doe'
-    web_client_mock.user_country = 'GB'
+    web_client_mock.user_id = 'alice'
+    web_client_mock.get_user_playlists.return_value = []
     return web_client_mock
 
 
