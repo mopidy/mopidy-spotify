@@ -226,10 +226,13 @@ def test_parse_cache_control(mock_time, oauth_client, header, expected):
 
 @pytest.mark.parametrize('header,expected', [
     ('', None),
+    ('" "', None),
+    ('33a6ff', None),
     ('"33a6ff"', '"33a6ff"'),
+    ('"33"a6ff"', None),
+    ('"33\na6ff"', None),
     ('W/"33a6ff"', '"33a6ff"'),
-    ('"aa44-cc1-23"', '"aa44-cc1-23"'),
-    ('"aa&@@5"', None),
+    ('"#aa44-cc1-23==@!"', '"#aa44-cc1-23==@!"'),
 ])
 def test_parse_etag(oauth_client, header, expected):
     mock_time.return_value = 100
