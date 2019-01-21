@@ -150,7 +150,6 @@ def sp_album_browser_mock(sp_album_mock, sp_track_mock):
     return sp_album_browser
 
 
-@pytest.fixture
 def sp_track_mock(sp_artist_mock, sp_album_mock):
     sp_track = mock.Mock(spec=spotify.Track)
     sp_track.is_loaded = True
@@ -170,6 +169,11 @@ def sp_track_mock(sp_artist_mock, sp_album_mock):
     sp_track.link = sp_link
 
     return sp_track
+
+
+@pytest.fixture(name="sp_track_mock")
+def sp_track_mock_fixture(sp_artist_mock, sp_album_mock):
+    return sp_track_mock(sp_artist_mock, sp_album_mock)
 
 
 @pytest.fixture

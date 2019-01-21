@@ -6,8 +6,6 @@ from mopidy import models
 
 import spotify
 
-from . import conftest
-
 
 def test_has_a_root_directory(provider):
     assert provider.root_directory == models.Ref.directory(
@@ -191,9 +189,8 @@ def test_browse_top_track_countries_list_limited_by_config(
 
 
 def test_browse_top_tracks_countries_unlimited_by_config(
-        backend_mock):
+        provider, backend_mock):
     backend_mock._config['spotify']['toplist_countries'] = []
-    provider = conftest.provider(backend_mock)
 
     results = provider.browse('spotify:top:tracks:countries')
 
