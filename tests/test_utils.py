@@ -9,4 +9,4 @@ def test_time_logger(caplog):
     with utils.time_logger('task'):
         pass
 
-    assert re.match('.*task took \d+ms.*', caplog.text)
+    assert re.match(r'.*task took \d+ms.*', caplog.text)

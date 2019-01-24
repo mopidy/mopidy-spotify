@@ -52,9 +52,9 @@ def test_is_a_playback_provider(provider):
 
 
 def test_connect_events_adds_music_delivery_handler_to_session(
-        session_mock, audio_mock, backend_mock):
+        session_mock, provider, audio_mock):
 
-    playback_provider = provider(audio_mock, backend_mock)
+    playback_provider = provider
     playback_provider._connect_events()
 
     assert (mock.call(
@@ -68,9 +68,9 @@ def test_connect_events_adds_music_delivery_handler_to_session(
 
 
 def test_connect_events_adds_end_of_track_handler_to_session(
-        session_mock, audio_mock, backend_mock):
+        session_mock, provider, audio_mock):
 
-    playback_provider = provider(audio_mock, backend_mock)
+    playback_provider = provider
     playback_provider._connect_events()
 
     assert (mock.call(
