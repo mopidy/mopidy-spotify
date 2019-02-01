@@ -38,11 +38,6 @@ Mopidy-Spotify support for the following:
   `#122 <https://github.com/mopidy/mopidy-spotify/issues/122>`_) - available
   via web API (`#188 <https://github.com/mopidy/mopidy-spotify/issues/188>`_)
 
-- Podcasts (`#201 <https://github.com/mopidy/mopidy-spotify/issues/201>`_) -
-  unavailable
-
-- Radio (`#9 <https://github.com/mopidy/mopidy-spotify/issues/9>`_) - unavailable
-
 - My Music (`#16 <https://github.com/mopidy/mopidy-spotify/issues/16>`_,
   `#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) - available via
   web API
@@ -50,6 +45,11 @@ Mopidy-Spotify support for the following:
 - Top Tracks/curated playlists (`#140 
   <https://github.com/mopidy/mopidy-spotify/issues/140>`_) - available via web
   API
+
+- Podcasts (`#201 <https://github.com/mopidy/mopidy-spotify/issues/201>`_) -
+  unavailable
+
+- Radio (`#9 <https://github.com/mopidy/mopidy-spotify/issues/9>`_) - unavailable
 
 - Spotify Connect (`#14 <https://github.com/mopidy/mopidy-spotify/issues/14>`_) -
   unavailable
