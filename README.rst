@@ -24,15 +24,15 @@ Status
 Mopidy-Spotify is dependent on ``pyspotify``, a wrapper for Spotify's
 ``libspotify`` C library. ``libspotify`` was `deprecated in 2015
 <https://github.com/mopidy/mopidy-spotify/issues/110>`_ with no replacement. It
-is unmaintained, functionally limited and also now unavailable from the `Spotify
-developer site <https://developer.spotify.com/technologies/>`_. Where possible
-we are `moving to use Spotify's Web API instead
+is unmaintained, functionally limited, and also now unavailable from the
+`Spotify developer site <https://developer.spotify.com/technologies/>`_. Where
+possible we are `moving to use Spotify's Web API instead
 <https://github.com/mopidy/mopidy-spotify/issues/114>`_. However, native
 playback is still only possible using ``libspotify`` and there is no official
 way for us to provide some Spotify features.
 
 Limitations and/or bugs in ``libspotify`` currently result in missing/broken
-support in Mopidy-Spotify for the following:
+Mopidy-Spotify support for the following:
 
 - Playlists (`#182 <https://github.com/mopidy/mopidy-spotify/issues/182>`_,
   `#122 <https://github.com/mopidy/mopidy-spotify/issues/122>`_) - available
@@ -53,6 +53,14 @@ support in Mopidy-Spotify for the following:
 
 - Spotify Connect (`#14 <https://github.com/mopidy/mopidy-spotify/issues/14>`_) -
   unavailable
+
+Working support for the following features is currently available:
+
+- Playback
+
+- Search
+
+- Lookup by URI (except playlists)
 
 
 Dependencies
