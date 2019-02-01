@@ -18,6 +18,43 @@ Mopidy-Spotify
 `Spotify <http://www.spotify.com/>`_.
 
 
+Status
+======
+
+Mopidy-Spotify is dependent on ``pyspotify``, a wrapper for Spotify's
+``libspotify`` C library. ``libspotify`` was `deprecated in 2015
+<https://github.com/mopidy/mopidy-spotify/issues/110>`_ with no replacement. It
+is unmaintained, functionally limited and also now unavailable from the `Spotify
+developer site <https://developer.spotify.com/technologies/>`_. Where possible
+we are `moving to use Spotify's Web API instead
+<https://github.com/mopidy/mopidy-spotify/issues/114>`_. However, native
+playback is still only possible using ``libspotify`` and there is no official
+way for us to provide some Spotify features.
+
+Limitations and/or bugs in ``libspotify`` currently result in missing/broken
+support in Mopidy-Spotify for the following:
+
+- Playlists (`#182 <https://github.com/mopidy/mopidy-spotify/issues/182>`_,
+  `#122 <https://github.com/mopidy/mopidy-spotify/issues/122>`_) - available
+  via web API (`#188 <https://github.com/mopidy/mopidy-spotify/issues/188>`_)
+
+- Podcasts (`#201 <https://github.com/mopidy/mopidy-spotify/issues/201>`_) -
+  unavailable
+
+- Radio (`#9 <https://github.com/mopidy/mopidy-spotify/issues/9>`_) - unavailable
+
+- My Music (`#16 <https://github.com/mopidy/mopidy-spotify/issues/16>`_,
+  `#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) - available via
+  web API
+
+- Top Tracks/curated playlists (`#140 
+  <https://github.com/mopidy/mopidy-spotify/issues/140>`_) - available via web
+  API
+
+- Spotify Connect (`#14 <https://github.com/mopidy/mopidy-spotify/issues/14>`_) -
+  unavailable
+
+
 Dependencies
 ============
 
@@ -33,8 +70,8 @@ Dependencies
   Settings > Security > App passwords > Generate app passwords, and generate one
   to use with Mopidy-Spotify.
 
-- ``libspotify`` >= 12, < 13. The official C library from the `Spotify
-  developer site <https://developer.spotify.com/technologies/libspotify/>`_.
+- ``libspotify`` >= 12, < 13. The official C library from our `Unofficial
+  libspotify archive <https://mopidy.github.io/libspotify-archive/>`_.
   The package is available as ``libspotify12`` from
   `apt.mopidy.com <http://apt.mopidy.com/>`__.
 
