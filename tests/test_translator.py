@@ -244,6 +244,23 @@ class TestToTrackRef(object):
         assert ref1 is ref2
 
 
+class TestValidWebData(object):
+
+    def test_returns_none_if_missing_type(self, web_track_mock):
+        del web_track_mock['type']
+        assert translator.valid_web_data(web_track_mock, 'track') is False
+
+    def test_returns_none_if_wrong_type(self, web_track_mock):
+        assert translator.valid_web_data(web_track_mock, 'playlist') is False
+
+    def test_returns_none_if_missing_uri(self, web_track_mock):
+        del web_track_mock['uri']
+        assert translator.valid_web_data(web_track_mock, 'track') is False
+
+    def test_returns_success(self, web_track_mock):
+        assert translator.valid_web_data(web_track_mock, 'track') is True
+
+
 class TestWebToTrackRef(object):
 
     def test_returns_none_if_unloaded(self):
@@ -260,12 +277,34 @@ class TestWebToTrackRef(object):
 
         assert ref is None
 
+    def test_returns_none_if_missing_uri(self, web_track_mock):
+        del web_track_mock['uri']
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref is None
+
+    def test_returns_none_if_not_playable(self, web_track_mock, caplog):
+        web_track_mock['is_playable'] = False
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref is None
+        assert 'spotify:track:abc is not playable' in caplog.text
+
     def test_successful_translation(self, web_track_mock):
         ref = translator.web_to_track_ref(web_track_mock)
 
         assert ref.type == models.Ref.TRACK
         assert ref.uri == 'spotify:track:abc'
         assert ref.name == 'ABC 123'
+
+    def test_uri_uses_relinked_from_uri(self, web_track_mock):
+        web_track_mock['linked_from'] = {'uri': 'spotify:track:xyz'}
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref.uri == 'spotify:track:xyz'
 
 
 class TestToPlaylist(object):

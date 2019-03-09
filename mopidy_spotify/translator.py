@@ -142,6 +142,10 @@ def to_track_ref(sp_track):
     return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
 
 
+def valid_web_data(data, object_type):
+    return data.get('type') == object_type and 'uri' in data
+
+
 def to_track_refs(sp_tracks, timeout=None):
     for sp_track in sp_tracks:
         sp_track.load(timeout)
@@ -151,13 +155,18 @@ def to_track_refs(sp_tracks, timeout=None):
 
 
 def web_to_track_ref(web_track):
-    if web_track.get('type') != 'track':
+    if not valid_web_data(web_track, 'track'):
         return
 
-    # TODO: Check availability
+    # Web API track relinking guide says to use original URI.
+    # libspotfy will handle any relinking when track is loaded for playback.
+    uri = web_track.get('linked_from', {}).get('uri') or web_track['uri']
 
-    return models.Ref.track(
-        uri=web_track.get('uri'), name=web_track.get('name'))
+    if not web_track.get('is_playable', False):
+        logger.warning('%s is not playable', uri)
+        return
+
+    return models.Ref.track(uri=uri, name=web_track.get('name'))
 
 
 def web_to_track_refs(web_tracks):
@@ -170,13 +179,11 @@ def web_to_track_refs(web_tracks):
 def to_playlist(
         web_playlist, username=None, bitrate=None,
         as_ref=False, as_items=False):
-    if web_playlist.get('type') != 'playlist':
-        logger.error('No playlist data present')
+    if not valid_web_data(web_playlist, 'playlist'):
         return
 
     web_tracks = web_playlist.get('tracks', {}).get('items', [])
     if (as_items or not as_ref) and not isinstance(web_tracks, list):
-        logger.error('No playlist track data present')
         return
 
     if as_items:
@@ -195,10 +202,10 @@ def to_playlist(
         name = '%s (by %s)' % (name, owner)
 
     if as_ref:
-        return models.Ref.playlist(uri=web_playlist.get('uri'), name=name)
+        return models.Ref.playlist(uri=web_playlist['uri'], name=name)
     else:
         return models.Playlist(
-            uri=web_playlist.get('uri'), name=name, tracks=tracks)
+            uri=web_playlist['uri'], name=name, tracks=tracks)
 
 
 def to_playlist_ref(web_playlist, username=None):
@@ -248,14 +255,14 @@ def _transform_year(date):
 
 
 def web_to_artist(web_artist):
-    if 'uri' not in web_artist:
+    if not valid_web_data(web_artist, 'artist'):
         return
 
     return models.Artist(uri=web_artist['uri'], name=web_artist.get('name'))
 
 
 def web_to_album(web_album):
-    if 'uri' not in web_album:
+    if not valid_web_data(web_album, 'album'):
         return
 
     artists = [
@@ -270,10 +277,9 @@ def web_to_album(web_album):
 
 
 def web_to_track(web_track, bitrate=None):
-    if web_track.get('type') != 'track':
+    ref = web_to_track_ref(web_track)
+    if ref is None:
         return
-
-    # TODO: Check availability
 
     artists = [
         web_to_artist(web_artist)
@@ -283,8 +289,8 @@ def web_to_track(web_track, bitrate=None):
     album = web_to_album(web_track.get('album', {}))
 
     return models.Track(
-        uri=web_track.get('uri'),
-        name=web_track.get('name'),
+        uri=ref.uri,
+        name=ref.name,
         artists=artists,
         album=album,
         length=web_track.get('duration_ms'),

@@ -326,7 +326,8 @@ def web_search_mock_large(
 def web_artist_mock():
     return {
         'name': 'ABBA',
-        'uri': 'spotify:artist:abba'
+        'uri': 'spotify:artist:abba',
+        'type': 'artist'
     }
 
 
@@ -335,6 +336,7 @@ def web_album_mock(web_artist_mock):
     return {
         'name': 'DEF 456',
         'uri': 'spotify:album:def',
+        'type': 'album',
         'artists': [web_artist_mock]
     }
 
@@ -350,6 +352,7 @@ def web_track_mock(web_artist_mock, web_album_mock):
         'track_number': 7,
         'uri': 'spotify:track:abc',
         'type': 'track',
+        'is_playable': True,
     }
 
 

@@ -499,8 +499,8 @@ class TestSpotifyOAuthClient(object):
         ('is_playable'),
         ('linked_from'),
     ])
-    def test_track_required_fields(self, field, spotify_client):
-        assert field in spotify_client.TRACK_FIELDS
+    def test_track_required_fields(self, field):
+        assert field in web.SpotifyOAuthClient.TRACK_FIELDS
 
     @pytest.mark.parametrize('field', [
         ('name'),
@@ -510,8 +510,8 @@ class TestSpotifyOAuthClient(object):
         ('snapshot_id'),
         ('tracks'),
     ])
-    def test_playlist_required_fields(self, field, spotify_client):
-        assert field in spotify_client.PLAYLIST_FIELDS
+    def test_playlist_required_fields(self, field):
+        assert field in web.SpotifyOAuthClient.PLAYLIST_FIELDS
 
     def test_configures_auth(self):
         client = web.SpotifyOAuthClient('1234567', 'AbCdEfG', None)

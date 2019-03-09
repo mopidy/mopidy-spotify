@@ -38,6 +38,7 @@ def web_client_mock(web_client_mock, web_track_mock):
             'items': []
         },
         'uri': 'spotify:user:alice:playlist:malformed',
+        'type': 'bogus',
     }
     web_playlists = [web_playlist1, web_playlist2, web_playlist3]
     web_playlists_map = {x['uri']: x for x in web_playlists}
@@ -76,7 +77,7 @@ def test_as_list_when_offline(web_client_mock, provider):
     assert len(result) == 0
 
 
-def test_as_list_when_playlist_malformed(provider, caplog):
+def test_as_list_when_playlist_wont_translate(provider, caplog):
     result = provider.as_list()
 
     assert len(result) == 2
@@ -85,8 +86,6 @@ def test_as_list_when_playlist_malformed(provider, caplog):
         uri='spotify:user:alice:playlist:foo', name='Foo')
     assert result[1] == Ref.playlist(
         uri='spotify:user:bob:playlist:baz', name='Baz (by bob)')
-
-    assert 'No playlist data present' in caplog.text
 
 
 def test_as_list_uses_cache(provider, web_client_mock):
@@ -112,9 +111,8 @@ def test_get_items_when_playlist_without_tracks(provider):
     assert result == []
 
 
-def test_get_items_when_playlist_is_malformed(provider, caplog):
+def test_get_items_when_playlist_wont_translate(provider, caplog):
     assert provider.get_items('spotify:user:alice:playlist:malformed') is None
-    assert 'No playlist data present' in caplog.text
 
 
 def test_get_items_when_playlist_is_unknown(provider, caplog):
