@@ -335,8 +335,8 @@ class WebResponse(dict):
         return True
 
     def __str__(self):
-        return 'URL: %s ETag: %s Expires: %s' % (
-            self.url, self._etag, datetime.fromtimestamp(self._expires))
+        return 'URL: %s expires at %s [ETag: %s]' % (
+            self.url, datetime.fromtimestamp(self._expires), self._etag)
 
 
 class SpotifyOAuthClient(OAuthClient):

@@ -181,6 +181,27 @@ def test_on_start_logs_in(spotify_mock, web_mock, config):
     web_mock.SpotifyOAuthClient.return_value.login.assert_called_once()
 
 
+def test_on_start_refreshes_playlists(spotify_mock, web_mock, config, caplog):
+    backend = get_backend(config)
+    backend.on_start()
+
+    client_mock = web_mock.SpotifyOAuthClient.return_value
+    client_mock.get_user_playlists.assert_called_once()
+    assert 'Refreshed 0 playlists' in caplog.text
+
+
+def test_on_start_doesnt_refresh_playlists_if_not_allowed(
+        spotify_mock, web_mock, config, caplog):
+    config['spotify']['allow_playlists'] = False
+
+    backend = get_backend(config)
+    backend.on_start()
+
+    client_mock = web_mock.SpotifyOAuthClient.return_value
+    client_mock.get_user_playlists.assert_not_called()
+    assert 'Refreshed 0 playlists' not in caplog.text
+
+
 def test_on_stop_logs_out_and_waits_for_logout_to_complete(
         spotify_mock, config, caplog):
     backend = get_backend(config)

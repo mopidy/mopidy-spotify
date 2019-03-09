@@ -163,7 +163,7 @@ def web_to_track_ref(web_track):
     uri = web_track.get('linked_from', {}).get('uri') or web_track['uri']
 
     if not web_track.get('is_playable', False):
-        logger.warning('%s is not playable', uri)
+        logger.debug('%s is not playable', uri)
         return
 
     return models.Ref.track(uri=uri, name=web_track.get('name'))

@@ -65,6 +65,9 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             self._config['spotify']['client_secret'], self._config['proxy'])
         self._web_client.login()
 
+        if self.playlists is not None:
+            self.playlists.refresh()
+
     def on_stop(self):
         logger.debug('Logging out of Spotify')
         self._session.logout()
