@@ -154,16 +154,11 @@ class OAuthClient(object):
                 logger.debug('Fetching %s failed: %s', prepared_request.url, e)
                 status_code = None
                 backoff_time = None
-                expires = None
                 result = None
             else:
                 status_code = response.status_code
                 backoff_time = self._parse_retry_after(response)
-                expires = self._parse_cache_control(response)
-                etag = self._parse_etag(response)
-                json = self._decode(response)
-                result = WebResponse(
-                    prepared_request.url, json, expires, etag, status_code)
+                result = WebResponse.from_requests(prepared_request, response)
 
             if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
@@ -224,17 +219,6 @@ class OAuthClient(object):
         encoded_query = urllib.urlencode(sorted_unique_query)
         return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
-    def _decode(self, response):
-        # Deal with 204 and other responses with empty body.
-        if not response.content:
-            return None
-        try:
-            return response.json()
-        except ValueError as e:
-            url = response.request.url
-            logger.error('JSON decoding %s failed: %s', url, e)
-            return None
-
     def _parse_retry_after(self, response):
         """Parse Retry-After header from response if it is set."""
         value = response.headers.get('Retry-After')
@@ -251,7 +235,38 @@ class OAuthClient(object):
                 seconds = time.mktime(date_tuple) - time.time()
         return max(0, seconds)
 
-    def _parse_cache_control(self, response):
+
+class WebResponse(dict):
+
+    def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
+        self.url = url
+        self._expires = expires
+        self._etag = etag
+        self._status_code = status_code
+        super(WebResponse, self).__init__(data or {})
+        _trace('New WebResponse %s', self)
+
+    @classmethod
+    def from_requests(cls, request, response):
+        expires = cls._parse_cache_control(response)
+        etag = cls._parse_etag(response)
+        json = cls._decode(response)
+        return cls(request.url, json, expires, etag, response.status_code)
+
+    @staticmethod
+    def _decode(response):
+        # Deal with 204 and other responses with empty body.
+        if not response.content:
+            return None
+        try:
+            return response.json()
+        except ValueError as e:
+            url = response.request.url
+            logger.error('JSON decoding %s failed: %s', url, e)
+            return None
+
+    @staticmethod
+    def _parse_cache_control(response):
         """Parse Cache-Control header from response if it is set."""
         value = response.headers.get('Cache-Control', 'no-store').lower()
 
@@ -265,7 +280,8 @@ class OAuthClient(object):
                 seconds = int(max_age.groups()[0])
         return time.time() + seconds
 
-    def _parse_etag(self, response):
+    @staticmethod
+    def _parse_etag(response):
         """Parse ETag header from response if it is set."""
         value = response.headers.get('ETag')
 
@@ -277,17 +293,6 @@ class OAuthClient(object):
             etag = re.match(r'^(W/)?("[!#-~]+")$', value)
             if etag and len(etag.groups()) == 2:
                 return etag.groups()[1]
-
-
-class WebResponse(dict):
-
-    def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
-        self.url = url
-        self._expires = expires
-        self._etag = etag
-        self._status_code = status_code
-        super(WebResponse, self).__init__(data or {})
-        _trace('New WebResponse %s', self)
 
     @property
     def expired(self):

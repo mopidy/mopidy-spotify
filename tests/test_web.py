@@ -216,11 +216,11 @@ def test_auth_wrong_token_type(web_oauth_mock, oauth_client, caplog):
     ('max-age=junk', 100),
     ('', 100),
 ])
-def test_parse_cache_control(mock_time, oauth_client, header, expected):
+def test_parse_cache_control(mock_time, header, expected):
     mock_time.return_value = 100
     mock_response = mock.Mock(headers={'Cache-Control': header})
 
-    expires = oauth_client._parse_cache_control(mock_response)
+    expires = web.WebResponse._parse_cache_control(mock_response)
     assert expires == expected
 
 
@@ -234,11 +234,11 @@ def test_parse_cache_control(mock_time, oauth_client, header, expected):
     ('W/"33a6ff"', '"33a6ff"'),
     ('"#aa44-cc1-23==@!"', '"#aa44-cc1-23==@!"'),
 ])
-def test_parse_etag(oauth_client, header, expected):
+def test_parse_etag(header, expected):
     mock_time.return_value = 100
     mock_response = mock.Mock(headers={'ETag': header})
 
-    expires = oauth_client._parse_etag(mock_response)
+    expires = web.WebResponse._parse_etag(mock_response)
     assert expires == expected
 
 
