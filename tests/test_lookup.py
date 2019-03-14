@@ -155,12 +155,14 @@ def test_lookup_of_artist_uri_ignores_various_artists_albums(
 
 
 def test_lookup_of_playlist_uri(
-        session_mock, web_client_mock, web_playlist_mock, provider):
+        session_mock, web_client_mock, web_playlist_mock, sp_track_mock,
+        provider):
     web_client_mock.get_playlist.return_value = web_playlist_mock
+    session_mock.get_link.return_value = sp_track_mock.link
 
     results = provider.lookup('spotify:playlist:alice:foo')
 
-    session_mock.get_link.assert_not_called()
+    session_mock.get_link.assert_called_once_with('spotify:track:abc')
     web_client_mock.get_playlist.assert_called_once_with(
         'spotify:playlist:alice:foo', {})
 

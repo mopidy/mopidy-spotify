@@ -25,7 +25,7 @@ def lookup(config, session, web_client, uri):
 
     try:
         if web_link.type == 'playlist':
-            return _lookup_playlist(config, web_client, uri)
+            return _lookup_playlist(config, session, web_client, uri)
         elif sp_link.type is spotify.LinkType.TRACK:
             return list(_lookup_track(config, sp_link))
         elif sp_link.type is spotify.LinkType.ALBUM:
@@ -90,8 +90,9 @@ def _lookup_artist(config, sp_link):
                 yield track
 
 
-def _lookup_playlist(config, web_client, uri):
-    playlist = playlists.playlist_lookup(web_client, uri, config['bitrate'])
+def _lookup_playlist(config, session, web_client, uri):
+    playlist = playlists.playlist_lookup(
+        session, web_client, uri, config['bitrate'])
     if playlist is None:
         raise spotify.Error('Playlist Web API lookup failed')
     return playlist.tracks
