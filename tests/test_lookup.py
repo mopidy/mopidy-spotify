@@ -164,10 +164,23 @@ def test_lookup_of_playlist_uri(
 
     session_mock.get_link.assert_called_once_with('spotify:track:abc')
     web_client_mock.get_playlist.assert_called_once_with(
-        'spotify:playlist:alice:foo', {})
+        'spotify:playlist:alice:foo')
 
     assert len(results) == 1
     track = results[0]
     assert track.uri == 'spotify:track:abc'
     assert track.name == 'ABC 123'
     assert track.bitrate == 160
+
+
+def test_lookup_of_playlist_uri_when_not_logged_in(
+        web_client_mock, provider, caplog):
+    web_client_mock.user_id = None
+
+    results = provider.lookup('spotify:playlist:alice:foo')
+
+    assert len(results) == 0
+    assert (
+        'Failed to lookup "spotify:playlist:alice:foo": '
+        'Playlist Web API lookup failed'
+        in caplog.text)

@@ -9,6 +9,7 @@ import re
 import time
 import urllib
 import urlparse
+from contextlib import contextmanager
 from datetime import datetime
 
 import requests
@@ -356,6 +357,7 @@ class SpotifyOAuthClient(OAuthClient):
             client_id=client_id, client_secret=client_secret,
             proxy_config=proxy_config)
         self.user_id = None
+        self._cache = {}
 
     def get_all(self, path, *args, **kwargs):
         while path is not None:
@@ -373,15 +375,15 @@ class SpotifyOAuthClient(OAuthClient):
             logger.info('Logged into Spotify Web API as %s', self.user_id)
             return True
 
-    def get_user_playlists(self, cache=None):
+    def get_user_playlists(self):
         with utils.time_logger('get_user_playlists'):
-            pages = self.get_all('me/playlists', cache=cache, params={
+            pages = self.get_all('me/playlists', cache=self._cache, params={
                 'limit': 50})
             for page in pages:
                 for playlist in page.get('items', []):
                     yield playlist
 
-    def get_playlist(self, uri, cache=None):
+    def get_playlist(self, uri):
         try:
             parsed = parse_uri(uri)
             if parsed.type != 'playlist':
@@ -391,12 +393,13 @@ class SpotifyOAuthClient(OAuthClient):
             logger.error(exc)
             return {}
 
-        playlist = self.get('playlists/%s' % parsed.id, cache=cache, params={
+        path = 'playlists/%s' % parsed.id
+        playlist = self.get(path, cache=self._cache, params={
             'fields': self.PLAYLIST_FIELDS,
             'market': 'from_token'})
 
         tracks_path = playlist.get('tracks', {}).get('next')
-        track_pages = self.get_all(tracks_path, cache=cache, params={
+        track_pages = self.get_all(tracks_path, cache=self._cache, params={
             'fields': self.TRACK_FIELDS,
             'market': 'from_token'})
 
@@ -410,6 +413,15 @@ class SpotifyOAuthClient(OAuthClient):
             playlist['tracks']['items'] += more_tracks
 
         return playlist
+
+    @contextmanager
+    def refresh_playlists(self, extra_expiry=None):
+        self._cache.clear()
+        old_extra_expiry = self._extra_expiry
+        if extra_expiry is not None:
+            self._extra_expiry = extra_expiry
+        yield
+        self._extra_expiry = old_extra_expiry
 
 
 WebLink = collections.namedtuple('WebLink', ['uri', 'type', 'id', 'owner'])

@@ -9,7 +9,6 @@ import spotify
 from mopidy_spotify import translator, utils
 
 
-_cache = {}
 _sp_links = {}
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return
 
         web_client = self._backend._web_client
-        for web_playlist in web_client.get_user_playlists(_cache):
+        for web_playlist in web_client.get_user_playlists():
             playlist_ref = translator.to_playlist_ref(
                 web_playlist, web_client.user_id)
             if playlist_ref is not None:
@@ -61,14 +60,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def refresh(self):
         with utils.time_logger('Refresh Playlists', logging.INFO):
-            _cache.clear()
             _sp_links.clear()
-            # Want libspotify to get track links so they load in the background
-            count = 0
-            playlists = self._get_flattened_playlist_refs()
-            for count, playlist_ref in enumerate(playlists, start=1):
-                self._get_playlist(playlist_ref.uri)
-            logger.info('Refreshed %d playlists', count)
+            with self._backend._web_client.refresh_playlists():
+                count = 0
+                playlists = self._get_flattened_playlist_refs()
+                for count, playlist_ref in enumerate(playlists, start=1):
+                    self._get_playlist(playlist_ref.uri)
+                logger.info('Refreshed %d playlists', count)
 
         self._loaded = True
 
@@ -83,11 +81,11 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
 
 def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
-    if web_client is None:
+    if web_client is None or web_client.user_id is None:
         return
 
     logger.debug('Fetching Spotify playlist "%s"', uri)
-    web_playlist = web_client.get_playlist(uri, _cache)
+    web_playlist = web_client.get_playlist(uri)
 
     if web_playlist == {}:
         logger.error('Failed to lookup Spotify playlist URI %s', uri)
