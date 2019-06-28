@@ -140,13 +140,12 @@ def test_on_start_adds_connection_state_changed_handler_to_session(
 
     get_backend(config).on_start()
 
-    assert (mock.call(
+    session.on.assert_any_call(
         spotify_mock.SessionEvent.CONNECTION_STATE_UPDATED,
         backend.on_connection_state_changed,
         backend.SpotifyBackend._logged_in,
         backend.SpotifyBackend._logged_out,
         mock.ANY)
-        in session.on.call_args_list)
 
 
 def test_on_start_adds_play_token_lost_handler_to_session(
@@ -156,10 +155,10 @@ def test_on_start_adds_play_token_lost_handler_to_session(
     obj = get_backend(config)
     obj.on_start()
 
-    assert (mock.call(
+    session.on.assert_any_call(
         spotify_mock.SessionEvent.PLAY_TOKEN_LOST,
-        backend.on_play_token_lost, mock.ANY)
-        in session.on.call_args_list)
+        backend.on_play_token_lost,
+        mock.ANY)
 
 
 def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
