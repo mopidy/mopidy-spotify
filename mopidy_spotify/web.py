@@ -7,12 +7,17 @@ import re
 import time
 import urllib
 import urlparse
+from datetime import datetime
 
 import requests
 
 from mopidy_spotify import utils
 
 logger = logging.getLogger(__name__)
+
+
+def _trace(*args, **kwargs):
+    logger.log(utils.TRACE, *args, **kwargs)
 
 
 class OAuthTokenRefreshError(Exception):
@@ -51,10 +56,21 @@ class OAuthClient(object):
         self._headers = {'Content-Type': 'application/json'}
         self._session = utils.get_requests_session(proxy_config or {})
 
-    def get(self, path, *args, **kwargs):
+    def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
             logger.debug('Blocking request as previous authorization failed.')
             return {}
+
+        params = kwargs.pop('params', None)
+        path = self._normalise_query_string(path, params)
+
+        _trace('Get "%s"', path)
+
+        if cache is not None and path in cache:
+            cached_result = cache.get(path)
+            if not cached_result.expired:
+                return cached_result
+            kwargs.setdefault('headers', {}).update(cached_result.etag_headers)
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
@@ -71,7 +87,17 @@ class OAuthClient(object):
 
         if result is None or 'error' in result:
             return {}
+
+        if self._should_cache_response(cache, result):
+            previous_result = cache.get(path)
+            if previous_result and previous_result.updated(result):
+                result = previous_result
+            cache[path] = result
+
         return result
+
+    def _should_cache_response(self, cache, response):
+        return cache is not None and response.status_ok
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
@@ -132,7 +158,7 @@ class OAuthClient(object):
             else:
                 status_code = response.status_code
                 backoff_time = self._parse_retry_after(response)
-                result = self._decode(response)
+                result = WebResponse.from_requests(prepared_request, response)
 
             if status_code >= 400 and status_code < 600:
                 logger.debug('Fetching %s failed: %s',
@@ -182,16 +208,16 @@ class OAuthClient(object):
         encoded_query = urllib.urlencode(dict(query))
         return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
-    def _decode(self, response):
-        # Deal with 204 and other responses with empty body.
-        if not response.content:
-            return None
-        try:
-            return response.json()
-        except ValueError as e:
-            url = response.request.url
-            logger.error('JSON decoding %s failed: %s', url, e)
-            return None
+    def _normalise_query_string(self, url, params=None):
+        u = urlparse.urlsplit(url)
+        scheme, netloc, path = u.scheme, u.netloc, u.path
+
+        query = dict(urlparse.parse_qsl(u.query, keep_blank_values=True))
+        if isinstance(params, dict):
+            query.update(params)
+        sorted_unique_query = sorted(query.items())
+        encoded_query = urllib.urlencode(sorted_unique_query)
+        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
 
     def _parse_retry_after(self, response):
         """Parse Retry-After header from response if it is set."""
@@ -208,3 +234,104 @@ class OAuthClient(object):
             else:
                 seconds = time.mktime(date_tuple) - time.time()
         return max(0, seconds)
+
+
+class WebResponse(dict):
+
+    def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
+        self.url = url
+        self._expires = expires
+        self._etag = etag
+        self._status_code = status_code
+        super(WebResponse, self).__init__(data or {})
+        _trace('New WebResponse %s', self)
+
+    @classmethod
+    def from_requests(cls, request, response):
+        expires = cls._parse_cache_control(response)
+        etag = cls._parse_etag(response)
+        json = cls._decode(response)
+        return cls(request.url, json, expires, etag, response.status_code)
+
+    @staticmethod
+    def _decode(response):
+        # Deal with 204 and other responses with empty body.
+        if not response.content:
+            return None
+        try:
+            return response.json()
+        except ValueError as e:
+            url = response.request.url
+            logger.error('JSON decoding %s failed: %s', url, e)
+            return None
+
+    @staticmethod
+    def _parse_cache_control(response):
+        """Parse Cache-Control header from response if it is set."""
+        value = response.headers.get('Cache-Control', 'no-store').lower()
+
+        if 'no-store' in value:
+            seconds = 0
+        else:
+            max_age = re.match(r'.*max-age=\s*([0-9]+)\s*', value)
+            if not max_age:
+                seconds = 0
+            else:
+                seconds = int(max_age.groups()[0])
+        return time.time() + seconds
+
+    @staticmethod
+    def _parse_etag(response):
+        """Parse ETag header from response if it is set."""
+        value = response.headers.get('ETag')
+
+        if value:
+            # 'W/' (case-sensitive) indicates that a weak validator is used,
+            # currently ignoring this.
+            # Format is string of ASCII characters placed between double quotes
+            # but can seemingly also include hyphen characters.
+            etag = re.match(r'^(W/)?("[!#-~]+")$', value)
+            if etag and len(etag.groups()) == 2:
+                return etag.groups()[1]
+
+    @property
+    def expired(self):
+        status_str = {True: 'expired', False: 'fresh'}
+        result = self._expires < time.time()
+        _trace('Cached data %s for %s', status_str[result], self)
+        return result
+
+    @property
+    def status_ok(self):
+        return self._status_code >= 200 and self._status_code < 400
+
+    @property
+    def etag_headers(self):
+        if self._etag is not None:
+            return {'If-None-Match': self._etag}
+        else:
+            return {}
+
+    def updated(self, response):
+        if self._etag is None:
+            return False
+        elif self.url != response.url:
+            logger.error(
+                'ETag mismatch (different URI) for %s %s', self, response)
+            return False
+        elif not response.status_ok:
+            logger.debug(
+                'ETag mismatch (bad response) for %s %s', self, response)
+            return False
+        elif response._status_code != 304:
+            _trace('ETag mismatch for %s %s', self, response)
+            return False
+
+        _trace('ETag match for %s %s', self, response)
+        self._expires = response._expires
+        self._etag = response._etag
+        return True
+
+    def __str__(self):
+        return 'URL: %s ETag: %s Expires: %s' % (
+            self.url, self._etag, datetime.fromtimestamp(self._expires))

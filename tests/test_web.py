@@ -205,3 +205,261 @@ def test_auth_wrong_token_type(web_oauth_mock, oauth_client, caplog):
     assert oauth_client._headers['Authorization'] == 'Bearer 01234...abcde'
     assert result == {}
     assert 'OAuth token refresh failed: wrong token_type' in caplog.text
+
+
+@pytest.mark.parametrize('header,expected', [
+    ('no-store', 100),
+    ('max-age=1', 101),
+    ('max-age=2000', 2100),
+    ('max-age=2000, foo', 2100),
+    ('stuff, max-age=500', 600),
+    ('max-age=junk', 100),
+    ('', 100),
+])
+def test_parse_cache_control(mock_time, header, expected):
+    mock_time.return_value = 100
+    mock_response = mock.Mock(headers={'Cache-Control': header})
+
+    expires = web.WebResponse._parse_cache_control(mock_response)
+    assert expires == expected
+
+
+@pytest.mark.parametrize('header,expected', [
+    ('', None),
+    ('" "', None),
+    ('33a6ff', None),
+    ('"33a6ff"', '"33a6ff"'),
+    ('"33"a6ff"', None),
+    ('"33\na6ff"', None),
+    ('W/"33a6ff"', '"33a6ff"'),
+    ('"#aa44-cc1-23==@!"', '"#aa44-cc1-23==@!"'),
+])
+def test_parse_etag(header, expected):
+    mock_time.return_value = 100
+    mock_response = mock.Mock(headers={'ETag': header})
+
+    expires = web.WebResponse._parse_etag(mock_response)
+    assert expires == expected
+
+
+@pytest.mark.parametrize('status_code,expected', [
+    (200, True),
+    (301, True),
+    (400, False),
+])
+def test_web_response_status_ok(status_code, expected):
+    response = web.WebResponse('https://foo.com', {}, status_code=status_code)
+    assert response.status_ok == expected
+
+
+@pytest.mark.parametrize('etag,expected', [
+    ('"1234"', {'If-None-Match': '"1234"'}),
+    ('fish', {'If-None-Match': 'fish'}),
+    (None, {}),
+])
+def test_web_response_etag_headers(etag, expected):
+    response = web.WebResponse('https://foo.com', {}, etag=etag)
+    assert response.etag_headers == expected
+
+
+@pytest.mark.parametrize('etag,status,expected,expected_etag,expected_msg', [
+    ('abcd', 200, False, 'abcd', 'ETag mismatch'),
+    ('abcd', 404, False, 'abcd', 'ETag mismatch'),
+    ('abcd', 304, True, 'efgh', 'ETag match'),
+    (None, 304, False, None, ''),
+])
+def test_web_response_etag_updated(
+        etag, status, expected, expected_etag, expected_msg, caplog):
+    response = web.WebResponse(
+        'https://foo.com', {}, expires=1.0, etag=etag)
+    new_response = web.WebResponse(
+        'https://foo.com', {}, expires=2.0, etag='efgh', status_code=status)
+    assert response.updated(new_response) == expected
+    assert response._etag == expected_etag
+    assert expected_msg in caplog.text
+
+
+def test_web_response_etag_updated_different(web_response_mock_etag, caplog):
+    new_response = web.WebResponse('https://foo.com', {}, status_code=304)
+    assert not web_response_mock_etag.updated(new_response)
+    assert 'ETag mismatch (different URI) for' in caplog.text
+
+
+@pytest.mark.parametrize('cache,ok,expected', [
+    (None, False, False),
+    (None, True, False),
+    ({}, False, False),
+    ({}, True, True),
+])
+def test_should_cache_response(oauth_client, cache, ok, expected):
+    response_mock = mock.Mock(status_ok=ok)
+    result = oauth_client._should_cache_response(cache, response_mock)
+    assert result == expected
+
+
+@pytest.mark.parametrize('path,params,expected', [
+    ('tracks/abc?foo=bar&foo=5', None, 'tracks/abc?foo=5'),
+    ('tracks/abc?foo=bar&bar=9', None, 'tracks/abc?bar=9&foo=bar'),
+    ('tracks/abc', {'foo': 'bar'}, 'tracks/abc?foo=bar'),
+    ('tracks/abc?foo=bar', {'bar': 'foo'}, 'tracks/abc?bar=foo&foo=bar'),
+    ('tracks/abc?foo=bar', {'foo': 'foo'}, 'tracks/abc?foo=foo'),
+])
+def test_normalise_query_string(oauth_client, path, params, expected):
+    result = oauth_client._normalise_query_string(path, params)
+    assert result == expected
+
+
+@responses.activate
+def test_web_response(web_track_mock, mock_time, oauth_client):
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc',
+        json=web_track_mock, adding_headers={
+            'Cache-Control': 'max-age=2001', 'ETag': '"12345"'},
+        status=301)
+    mock_time.return_value = -1000
+
+    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc')
+
+    assert isinstance(result, web.WebResponse)
+    assert result.url == 'https://api.spotify.com/v1/tracks/abc'
+    assert result._status_code == 301
+    assert result._expires == 1001
+    assert result._etag == '"12345"'
+    assert not result.expired
+    assert result.status_ok
+    assert result['uri'] == 'spotify:track:abc'
+
+
+@responses.activate
+def test_cache_miss(web_track_mock, mock_time, oauth_client):
+    cache = {}
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc',
+        json=web_track_mock)
+    mock_time.return_value = -1000
+
+    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc', cache)
+    assert len(responses.calls) == 1
+    assert result['uri'] == 'spotify:track:abc'
+    assert oauth_client._should_cache_response(cache, result)
+    assert cache['https://api.spotify.com/v1/tracks/abc'] == result
+
+
+@responses.activate
+def test_cache_hit_not_expired(
+        web_response_mock, mock_time, oauth_client, caplog):
+    cache = {'https://api.spotify.com/v1/tracks/abc': web_response_mock}
+    oauth_client._expires = 2000
+    mock_time.return_value = 999
+
+    assert not web_response_mock.expired
+    assert 'Cached data fresh for' in caplog.text
+
+    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc', cache)
+    assert len(responses.calls) == 0
+    assert result['uri'] == 'spotify:track:abc'
+
+
+@responses.activate
+def test_cache_hit_expired(
+        web_response_mock, oauth_client, mock_time, caplog):
+    cache = {'https://api.spotify.com/v1/tracks/abc': web_response_mock}
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc',
+        json={'uri': 'new'})
+    oauth_client._expires = 2000
+    mock_time.return_value = 1001
+
+    assert web_response_mock.expired
+    assert 'Cached data expired for' in caplog.text
+
+    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc', cache)
+    assert len(responses.calls) == 1
+    assert result['uri'] == 'new'
+
+
+@responses.activate
+def test_dont_cache_bad_status(web_track_mock, mock_time, oauth_client):
+    cache = {}
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc',
+        json=web_track_mock, status=404)
+    mock_time.return_value = -1000
+
+    result = oauth_client.get('https://api.spotify.com/v1/tracks/abc', cache)
+    assert result._status_code == 404
+    assert not oauth_client._should_cache_response(cache, result)
+    assert 'https://api.spotify.com/v1/tracks/abc' not in cache
+
+
+@responses.activate
+def test_cache_key_uses_path(web_track_mock, mock_time, oauth_client):
+    cache = {}
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc',
+        json=web_track_mock)
+    mock_time.return_value = -1000
+
+    result = oauth_client.get('tracks/abc', cache)
+    assert len(responses.calls) == 1
+    assert cache['tracks/abc'] == result
+    assert result.url == 'https://api.spotify.com/v1/tracks/abc'
+
+
+@responses.activate
+def test_cache_normalised_query_string(mock_time, oauth_client):
+    cache = {}
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc?b=bar&f=foo',
+        json={'uri': 'foobar'}, match_querystring=True)
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc?b=bar&f=cat',
+        json={'uri': 'cat'}, match_querystring=True)
+    mock_time.return_value = -1000
+
+    r1 = oauth_client.get('tracks/abc?f=foo&b=bar', cache)
+    r2 = oauth_client.get('tracks/abc?b=bar&f=foo', cache)
+    r3 = oauth_client.get('tracks/abc?b=bar&f=cat', cache)
+    assert len(responses.calls) == 2
+    assert r1['uri'] == 'foobar'
+    assert r1 == r2
+    assert r1 != r3
+    assert 'tracks/abc?b=bar&f=foo' in cache
+    assert 'tracks/abc?b=bar&f=cat' in cache
+
+
+@pytest.mark.parametrize('status,expected', [
+    (304, 'spotify:track:abc'),
+    (200, 'spotify:track:xyz'),
+])
+@responses.activate
+def test_cache_expired_with_etag(
+        web_response_mock_etag, oauth_client, mock_time, status, expected):
+    cache = {'tracks/abc': web_response_mock_etag}
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/abc',
+        json={'uri': 'spotify:track:xyz'}, status=status)
+    oauth_client._expires = 2000
+    mock_time.return_value = 1001
+
+    result = oauth_client.get('tracks/abc', cache)
+    assert len(responses.calls) == 1
+    assert responses.calls[0].request.headers['If-None-Match'] == '"1234"'
+    assert result['uri'] == expected
+    assert cache['tracks/abc'] == result
+
+
+@responses.activate
+def test_cache_miss_no_etag(web_response_mock_etag, oauth_client, mock_time):
+    cache = {'tracks/abc': web_response_mock_etag}
+    responses.add(
+        responses.GET, 'https://api.spotify.com/v1/tracks/xyz',
+        json={'uri': 'spotify:track:xyz'})
+    oauth_client._expires = 2000
+    mock_time.return_value = 1001
+
+    result = oauth_client.get('tracks/xyz', cache)
+    assert len(responses.calls) == 1
+    assert 'If-None-Match' not in responses.calls[0].request.headers
+    assert result['uri'] == 'spotify:track:xyz'
+    assert cache['tracks/xyz'] == result

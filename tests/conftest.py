@@ -346,6 +346,20 @@ def web_track_mock(web_artist_mock, web_album_mock):
 
 
 @pytest.fixture
+def web_response_mock(web_track_mock):
+    return web.WebResponse(
+        'https://api.spotify.com/v1/tracks/abc', web_track_mock, expires=1000,
+        status_code=200)
+
+
+@pytest.fixture
+def web_response_mock_etag(web_track_mock):
+    return web.WebResponse(
+        'https://api.spotify.com/v1/tracks/abc', web_track_mock, expires=1000,
+        etag='"1234"', status_code=200)
+
+
+@pytest.fixture
 def web_oauth_mock():
     return {
         'access_token': 'NgCXRK...MzYjw',
