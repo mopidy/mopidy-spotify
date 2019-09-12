@@ -36,7 +36,8 @@ Mopidy-Spotify support for the following:
 
 - Playlists (`#182 <https://github.com/mopidy/mopidy-spotify/issues/182>`_,
   `#122 <https://github.com/mopidy/mopidy-spotify/issues/122>`_) - available
-  via web API (`#188 <https://github.com/mopidy/mopidy-spotify/issues/188>`_)
+  via web API using
+  `#228 <https://github.com/mopidy/mopidy-spotify/pull/228>`_
 
 - My Music (`#16 <https://github.com/mopidy/mopidy-spotify/issues/16>`_,
   `#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) - available via
