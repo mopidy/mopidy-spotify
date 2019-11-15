@@ -98,8 +98,10 @@ dependencies are installed automatically.
 Installation
 ============
 
-Debian/Ubuntu/Raspbian: Install the ``mopidy-spotify`` package from
-`apt.mopidy.com <http://apt.mopidy.com/>`_::
+Debian/Ubuntu/Raspbian: Ensure you have `added the Mopidy APT repo to your
+package sources <https://docs.mopidy.com/en/latest/installation/debian/>`_ and
+then install the ``mopidy-spotify`` package from `apt.mopidy.com
+<http://apt.mopidy.com/>`_::
 
     sudo apt-get install mopidy-spotify
 
