@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 
 from mopidy_spotify import Extension
 from mopidy_spotify import backend as backend_lib

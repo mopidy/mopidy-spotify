@@ -1,6 +1,6 @@
 import threading
 
-import mock
+from unittest import mock
 
 import spotify
 from mopidy import backend as backend_api

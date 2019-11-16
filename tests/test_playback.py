@@ -1,6 +1,6 @@
 import threading
 
-import mock
+from unittest import mock
 import pytest
 
 import spotify
