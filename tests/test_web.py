@@ -290,7 +290,7 @@ def test_parse_etag(header, expected):
 
 
 @pytest.mark.parametrize(
-    "status_code,expected", [(200, True), (301, True), (400, False),]
+    "status_code,expected", [(200, True), (301, True), (400, False)]
 )
 def test_web_response_status_ok(status_code, expected):
     response = web.WebResponse("https://foo.com", {}, status_code=status_code)
@@ -504,7 +504,7 @@ def test_cache_normalised_query_string(mock_time, oauth_client):
 
 
 @pytest.mark.parametrize(
-    "status,expected", [(304, "spotify:track:abc"), (200, "spotify:track:xyz"),]
+    "status,expected", [(304, "spotify:track:abc"), (200, "spotify:track:xyz")]
 )
 @responses.activate
 def test_cache_expired_with_etag(

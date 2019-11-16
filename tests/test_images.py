@@ -21,8 +21,8 @@ def test_get_artist_images(web_client_mock, img_provider):
             {
                 "id": "4FCGgZrVQtcbDFEap3OAb2",
                 "images": [
-                    {"height": 640, "url": "img://1/a", "width": 640,},
-                    {"height": 300, "url": "img://1/b", "width": 300,},
+                    {"height": 640, "url": "img://1/a", "width": 640},
+                    {"height": 300, "url": "img://1/b", "width": 300},
                 ],
             },
             {
@@ -73,7 +73,7 @@ def test_get_album_images(web_client_mock, img_provider):
         "albums": [
             {
                 "id": "1utFPuvgBHXzLJdqhCDOkg",
-                "images": [{"height": 640, "url": "img://1/a", "width": 640,}],
+                "images": [{"height": 640, "url": "img://1/a", "width": 640}],
             }
         ]
     }
@@ -107,7 +107,7 @@ def test_get_track_images(web_client_mock, img_provider):
                 "album": {
                     "uri": "spotify:album:1utFPuvgBHXzLJdqhCDOkg",
                     "images": [
-                        {"height": 640, "url": "img://1/a", "width": 640,}
+                        {"height": 640, "url": "img://1/a", "width": 640}
                     ],
                 },
             }
@@ -143,7 +143,7 @@ def test_results_are_cached(web_client_mock, img_provider):
                 "album": {
                     "uri": "spotify:album:1utFPuvgBHXzLJdqhCDOkg",
                     "images": [
-                        {"height": 640, "url": "img://1/a", "width": 640,}
+                        {"height": 640, "url": "img://1/a", "width": 640}
                     ],
                 },
             }

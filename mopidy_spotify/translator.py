@@ -7,7 +7,7 @@ from mopidy import models
 logger = logging.getLogger(__name__)
 
 
-class memoized:
+class Memoized:
     def __init__(self, func):
         self.func = func
         self.cache = {}
@@ -25,7 +25,7 @@ class memoized:
             return value
 
 
-@memoized
+@Memoized
 def to_artist(sp_artist):
     if not sp_artist.is_loaded:
         return
@@ -33,7 +33,7 @@ def to_artist(sp_artist):
     return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
-@memoized
+@Memoized
 def to_artist_ref(sp_artist):
     if not sp_artist.is_loaded:
         return
@@ -49,7 +49,7 @@ def to_artist_refs(sp_artists, timeout=None):
             yield ref
 
 
-@memoized
+@Memoized
 def to_album(sp_album):
     if not sp_album.is_loaded:
         return
@@ -69,7 +69,7 @@ def to_album(sp_album):
     )
 
 
-@memoized
+@Memoized
 def to_album_ref(sp_album):
     if not sp_album.is_loaded:
         return
@@ -90,7 +90,7 @@ def to_album_refs(sp_albums, timeout=None):
             yield ref
 
 
-@memoized
+@Memoized
 def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
         return
@@ -120,7 +120,7 @@ def to_track(sp_track, bitrate=None):
     )
 
 
-@memoized
+@Memoized
 def to_track_ref(sp_track):
     if not sp_track.is_loaded:
         return

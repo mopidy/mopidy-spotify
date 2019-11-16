@@ -2,7 +2,7 @@
 List of countries that Spotify is available in.
 
 The list is based on:
-https://support.spotify.com/us/learn-more/faq/#!/article/Availability-in-overseas-territories
+https://support.spotify.com/us/learn-more/faq/#!/article/Availability-in-overseas-territories # noqa: B950
 
 Last updated: 2015-01-22
 """

@@ -35,7 +35,7 @@ def search_mock(mopidy_album_mock, mopidy_artist_mock):
 
 
 @pytest.mark.parametrize(
-    "field", ["composer", "performer", "genre", "unknown-field-type",]
+    "field", ["composer", "performer", "genre", "unknown-field-type"]
 )
 def test_get_distinct_unsupported_field_types_returns_nothing(provider, field):
     assert provider.get_distinct(field) == set()
@@ -57,7 +57,7 @@ def test_get_distinct_without_query_when_playlists_enabled(
     assert provider.get_distinct(field) == expected
 
 
-@pytest.mark.parametrize("field", ["artist", "albumartist", "album", "date",])
+@pytest.mark.parametrize("field", ["artist", "albumartist", "album", "date"])
 def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
     provider, config, field
 ):
