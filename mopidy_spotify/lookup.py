@@ -1,9 +1,7 @@
 import logging
 
 import spotify
-
 from mopidy_spotify import translator, utils
-
 
 logger = logging.getLogger(__name__)
 

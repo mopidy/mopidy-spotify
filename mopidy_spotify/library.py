@@ -1,9 +1,7 @@
 import logging
 
 from mopidy import backend
-
 from mopidy_spotify import browse, distinct, images, lookup, search
-
 
 logger = logging.getLogger(__name__)
 

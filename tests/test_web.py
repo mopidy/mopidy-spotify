@@ -1,7 +1,5 @@
 import mock
-
 import pytest
-
 import responses
 
 import mopidy_spotify

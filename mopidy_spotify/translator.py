@@ -1,10 +1,8 @@
 import collections
 import logging
 
-from mopidy import models
-
 import spotify
-
+from mopidy import models
 
 logger = logging.getLogger(__name__)
 

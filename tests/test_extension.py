@@ -1,6 +1,7 @@
 import mock
 
-from mopidy_spotify import Extension, backend as backend_lib
+from mopidy_spotify import Extension
+from mopidy_spotify import backend as backend_lib
 
 
 def test_get_default_config():

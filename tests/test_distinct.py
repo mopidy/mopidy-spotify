@@ -1,9 +1,7 @@
 import mock
-
-from mopidy import models
-
 import pytest
 
+from mopidy import models
 from mopidy_spotify import distinct, search
 
 

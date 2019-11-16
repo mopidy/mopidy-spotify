@@ -2,14 +2,11 @@ import logging
 import os
 import threading
 
-from mopidy import backend, httpclient
-
 import pykka
 
 import spotify
-
+from mopidy import backend, httpclient
 from mopidy_spotify import Extension, library, playback, playlists, web
-
 
 logger = logging.getLogger(__name__)
 

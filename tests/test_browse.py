@@ -1,8 +1,7 @@
 import mock
 
-from mopidy import models
-
 import spotify
+from mopidy import models
 
 
 def test_has_a_root_directory(provider):

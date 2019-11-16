@@ -1,7 +1,6 @@
-from mopidy import models
-
 import pytest
 
+from mopidy import models
 from mopidy_spotify import images
 
 

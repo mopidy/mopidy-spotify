@@ -2,10 +2,8 @@ import functools
 import logging
 import threading
 
-from mopidy import audio, backend
-
 import spotify
-
+from mopidy import audio, backend
 
 logger = logging.getLogger(__name__)
 

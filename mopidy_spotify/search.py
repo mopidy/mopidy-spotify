@@ -1,12 +1,9 @@
 import logging
 import urllib
 
-from mopidy import models
-
 import spotify
-
+from mopidy import models
 from mopidy_spotify import lookup, translator
-
 
 _SEARCH_TYPES = ["album", "artist", "track"]
 

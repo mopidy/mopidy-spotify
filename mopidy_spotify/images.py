@@ -5,7 +5,6 @@ import urlparse
 
 from mopidy import models
 
-
 # NOTE: This module is independent of libspotify and built using the Spotify
 # Web APIs. As such it does not tie in with any of the regular code used
 # elsewhere in the mopidy-spotify extensions. It is also intended to be used

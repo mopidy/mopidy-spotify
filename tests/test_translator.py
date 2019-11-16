@@ -1,9 +1,7 @@
 import mock
 
-from mopidy import models
-
 import spotify
-
+from mopidy import models
 from mopidy_spotify import translator
 
 

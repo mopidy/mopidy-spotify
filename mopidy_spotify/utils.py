@@ -2,12 +2,10 @@ import contextlib
 import logging
 import time
 
-from mopidy import httpclient
-
 import requests
 
+from mopidy import httpclient
 from mopidy_spotify import Extension, __version__
-
 
 logger = logging.getLogger(__name__)
 TRACE = logging.getLevelName("TRACE")

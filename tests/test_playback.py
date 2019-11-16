@@ -1,13 +1,12 @@
 import threading
 
 import mock
-
-from mopidy import audio, backend as backend_api, models
-
 import pytest
 
 import spotify
-
+from mopidy import audio
+from mopidy import backend as backend_api
+from mopidy import models
 from mopidy_spotify import backend, playback
 
 
