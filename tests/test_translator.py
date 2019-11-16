@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import mock
 
 from mopidy import models
@@ -9,7 +7,7 @@ import spotify
 from mopidy_spotify import translator
 
 
-class TestToArtist(object):
+class TestToArtist:
 
     def test_returns_none_if_unloaded(self, sp_artist_mock):
         sp_artist_mock.is_loaded = False
@@ -41,7 +39,7 @@ class TestToArtist(object):
         assert artist2 is not None
 
 
-class TestToArtistRef(object):
+class TestToArtistRef:
 
     def test_returns_none_if_unloaded(self, sp_artist_mock):
         sp_artist_mock.is_loaded = False
@@ -64,7 +62,7 @@ class TestToArtistRef(object):
         assert ref1 is ref2
 
 
-class TestToAlbum(object):
+class TestToAlbum:
 
     def test_returns_none_if_unloaded(self, sp_album_mock):
         sp_album_mock.is_loaded = False
@@ -110,7 +108,7 @@ class TestToAlbum(object):
         assert album1 is album2
 
 
-class TestToAlbumRef(object):
+class TestToAlbumRef:
 
     def test_returns_none_if_unloaded(self, sp_album_mock):
         sp_album_mock.is_loaded = False
@@ -147,7 +145,7 @@ class TestToAlbumRef(object):
         assert ref1 is ref2
 
 
-class TestToTrack(object):
+class TestToTrack:
 
     def test_returns_none_if_unloaded(self, sp_track_mock):
         sp_track_mock.is_loaded = False
@@ -206,7 +204,7 @@ class TestToTrack(object):
         assert track1 is track2
 
 
-class TestToTrackRef(object):
+class TestToTrackRef:
 
     def test_returns_none_if_unloaded(self, sp_track_mock):
         sp_track_mock.is_loaded = False
@@ -246,7 +244,7 @@ class TestToTrackRef(object):
         assert ref1 is ref2
 
 
-class TestToPlaylist(object):
+class TestToPlaylist:
 
     def test_returns_none_if_unloaded(self):
         sp_playlist = mock.Mock(spec=spotify.Playlist)
@@ -315,7 +313,7 @@ class TestToPlaylist(object):
         assert list(playlist.tracks) == []
 
 
-class TestToPlaylistRef(object):
+class TestToPlaylistRef:
 
     def test_returns_none_if_unloaded(self):
         sp_playlist = mock.Mock(spec=spotify.Playlist)
@@ -359,7 +357,7 @@ class TestToPlaylistRef(object):
         assert ref.name == 'Bar/Baz/Foo'
 
 
-class TestSpotifySearchQuery(object):
+class TestSpotifySearchQuery:
 
     def test_any_maps_to_no_field(self):
         query = translator.sp_search_query({'any': ['ABC', 'DEF']})
@@ -430,7 +428,7 @@ class TestSpotifySearchQuery(object):
         assert 'year:1970' in query
 
 
-class TestWebToArtist(object):
+class TestWebToArtist:
 
     def test_successful_translation(self, web_artist_mock):
         artist = translator.web_to_artist(web_artist_mock)
@@ -439,7 +437,7 @@ class TestWebToArtist(object):
         assert artist.name == 'ABBA'
 
 
-class TestWebToAlbum(object):
+class TestWebToAlbum:
 
     def test_successful_translation(self, web_album_mock):
         album = translator.web_to_album(web_album_mock)
@@ -451,7 +449,7 @@ class TestWebToAlbum(object):
         assert list(album.artists) == artists
 
 
-class TestWebToTrack(object):
+class TestWebToTrack:
 
     def test_successful_translation(self, web_track_mock):
         track = translator.web_to_track(web_track_mock)

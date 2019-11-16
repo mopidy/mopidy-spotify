@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import functools
 import logging
 import threading
@@ -22,7 +20,7 @@ TRACE_LOG_LEVEL = 5
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
     def __init__(self, *args, **kwargs):
-        super(SpotifyPlaybackProvider, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._timeout = self.backend._config['spotify']['timeout']
 
         self._buffer_timestamp = BufferTimestamp(0)
@@ -91,17 +89,17 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def resume(self):
         logger.debug('Audio requested resume; starting Spotify player')
         self.backend._session.player.play()
-        return super(SpotifyPlaybackProvider, self).resume()
+        return super().resume()
 
     def stop(self):
         logger.debug('Audio requested stop; pausing Spotify player')
         self.backend._session.player.pause()
-        return super(SpotifyPlaybackProvider, self).stop()
+        return super().stop()
 
     def pause(self):
         logger.debug('Audio requested pause; pausing Spotify player')
         self.backend._session.player.pause()
-        return super(SpotifyPlaybackProvider, self).pause()
+        return super().pause()
 
     def on_seek_data(self, time_position):
         logger.debug('Audio requested seek to %d', time_position)
@@ -191,7 +189,7 @@ def end_of_track_callback(session, end_of_track_event, audio_actor):
     audio_actor.emit_data(None)
 
 
-class BufferTimestamp(object):
+class BufferTimestamp:
     """Wrapper around an int to serialize access by multiple threads.
 
     The value is used both from the backend actor and callbacks called by

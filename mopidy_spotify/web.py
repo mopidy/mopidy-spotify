@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import email
 import logging
 import os
@@ -23,14 +21,14 @@ def _trace(*args, **kwargs):
 class OAuthTokenRefreshError(Exception):
     def __init__(self, reason):
         message = 'OAuth token refresh failed: %s' % reason
-        super(OAuthTokenRefreshError, self).__init__(message)
+        super().__init__(message)
 
 
 class OAuthClientError(Exception):
     pass
 
 
-class OAuthClient(object):
+class OAuthClient:
 
     def __init__(self, base_url, refresh_url, client_id=None,
                  client_secret=None, proxy_config=None, expiry_margin=60,
@@ -113,7 +111,7 @@ class OAuthClient(object):
         if result is None:
             raise OAuthTokenRefreshError('Unknown error.')
         elif result.get('error'):
-            raise OAuthTokenRefreshError('%s %s' % (
+            raise OAuthTokenRefreshError('{} {}'.format(
                 result['error'], result.get('error_description', '')))
         elif not result.get('access_token'):
             raise OAuthTokenRefreshError('missing access_token')
@@ -243,7 +241,7 @@ class WebResponse(dict):
         self._expires = expires
         self._etag = etag
         self._status_code = status_code
-        super(WebResponse, self).__init__(data or {})
+        super().__init__(data or {})
         _trace('New WebResponse %s', self)
 
     @classmethod
@@ -333,5 +331,5 @@ class WebResponse(dict):
         return True
 
     def __str__(self):
-        return 'URL: %s ETag: %s Expires: %s' % (
+        return 'URL: {} ETag: {} Expires: {}'.format(
             self.url, self._etag, datetime.fromtimestamp(self._expires))

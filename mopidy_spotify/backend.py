@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import logging
 import os
 import threading
@@ -30,7 +28,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
     _logged_out.set()
 
     def __init__(self, config, audio):
-        super(SpotifyBackend, self).__init__()
+        super().__init__()
 
         self._config = config
         self._audio = audio

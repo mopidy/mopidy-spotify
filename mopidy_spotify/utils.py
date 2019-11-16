@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import contextlib
 import logging
 import time
@@ -16,7 +14,7 @@ TRACE = logging.getLevelName('TRACE')
 
 
 def get_requests_session(proxy_config):
-    user_agent = '%s/%s' % (Extension.dist_name, __version__)
+    user_agent = f'{Extension.dist_name}/{__version__}'
     proxy = httpclient.format_proxy(proxy_config)
     full_user_agent = httpclient.format_user_agent(user_agent)
 

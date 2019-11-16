@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import os
 
 from mopidy import config, ext
@@ -19,7 +17,7 @@ class Extension(ext.Extension):
         return config.read(conf_file)
 
     def get_config_schema(self):
-        schema = super(Extension, self).get_config_schema()
+        schema = super().get_config_schema()
 
         schema['username'] = config.String()
         schema['password'] = config.Secret()

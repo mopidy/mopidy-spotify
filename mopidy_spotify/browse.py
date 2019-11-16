@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import logging
 
 from mopidy import models
@@ -107,7 +105,7 @@ def _browse_toplist(config, session, variant, region):
             codes = countries.COUNTRIES.keys()
         return [
             models.Ref.directory(
-                uri='spotify:top:%s:%s' % (variant, code.lower()),
+                uri='spotify:top:{}:{}'.format(variant, code.lower()),
                 name=countries.COUNTRIES.get(code.upper(), code.upper()))
             for code in codes]
 

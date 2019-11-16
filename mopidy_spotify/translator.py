@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import collections
 import logging
 
@@ -11,7 +9,7 @@ import spotify
 logger = logging.getLogger(__name__)
 
 
-class memoized(object):
+class memoized:
     def __init__(self, func):
         self.func = func
         self.cache = {}
@@ -83,7 +81,7 @@ def to_album_ref(sp_album):
     if sp_album.artist is None or not sp_album.artist.is_loaded:
         name = sp_album.name
     else:
-        name = '%s - %s' % (sp_album.artist.name, sp_album.name)
+        name = f'{sp_album.artist.name} - {sp_album.name}'
 
     return models.Ref.album(uri=sp_album.link.uri, name=name)
 
@@ -178,7 +176,7 @@ def to_playlist(
     if folders is not None:
         name = '/'.join(folders + [name])
     if username is not None and sp_playlist.owner.canonical_name != username:
-        name = '%s (by %s)' % (name, sp_playlist.owner.canonical_name)
+        name = f'{name} (by {sp_playlist.owner.canonical_name})'
 
     if as_ref:
         return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
@@ -220,7 +218,7 @@ def sp_search_query(query):
             elif field == 'any':
                 result.append('"%s"' % value)
             else:
-                result.append('%s:"%s"' % (field, value))
+                result.append(f'{field}:"{value}"')
 
     return ' '.join(result)
 
