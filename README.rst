@@ -2,17 +2,17 @@
 Mopidy-Spotify
 **************
 
-.. image:: https://img.shields.io/pypi/v/Mopidy-Spotify.svg?style=flat
-    :target: https://pypi.python.org/pypi/Mopidy-Spotify/
+.. image:: https://img.shields.io/pypi/v/Mopidy-Spotify.svg
+    :target: https://pypi.org/project/Mopidy-Spotify/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/travis/mopidy/mopidy-spotify/develop.svg?style=flat
-    :target: https://travis-ci.org/mopidy/mopidy-spotify
-    :alt: Travis CI build status
+.. image:: https://img.shields.io/circleci/project/mopidy/mopidy-spotify/develop.svg
+    :target: https://circleci.com/gh/mopidy/mopidy-spotify
+    :alt: CircleCI build status
 
-.. image:: https://img.shields.io/coveralls/mopidy/mopidy-spotify/develop.svg?style=flat
-   :target: https://coveralls.io/r/mopidy/mopidy-spotify
-   :alt: Test coverage
+.. image:: https://img.shields.io/codecov/c/github/mopidy/mopidy-spotify/develop.svg
+    :target: https://codecov.io/gh/mopidy/mopidy-spotify
+    :alt: Test coverage
 
 `Mopidy <http://www.mopidy.com/>`_ extension for playing music from
 `Spotify <http://www.spotify.com/>`_.
@@ -115,7 +115,7 @@ OS X: Install the ``mopidy-spotify`` package from the
 Else: Install the dependencies listed above yourself, and then install the
 package from PyPI::
 
-    pip install Mopidy-Spotify
+    python3 -m pip Mopidy-Spotify
 
 
 Configuration
@@ -188,6 +188,7 @@ Project resources
 
 - `Source code <https://github.com/mopidy/mopidy-spotify>`_
 - `Issue tracker <https://github.com/mopidy/mopidy-spotify/issues>`_
+- `Changelog <https://github.com/mopidy/mopidy-spotify/blob/master/CHANGELOG.rst>`_
 
 
 Credits
