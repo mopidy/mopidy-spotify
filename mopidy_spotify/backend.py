@@ -1,5 +1,5 @@
 import logging
-import os
+import pathlib
 import threading
 
 import pykka
@@ -101,7 +101,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         spotify_config = spotify.Config()
 
         spotify_config.load_application_key_file(
-            os.path.join(os.path.dirname(__file__), "spotify_appkey.key")
+            pathlib.Path(__file__).parent / "spotify_appkey.key"
         )
 
         if config["spotify"]["allow_cache"]:
