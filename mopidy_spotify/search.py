@@ -1,5 +1,5 @@
 import logging
-import urllib
+import urllib.parse
 
 import spotify
 from mopidy import models
@@ -34,7 +34,7 @@ def search(
         logger.debug("Ignored search with empty query")
         return models.SearchResult(uri="spotify:search")
 
-    uri = "spotify:search:%s" % urllib.quote(sp_query.encode("utf-8"))
+    uri = "spotify:search:%s" % urllib.parse.quote(sp_query.encode("utf-8"))
     logger.info("Searching Spotify for: %s", sp_query)
 
     if session.connection.state is not spotify.ConnectionState.LOGGED_IN:

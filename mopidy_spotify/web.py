@@ -3,8 +3,7 @@ import logging
 import os
 import re
 import time
-import urllib
-import urlparse
+import urllib.parse
 from datetime import datetime
 
 import requests
@@ -207,36 +206,36 @@ class OAuthClient:
 
     def _prepare_url(self, url, *args, **kwargs):
         # TODO: Move this out as a helper and unit-test it directly?
-        b = urlparse.urlsplit(self._base_url)
-        u = urlparse.urlsplit(url.format(*args))
+        b = urllib.parse.urlsplit(self._base_url)
+        u = urllib.parse.urlsplit(url.format(*args))
 
         if u.scheme or u.netloc:
             scheme, netloc, path = u.scheme, u.netloc, u.path
-            query = urlparse.parse_qsl(u.query, keep_blank_values=True)
+            query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
         else:
             scheme, netloc = b.scheme, b.netloc
             path = os.path.normpath(os.path.join(b.path, u.path))
-            query = urlparse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(urlparse.parse_qsl(u.query, keep_blank_values=True))
+            query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
+            query.extend(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
 
         for key, value in kwargs.items():
             if isinstance(value, unicode):
                 value = value.encode("utf-8")
             query.append((key, value))
 
-        encoded_query = urllib.urlencode(dict(query))
-        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ""))
+        encoded_query = urllib.parse.urlencode(dict(query))
+        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _normalise_query_string(self, url, params=None):
-        u = urlparse.urlsplit(url)
+        u = urllib.parse.urlsplit(url)
         scheme, netloc, path = u.scheme, u.netloc, u.path
 
-        query = dict(urlparse.parse_qsl(u.query, keep_blank_values=True))
+        query = dict(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
         if isinstance(params, dict):
             query.update(params)
         sorted_unique_query = sorted(query.items())
-        encoded_query = urllib.urlencode(sorted_unique_query)
-        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ""))
+        encoded_query = urllib.parse.urlencode(sorted_unique_query)
+        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _parse_retry_after(self, response):
         """Parse Retry-After header from response if it is set."""

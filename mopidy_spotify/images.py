@@ -1,7 +1,7 @@
 import itertools
 import logging
 import operator
-import urlparse
+import urllib.parse
 
 from mopidy import models
 
@@ -36,7 +36,7 @@ def get_images(web_client, uris):
 
 
 def _parse_uri(uri):
-    parsed_uri = urlparse.urlparse(uri)
+    parsed_uri = urllib.parse.urlparse(uri)
     uri_type, uri_id = None, None
 
     if parsed_uri.scheme == "spotify":
