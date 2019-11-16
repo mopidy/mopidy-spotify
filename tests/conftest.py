@@ -18,35 +18,34 @@ def caplog(caplog):
 @pytest.fixture
 def config(tmpdir):
     return {
-        'core': {
-            'cache_dir': '%s' % tmpdir.join('cache'),
-            'data_dir': '%s' % tmpdir.join('data'),
+        "core": {
+            "cache_dir": "%s" % tmpdir.join("cache"),
+            "data_dir": "%s" % tmpdir.join("data"),
         },
-        'proxy': {
+        "proxy": {},
+        "spotify": {
+            "username": "alice",
+            "password": "password",
+            "bitrate": 160,
+            "volume_normalization": True,
+            "private_session": False,
+            "timeout": 10,
+            "allow_cache": True,
+            "allow_network": True,
+            "allow_playlists": True,
+            "search_album_count": 20,
+            "search_artist_count": 10,
+            "search_track_count": 50,
+            "toplist_countries": ["GB", "US"],
+            "client_id": "abcd1234",
+            "client_secret": "YWJjZDEyMzQ=",
         },
-        'spotify': {
-            'username': 'alice',
-            'password': 'password',
-            'bitrate': 160,
-            'volume_normalization': True,
-            'private_session': False,
-            'timeout': 10,
-            'allow_cache': True,
-            'allow_network': True,
-            'allow_playlists': True,
-            'search_album_count': 20,
-            'search_artist_count': 10,
-            'search_track_count': 50,
-            'toplist_countries': ['GB', 'US'],
-            'client_id': 'abcd1234',
-            'client_secret': 'YWJjZDEyMzQ='
-        }
     }
 
 
 @pytest.yield_fixture
 def spotify_mock():
-    patcher = mock.patch.object(backend, 'spotify', spec=spotify)
+    patcher = mock.patch.object(backend, "spotify", spec=spotify)
     yield patcher.start()
     patcher.stop()
 
@@ -55,7 +54,7 @@ def spotify_mock():
 def sp_user_mock():
     sp_user = mock.Mock(spec=spotify.User)
     sp_user.is_loaded = True
-    sp_user.canonical_name = 'alice'
+    sp_user.canonical_name = "alice"
     return sp_user
 
 
@@ -63,10 +62,10 @@ def sp_user_mock():
 def sp_artist_mock():
     sp_artist = mock.Mock(spec=spotify.Artist)
     sp_artist.is_loaded = True
-    sp_artist.name = 'ABBA'
+    sp_artist.name = "ABBA"
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:artist:abba'
+    sp_link.uri = "spotify:artist:abba"
     sp_link.type = spotify.LinkType.ARTIST
     sp_link.as_artist.return_value = sp_artist
     sp_artist.link = sp_link
@@ -81,7 +80,7 @@ def sp_unloaded_artist_mock():
     sp_artist.name = None
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:artist:abba'
+    sp_link.uri = "spotify:artist:abba"
     sp_link.type = spotify.LinkType.ARTIST
     sp_link.as_artist.return_value = sp_artist
     sp_artist.link = sp_link
@@ -104,12 +103,12 @@ def sp_artist_browser_mock(sp_artist_mock, sp_album_mock):
 def sp_album_mock(sp_artist_mock):
     sp_album = mock.Mock(spec=spotify.Album)
     sp_album.is_loaded = True
-    sp_album.name = 'DEF 456'
+    sp_album.name = "DEF 456"
     sp_album.artist = sp_artist_mock
     sp_album.year = 2001
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:album:def'
+    sp_link.uri = "spotify:album:def"
     sp_link.type = spotify.LinkType.ALBUM
     sp_link.as_album.return_value = sp_album
     sp_album.link = sp_link
@@ -128,7 +127,7 @@ def sp_unloaded_album_mock(sp_unloaded_artist_mock):
     sp_album.year = None
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:album:def'
+    sp_link.uri = "spotify:album:def"
     sp_link.type = spotify.LinkType.ALBUM
     sp_link.as_album.return_value = sp_album
     sp_album.link = sp_link
@@ -153,7 +152,7 @@ def sp_track_mock(sp_artist_mock, sp_album_mock):
     sp_track.is_loaded = True
     sp_track.error = spotify.ErrorType.OK
     sp_track.availability = spotify.TrackAvailability.AVAILABLE
-    sp_track.name = 'ABC 123'
+    sp_track.name = "ABC 123"
     sp_track.artists = [sp_artist_mock]
     sp_track.album = sp_album_mock
     sp_track.duration = 174300
@@ -161,7 +160,7 @@ def sp_track_mock(sp_artist_mock, sp_album_mock):
     sp_track.index = 7
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:track:abc'
+    sp_link.uri = "spotify:track:abc"
     sp_link.type = spotify.LinkType.TRACK
     sp_link.as_track.return_value = sp_track
     sp_track.link = sp_link
@@ -190,7 +189,7 @@ def sp_unloaded_track_mock(sp_unloaded_artist_mock, sp_unloaded_album_mock):
     sp_track.index = None
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:track:abc'
+    sp_link.uri = "spotify:track:abc"
     sp_link.type = spotify.LinkType.TRACK
     sp_link.as_track.return_value = sp_track
     sp_track.link = sp_link
@@ -201,12 +200,12 @@ def sp_unloaded_track_mock(sp_unloaded_artist_mock, sp_unloaded_album_mock):
 @pytest.fixture
 def sp_starred_mock(sp_user_mock, sp_artist_mock, sp_album_mock):
     sp_track1 = sp_track_mock(sp_artist_mock, sp_album_mock)
-    sp_track1.link.uri = 'spotify:track:oldest'
-    sp_track1.name = 'Oldest'
+    sp_track1.link.uri = "spotify:track:oldest"
+    sp_track1.name = "Oldest"
 
     sp_track2 = sp_track_mock(sp_artist_mock, sp_album_mock)
-    sp_track2.link.uri = 'spotify:track:newest'
-    sp_track2.name = 'Newest'
+    sp_track2.link.uri = "spotify:track:newest"
+    sp_track2.name = "Newest"
 
     sp_starred = mock.Mock(spec=spotify.Playlist)
     sp_starred.is_loaded = True
@@ -215,7 +214,7 @@ def sp_starred_mock(sp_user_mock, sp_artist_mock, sp_album_mock):
     sp_starred.tracks = [sp_track1, sp_track2]
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:user:alice:starred'
+    sp_link.uri = "spotify:user:alice:starred"
     sp_link.type = spotify.LinkType.STARRED
     sp_link.as_playlist.return_value = sp_starred
     sp_starred.link = sp_link
@@ -228,11 +227,11 @@ def sp_playlist_mock(sp_user_mock, sp_track_mock):
     sp_playlist = mock.Mock(spec=spotify.Playlist)
     sp_playlist.is_loaded = True
     sp_playlist.owner = sp_user_mock
-    sp_playlist.name = 'Foo'
+    sp_playlist.name = "Foo"
     sp_playlist.tracks = [sp_track_mock]
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:user:alice:playlist:foo'
+    sp_link.uri = "spotify:user:alice:playlist:foo"
     sp_link.type = spotify.LinkType.PLAYLIST
     sp_link.as_playlist.return_value = sp_playlist
     sp_playlist.link = sp_link
@@ -250,7 +249,7 @@ def sp_unloaded_playlist_mock(sp_unloaded_track_mock):
     sp_playlist.tracks = [sp_unloaded_track_mock]
 
     sp_link = mock.Mock(spec=spotify.Link)
-    sp_link.uri = 'spotify:user:alice:playlist:foo'
+    sp_link.uri = "spotify:user:alice:playlist:foo"
     sp_link.type = spotify.LinkType.PLAYLIST
     sp_link.as_playlist.return_value = sp_playlist
     sp_playlist.link = sp_link
@@ -262,7 +261,7 @@ def sp_unloaded_playlist_mock(sp_unloaded_track_mock):
 def sp_playlist_folder_start_mock():
     sp_playlist_folder_start = mock.Mock(spec=spotify.PlaylistFolder)
     sp_playlist_folder_start.type = spotify.PlaylistType.START_FOLDER
-    sp_playlist_folder_start.name = 'Bar'
+    sp_playlist_folder_start.name = "Bar"
     sp_playlist_folder_start.id = 17
     return sp_playlist_folder_start
 
@@ -282,105 +281,94 @@ def sp_playlist_container_mock():
 
 
 @pytest.fixture
-def web_search_mock(
-        web_album_mock, web_artist_mock, web_track_mock):
+def web_search_mock(web_album_mock, web_artist_mock, web_track_mock):
     return {
-        'albums': {
-            'items': [web_album_mock]
-        },
-        'artists': {
-            'items': [web_artist_mock]
-        },
-        'tracks': {
-            'items': [web_track_mock, web_track_mock]
-        }
+        "albums": {"items": [web_album_mock]},
+        "artists": {"items": [web_artist_mock]},
+        "tracks": {"items": [web_track_mock, web_track_mock]},
     }
 
 
 @pytest.fixture
-def web_search_mock_large(
-        web_album_mock, web_artist_mock, web_track_mock):
+def web_search_mock_large(web_album_mock, web_artist_mock, web_track_mock):
     return {
-        'albums': {
-            'items': [web_album_mock] * 10
-        },
-        'artists': {
-            'items': [web_artist_mock] * 10
-        },
-        'tracks': {
-            'items': [web_track_mock] * 10
-        }
+        "albums": {"items": [web_album_mock] * 10},
+        "artists": {"items": [web_artist_mock] * 10},
+        "tracks": {"items": [web_track_mock] * 10},
     }
 
 
 @pytest.fixture
 def web_artist_mock():
-    return {
-        'name': 'ABBA',
-        'uri': 'spotify:artist:abba'
-    }
+    return {"name": "ABBA", "uri": "spotify:artist:abba"}
 
 
 @pytest.fixture
 def web_album_mock(web_artist_mock):
     return {
-        'name': 'DEF 456',
-        'uri': 'spotify:album:def',
-        'artists': [web_artist_mock]
+        "name": "DEF 456",
+        "uri": "spotify:album:def",
+        "artists": [web_artist_mock],
     }
 
 
 @pytest.fixture
 def web_track_mock(web_artist_mock, web_album_mock):
     return {
-        'album': web_album_mock,
-        'artists': [web_artist_mock],
-        'disc_number': 1,
-        'duration_ms': 174300,
-        'name': 'ABC 123',
-        'track_number': 7,
-        'uri': 'spotify:track:abc',
+        "album": web_album_mock,
+        "artists": [web_artist_mock],
+        "disc_number": 1,
+        "duration_ms": 174300,
+        "name": "ABC 123",
+        "track_number": 7,
+        "uri": "spotify:track:abc",
     }
 
 
 @pytest.fixture
 def web_response_mock(web_track_mock):
     return web.WebResponse(
-        'https://api.spotify.com/v1/tracks/abc', web_track_mock, expires=1000,
-        status_code=200)
+        "https://api.spotify.com/v1/tracks/abc",
+        web_track_mock,
+        expires=1000,
+        status_code=200,
+    )
 
 
 @pytest.fixture
 def web_response_mock_etag(web_track_mock):
     return web.WebResponse(
-        'https://api.spotify.com/v1/tracks/abc', web_track_mock, expires=1000,
-        etag='"1234"', status_code=200)
+        "https://api.spotify.com/v1/tracks/abc",
+        web_track_mock,
+        expires=1000,
+        etag='"1234"',
+        status_code=200,
+    )
 
 
 @pytest.fixture
 def web_oauth_mock():
     return {
-        'access_token': 'NgCXRK...MzYjw',
-        'token_type': 'Bearer',
-        'scope': 'user-read-private user-read-email',
-        'expires_in': 3600,
+        "access_token": "NgCXRK...MzYjw",
+        "token_type": "Bearer",
+        "scope": "user-read-private user-read-email",
+        "expires_in": 3600,
     }
 
 
 @pytest.fixture
 def mopidy_artist_mock():
-    return models.Artist(
-        name='ABBA',
-        uri='spotify:artist:abba')
+    return models.Artist(name="ABBA", uri="spotify:artist:abba")
 
 
 @pytest.fixture
 def mopidy_album_mock(mopidy_artist_mock):
     return models.Album(
         artists=[mopidy_artist_mock],
-        date='2001',
-        name='DEF 456',
-        uri='spotify:album:def')
+        date="2001",
+        name="DEF 456",
+        uri="spotify:album:def",
+    )
 
 
 @pytest.fixture
@@ -388,7 +376,7 @@ def session_mock():
     sp_session_mock = mock.Mock(spec=spotify.Session)
     sp_session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
     sp_session_mock.playlist_container = []
-    sp_session_mock.user_country = 'GB'
+    sp_session_mock.user_country = "GB"
     return sp_session_mock
 
 
@@ -411,7 +399,8 @@ def backend_mock(session_mock, config, web_client_mock):
 @pytest.yield_fixture
 def backend_listener_mock():
     patcher = mock.patch.object(
-        backend_api, 'BackendListener', spec=backend_api.BackendListener)
+        backend_api, "BackendListener", spec=backend_api.BackendListener
+    )
     yield patcher.start()
     patcher.stop()
 

@@ -62,15 +62,13 @@ def to_album(sp_album):
         artists = []
 
     if sp_album.year is not None and sp_album.year != 0:
-        date = '%d' % sp_album.year
+        date = "%d" % sp_album.year
     else:
         date = None
 
     return models.Album(
-        uri=sp_album.link.uri,
-        name=sp_album.name,
-        artists=artists,
-        date=date)
+        uri=sp_album.link.uri, name=sp_album.name, artists=artists, date=date
+    )
 
 
 @memoized
@@ -81,7 +79,7 @@ def to_album_ref(sp_album):
     if sp_album.artist is None or not sp_album.artist.is_loaded:
         name = sp_album.name
     else:
-        name = f'{sp_album.artist.name} - {sp_album.name}'
+        name = f"{sp_album.artist.name} - {sp_album.name}"
 
     return models.Ref.album(uri=sp_album.link.uri, name=name)
 
@@ -100,8 +98,7 @@ def to_track(sp_track, bitrate=None):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(
-            'Error loading %s: %r', sp_track.link.uri, sp_track.error)
+        logger.debug("Error loading %s: %r", sp_track.link.uri, sp_track.error)
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
@@ -121,7 +118,8 @@ def to_track(sp_track, bitrate=None):
         length=sp_track.duration,
         disc_no=sp_track.disc,
         track_no=sp_track.index,
-        bitrate=bitrate)
+        bitrate=bitrate,
+    )
 
 
 @memoized
@@ -130,8 +128,7 @@ def to_track_ref(sp_track):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(
-            'Error loading %s: %r', sp_track.link.uri, sp_track.error)
+        logger.debug("Error loading %s: %r", sp_track.link.uri, sp_track.error)
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
@@ -149,8 +146,13 @@ def to_track_refs(sp_tracks, timeout=None):
 
 
 def to_playlist(
-        sp_playlist, folders=None, username=None, bitrate=None,
-        as_ref=False, as_items=False):
+    sp_playlist,
+    folders=None,
+    username=None,
+    bitrate=None,
+    as_ref=False,
+    as_items=False,
+):
     if not isinstance(sp_playlist, spotify.Playlist):
         return
 
@@ -165,38 +167,41 @@ def to_playlist(
     if not as_ref:
         tracks = [
             to_track(sp_track, bitrate=bitrate)
-            for sp_track in sp_playlist.tracks]
+            for sp_track in sp_playlist.tracks
+        ]
         tracks = filter(None, tracks)
         if name is None:
             # Use same starred order as the Spotify client
             tracks = list(reversed(tracks))
 
     if name is None:
-        name = 'Starred'
+        name = "Starred"
     if folders is not None:
-        name = '/'.join(folders + [name])
+        name = "/".join(folders + [name])
     if username is not None and sp_playlist.owner.canonical_name != username:
-        name = f'{name} (by {sp_playlist.owner.canonical_name})'
+        name = f"{name} (by {sp_playlist.owner.canonical_name})"
 
     if as_ref:
         return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
     else:
         return models.Playlist(
-            uri=sp_playlist.link.uri, name=name, tracks=tracks)
+            uri=sp_playlist.link.uri, name=name, tracks=tracks
+        )
 
 
 def to_playlist_ref(sp_playlist, folders=None, username=None):
     return to_playlist(
-        sp_playlist, folders=folders, username=username, as_ref=True)
+        sp_playlist, folders=folders, username=username, as_ref=True
+    )
 
 
 # Maps from Mopidy search query field to Spotify search query field.
 # `None` if there is no matching concept.
 SEARCH_FIELD_MAP = {
-    'albumartist': 'artist',
-    'date': 'year',
-    'track_name': 'track',
-    'track_number': None,
+    "albumartist": "artist",
+    "date": "year",
+    "track_name": "track",
+    "track_number": None,
 }
 
 
@@ -211,51 +216,49 @@ def sp_search_query(query):
             continue
 
         for value in values:
-            if field == 'year':
+            if field == "year":
                 value = _transform_year(value)
                 if value is not None:
-                    result.append('%s:%d' % (field, value))
-            elif field == 'any':
+                    result.append("%s:%d" % (field, value))
+            elif field == "any":
                 result.append('"%s"' % value)
             else:
                 result.append(f'{field}:"{value}"')
 
-    return ' '.join(result)
+    return " ".join(result)
 
 
 def _transform_year(date):
     try:
-        return int(date.split('-')[0])
+        return int(date.split("-")[0])
     except ValueError:
         logger.debug(
-            'Excluded year from search query: '
-            'Cannot parse date "%s"', date)
+            "Excluded year from search query: " 'Cannot parse date "%s"', date
+        )
 
 
 def web_to_artist(web_artist):
-    return models.Artist(uri=web_artist['uri'], name=web_artist['name'])
+    return models.Artist(uri=web_artist["uri"], name=web_artist["name"])
 
 
 def web_to_album(web_album):
-    artists = [
-        web_to_artist(web_artist) for web_artist in web_album['artists']]
+    artists = [web_to_artist(web_artist) for web_artist in web_album["artists"]]
 
     return models.Album(
-        uri=web_album['uri'],
-        name=web_album['name'],
-        artists=artists)
+        uri=web_album["uri"], name=web_album["name"], artists=artists
+    )
 
 
 def web_to_track(web_track):
-    artists = [
-        web_to_artist(web_artist) for web_artist in web_track['artists']]
-    album = web_to_album(web_track['album'])
+    artists = [web_to_artist(web_artist) for web_artist in web_track["artists"]]
+    album = web_to_album(web_track["album"])
 
     return models.Track(
-        uri=web_track['uri'],
-        name=web_track['name'],
+        uri=web_track["uri"],
+        name=web_track["name"],
         artists=artists,
         album=album,
-        length=web_track['duration_ms'],
-        disc_no=web_track['disc_number'],
-        track_no=web_track['track_number'])
+        length=web_track["duration_ms"],
+        disc_no=web_track["disc_number"],
+        track_no=web_track["track_number"],
+    )
