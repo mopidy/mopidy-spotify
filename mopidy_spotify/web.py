@@ -221,8 +221,6 @@ class OAuthClient:
             )
 
         for key, value in kwargs.items():
-            if isinstance(value, str):
-                value = value.encode("utf-8")
             query.append((key, value))
 
         encoded_query = urllib.parse.urlencode(dict(query))
