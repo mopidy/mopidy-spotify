@@ -147,7 +147,7 @@ class OAuthClient:
         try_until = time.time() + self._timeout
 
         result = None
-        backoff_time = None
+        backoff_time = 0
 
         for i in range(self._number_of_retries):
             remaining_timeout = max(try_until - time.time(), 1)
@@ -165,7 +165,7 @@ class OAuthClient:
             except requests.RequestException as e:
                 logger.debug("Fetching %s failed: %s", prepared_request.url, e)
                 status_code = None
-                backoff_time = None
+                backoff_time = 0
                 result = None
             else:
                 status_code = response.status_code
@@ -216,15 +216,19 @@ class OAuthClient:
             scheme, netloc = b.scheme, b.netloc
             path = os.path.normpath(os.path.join(b.path, u.path))
             query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
+            query.extend(
+                urllib.parse.parse_qsl(u.query, keep_blank_values=True)
+            )
 
         for key, value in kwargs.items():
-            if isinstance(value, unicode):
+            if isinstance(value, str):
                 value = value.encode("utf-8")
             query.append((key, value))
 
         encoded_query = urllib.parse.urlencode(dict(query))
-        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
+        return urllib.parse.urlunsplit(
+            (scheme, netloc, path, encoded_query, "")
+        )
 
     def _normalise_query_string(self, url, params=None):
         u = urllib.parse.urlsplit(url)
@@ -235,7 +239,9 @@ class OAuthClient:
             query.update(params)
         sorted_unique_query = sorted(query.items())
         encoded_query = urllib.parse.urlencode(sorted_unique_query)
-        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
+        return urllib.parse.urlunsplit(
+            (scheme, netloc, path, encoded_query, "")
+        )
 
     def _parse_retry_after(self, response):
         """Parse Retry-After header from response if it is set."""

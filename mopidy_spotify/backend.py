@@ -105,11 +105,11 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         )
 
         if config["spotify"]["allow_cache"]:
-            spotify_config.cache_location = ext.get_cache_dir(config)
+            spotify_config.cache_location = bytes(ext.get_cache_dir(config))
         else:
             spotify_config.cache_location = None
 
-        spotify_config.settings_location = ext.get_data_dir(config)
+        spotify_config.settings_location = bytes(ext.get_data_dir(config))
 
         proxy_uri = httpclient.format_proxy(config["proxy"], auth=False)
         if proxy_uri is not None:

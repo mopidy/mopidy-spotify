@@ -14,11 +14,11 @@ def caplog(caplog):
 
 
 @pytest.fixture
-def config(tmpdir):
+def config(tmp_path):
     return {
         "core": {
-            "cache_dir": "%s" % tmpdir.join("cache"),
-            "data_dir": "%s" % tmpdir.join("data"),
+            "cache_dir": "%s" % (tmp_path / "cache"),
+            "data_dir": "%s" % (tmp_path / "data"),
         },
         "proxy": {},
         "spotify": {

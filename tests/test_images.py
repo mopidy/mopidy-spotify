@@ -177,7 +177,7 @@ def test_invalid_uri_fails(img_provider):
     with pytest.raises(ValueError) as exc:
         img_provider.get_images(["foo:bar"])
 
-    assert str(exc.value) == "Could not parse u'foo:bar' as a Spotify URI"
+    assert str(exc.value) == "Could not parse 'foo:bar' as a Spotify URI"
 
 
 def test_no_uris_gives_no_results(img_provider):

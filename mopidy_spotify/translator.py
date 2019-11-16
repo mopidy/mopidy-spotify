@@ -14,7 +14,7 @@ class memoized:
 
     def __call__(self, *args, **kwargs):
         # NOTE Only args, not kwargs, are part of the memoization key.
-        if not isinstance(args, collections.Hashable):
+        if not isinstance(args, collections.abc.Hashable):
             return self.func(*args, **kwargs)
         if args in self.cache:
             return self.cache[args]
@@ -103,14 +103,14 @@ def to_track(sp_track, bitrate=None):
         return
 
     artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
-    artists = filter(None, artists)
+    artists = [a for a in artists if a]
 
     album = to_album(sp_track.album)
 
     return models.Track(
         uri=sp_track.link.uri,
         name=sp_track.name,
-        artists=artists,
+        artists=list(artists),
         album=album,
         date=album.date,
         length=sp_track.duration,
@@ -167,10 +167,10 @@ def to_playlist(
             to_track(sp_track, bitrate=bitrate)
             for sp_track in sp_playlist.tracks
         ]
-        tracks = filter(None, tracks)
+        tracks = [t for t in tracks if t]
         if name is None:
             # Use same starred order as the Spotify client
-            tracks = list(reversed(tracks))
+            tracks = reversed(tracks)
 
     if name is None:
         name = "Starred"
@@ -183,7 +183,7 @@ def to_playlist(
         return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
     else:
         return models.Playlist(
-            uri=sp_playlist.link.uri, name=name, tracks=tracks
+            uri=sp_playlist.link.uri, name=name, tracks=list(tracks)
         )
 
 
