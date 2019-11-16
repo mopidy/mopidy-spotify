@@ -1,8 +1,10 @@
 import pathlib
 
+import pkg_resources
+
 from mopidy import config, ext
 
-__version__ = "3.1.0"
+__version__ = pkg_resources.get_distribution("Mopidy-Spotify").version
 
 
 class Extension(ext.Extension):
