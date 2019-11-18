@@ -2,6 +2,7 @@ import collections
 import logging
 
 import spotify
+
 from mopidy import models
 
 logger = logging.getLogger(__name__)

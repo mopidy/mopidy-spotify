@@ -1,9 +1,9 @@
 import threading
-
 from unittest import mock
-import pytest
 
+import pytest
 import spotify
+
 from mopidy import audio
 from mopidy import backend as backend_api
 from mopidy import models

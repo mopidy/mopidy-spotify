@@ -1,6 +1,7 @@
 import logging
 
 import spotify
+
 from mopidy import backend
 from mopidy_spotify import translator, utils
 

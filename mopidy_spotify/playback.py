@@ -3,6 +3,7 @@ import logging
 import threading
 
 import spotify
+
 from mopidy import audio, backend
 
 logger = logging.getLogger(__name__)

@@ -3,8 +3,8 @@ import pathlib
 import threading
 
 import pykka
-
 import spotify
+
 from mopidy import backend, httpclient
 from mopidy_spotify import Extension, library, playback, playlists, web
 

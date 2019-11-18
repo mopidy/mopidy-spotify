@@ -1,8 +1,8 @@
 import threading
-
 from unittest import mock
 
 import spotify
+
 from mopidy import backend as backend_api
 from mopidy_spotify import backend, library, playback, playlists
 

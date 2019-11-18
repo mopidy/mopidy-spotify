@@ -2,6 +2,7 @@ import logging
 import urllib.parse
 
 import spotify
+
 from mopidy import models
 from mopidy_spotify import lookup, translator
 
