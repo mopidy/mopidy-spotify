@@ -118,7 +118,7 @@ OS X: Install the ``mopidy-spotify`` package from the
 Else: Install the dependencies listed above yourself, and then install the
 package from PyPI::
 
-    python3 -m pip Mopidy-Spotify
+    python3 -m pip install Mopidy-Spotify
 
 
 Configuration
