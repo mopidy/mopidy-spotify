@@ -7,7 +7,7 @@ from mopidy import models
 logger = logging.getLogger(__name__)
 
 
-class Memoized:
+class memoized:  # noqa N801
     def __init__(self, func):
         self.func = func
         self.cache = {}
@@ -25,7 +25,7 @@ class Memoized:
             return value
 
 
-@Memoized
+@memoized
 def to_artist(sp_artist):
     if not sp_artist.is_loaded:
         return
@@ -33,7 +33,7 @@ def to_artist(sp_artist):
     return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
 
 
-@Memoized
+@memoized
 def to_artist_ref(sp_artist):
     if not sp_artist.is_loaded:
         return
@@ -49,7 +49,7 @@ def to_artist_refs(sp_artists, timeout=None):
             yield ref
 
 
-@Memoized
+@memoized
 def to_album(sp_album):
     if not sp_album.is_loaded:
         return
@@ -69,7 +69,7 @@ def to_album(sp_album):
     )
 
 
-@Memoized
+@memoized
 def to_album_ref(sp_album):
     if not sp_album.is_loaded:
         return
@@ -90,7 +90,7 @@ def to_album_refs(sp_albums, timeout=None):
             yield ref
 
 
-@Memoized
+@memoized
 def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
         return
@@ -112,7 +112,7 @@ def to_track(sp_track, bitrate=None):
     return models.Track(
         uri=sp_track.link.uri,
         name=sp_track.name,
-        artists=list(artists),
+        artists=artists,
         album=album,
         date=album.date,
         length=sp_track.duration,
@@ -122,7 +122,7 @@ def to_track(sp_track, bitrate=None):
     )
 
 
-@Memoized
+@memoized
 def to_track_ref(sp_track):
     if not sp_track.is_loaded:
         return
@@ -174,7 +174,7 @@ def to_playlist(
         tracks = [t for t in tracks if t]
         if name is None:
             # Use same starred order as the Spotify client
-            tracks = reversed(tracks)
+            tracks = list(reversed(tracks))
 
     if name is None:
         name = "Starred"
@@ -187,7 +187,7 @@ def to_playlist(
         return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
     else:
         return models.Playlist(
-            uri=sp_playlist.link.uri, name=name, tracks=list(tracks)
+            uri=sp_playlist.link.uri, name=name, tracks=tracks
         )
 
 

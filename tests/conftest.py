@@ -17,8 +17,8 @@ def caplog(caplog):
 def config(tmp_path):
     return {
         "core": {
-            "cache_dir": "%s" % (tmp_path / "cache"),
-            "data_dir": "%s" % (tmp_path / "data"),
+            "cache_dir": str(tmp_path / "cache"),
+            "data_dir": str(tmp_path / "data"),
         },
         "proxy": {},
         "spotify": {
