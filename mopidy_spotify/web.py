@@ -349,6 +349,7 @@ class WebResponse(dict):
         return True
 
     def __str__(self):
-        return "URL: {} ETag: {} Expires: {}".format(
-            self.url, self._etag, datetime.fromtimestamp(self._expires)
+        return (
+            f"URL: {self.url} ETag: {self._etag} "
+            f"Expires: {datetime.fromtimestamp(self._expires)}"
         )

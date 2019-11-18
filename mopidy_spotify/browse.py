@@ -113,7 +113,7 @@ def _browse_toplist(config, session, variant, region):
             codes = countries.COUNTRIES.keys()
         return [
             models.Ref.directory(
-                uri="spotify:top:{}:{}".format(variant, code.lower()),
+                uri=f"spotify:top:{variant}:{code.lower()}",
                 name=countries.COUNTRIES.get(code.upper(), code.upper()),
             )
             for code in codes
