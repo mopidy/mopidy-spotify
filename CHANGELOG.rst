@@ -1,8 +1,20 @@
+*********
 Changelog
-=========
+*********
+
+
+v4.0.0rc1 (UNRELEASED)
+======================
+
+- Require Mopidy >= 3.0.0a5. (PR: #223)
+
+- Require Python >= 3.7. (PR: #223)
+
+- Update project setup. (PR: #223)
+
 
 v3.1.0 (2017-06-08)
--------------------
+===================
 
 Feature release.
 
@@ -16,8 +28,9 @@ Feature release.
   `spotify/client_secret` must be set. Refer to the README for details. (#130,
   #142, PR: #143)
 
+
 v3.0.0 (2016-02-15)
--------------------
+===================
 
 Feature release.
 
@@ -25,8 +38,9 @@ Feature release.
 
 - Minor adjustments to work with GStreamer 1.
 
+
 v2.3.1 (2016-02-14)
--------------------
+===================
 
 Bug fix release.
 
@@ -46,8 +60,9 @@ Bug fix release.
   allows. The maximum in the config schema is not changed to not break existing
   configs.
 
+
 v2.3.0 (2016-02-06)
--------------------
+===================
 
 Feature release.
 
@@ -70,8 +85,9 @@ Feature release.
 - Workaround teardown race outputing lots of short stack traces on Mopidy
   shutdown. (See #73 for details)
 
+
 v2.2.0 (2015-11-15)
--------------------
+===================
 
 Feature release.
 
@@ -82,8 +98,9 @@ Feature release.
 
 - Interpret album year "0" as unknown. (Fixes: #72)
 
+
 v2.1.0 (2015-09-22)
--------------------
+===================
 
 Feature release.
 
@@ -95,16 +112,18 @@ Feature release.
 - Support using a proxy when accessing Spotify's web API to get cover and
   artist imagery.
 
+
 v2.0.1 (2015-08-23)
--------------------
+===================
 
 Bug fix release.
 
 - Filter out ``None`` from ``library.get_distinct()`` return values. (Fixes:
   #63)
 
+
 v2.0.0 (2015-08-11)
--------------------
+===================
 
 Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
 
@@ -171,8 +190,9 @@ Rewrite using pyspotify 2. Should have feature parity with Mopidy-Spotify 1.
   pause Mopidy playback if this happened. Now, we only pause playback if we're
   currently playing music from Spotify. (Fixes: #1)
 
+
 v1.4.0 (2015-05-19)
--------------------
+===================
 
 - Update to not use deprecated Mopidy audio APIs.
 
@@ -191,8 +211,9 @@ v1.4.0 (2015-05-19)
 - Updated to work with the renaming of ``mopidy.utils`` to ``mopidy.internal``
   in Mopidy 1.1.
 
+
 v1.3.0 (2015-03-25)
--------------------
+===================
 
 - Require Mopidy >= 1.0.
 
@@ -204,8 +225,9 @@ v1.3.0 (2015-03-25)
 
 - Add ``library.get_images()`` support for cover art.
 
+
 v1.2.0 (2014-07-21)
--------------------
+===================
 
 - Add support for browsing playlists and albums. Needed to allow music
   discovery extensions expose these in a clean way.
@@ -213,27 +235,31 @@ v1.2.0 (2014-07-21)
 - Fix loss of audio when resuming from paused, when caused by another Spotify
   client starting playback. (Fixes: #2, PR: #19)
 
+
 v1.1.3 (2014-02-18)
--------------------
+===================
 
 - Switch to new backend API locations, required by the upcoming Mopidy 0.19
   release.
 
+
 v1.1.2 (2014-02-18)
--------------------
+===================
 
 - Wait for track to be loaded before playing it. This fixes playback of tracks
   looked up directly by URI, and not through a playlist or search. (Fixes:
   mopidy/mopidy#675)
 
+
 v1.1.1 (2014-02-16)
--------------------
+===================
 
 - Change requirement on pyspotify from ``>= 1.9, < 2`` to ``>= 1.9, < 1.999``,
   so that it is parsed correctly and pyspotify 1.x is installed instead of 2.x.
 
+
 v1.1.0 (2014-01-20)
--------------------
+===================
 
 - Require Mopidy >= 0.18.
 
@@ -245,14 +271,16 @@ v1.1.0 (2014-01-20)
 - Added basic library browsing support that exposes user, global and country
   toplists.
 
+
 v1.0.3 (2013-12-15)
--------------------
+===================
 
 - Change search field ``track`` to ``track_name`` for compatibility with
   Mopidy 0.17. (Fixes: mopidy/mopidy#610)
 
+
 v1.0.2 (2013-11-19)
--------------------
+===================
 
 - Add ``spotify/settings_dir`` config value so that libspotify settings can be
   stored to another location than the libspotify cache. This also allows
@@ -262,8 +290,9 @@ v1.0.2 (2013-11-19)
 - Make the ``spotify/cache_dir`` config value optional, so that it can be set
   to an empty string to disable caching.
 
+
 v1.0.1 (2013-10-28)
--------------------
+===================
 
 - Support searches from Mopidy that are using the ``albumartist`` field type,
   added in Mopidy 0.16.
@@ -273,7 +302,8 @@ v1.0.1 (2013-10-28)
 - Abort Spotify searches immediately if the search query is empty instead of
   waiting for the 10s timeout before returning an empty search result.
 
+
 v1.0.0 (2013-10-08)
--------------------
+===================
 
 - Moved extension out of the main Mopidy project.
