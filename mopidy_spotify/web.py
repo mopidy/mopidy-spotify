@@ -19,7 +19,7 @@ def _trace(*args, **kwargs):
 
 class OAuthTokenRefreshError(Exception):
     def __init__(self, reason):
-        message = "OAuth token refresh failed: %s" % reason
+        message = f"OAuth token refresh failed: {reason}"
         super().__init__(message)
 
 
@@ -69,7 +69,7 @@ class OAuthClient:
         params = kwargs.pop("params", None)
         path = self._normalise_query_string(path, params)
 
-        _trace('Get "%s"', path)
+        _trace(f"Get '{path}'")
 
         if cache is not None and path in cache:
             cached_result = cache.get(path)
@@ -109,7 +109,7 @@ class OAuthClient:
         return not self._auth or time.time() > self._expires - self._margin
 
     def _refresh_token(self):
-        logger.debug("Fetching OAuth token from %s", self._refresh_url)
+        logger.debug(f"Fetching OAuth token from {self._refresh_url}")
 
         data = {"grant_type": "client_credentials"}
         result = self._request_with_retries(
@@ -120,24 +120,22 @@ class OAuthClient:
             raise OAuthTokenRefreshError("Unknown error.")
         elif result.get("error"):
             raise OAuthTokenRefreshError(
-                "{} {}".format(
-                    result["error"], result.get("error_description", "")
-                )
+                f"{result['error']} {result.get('error_description', '')}"
             )
         elif not result.get("access_token"):
             raise OAuthTokenRefreshError("missing access_token")
         elif result.get("token_type") != "Bearer":
             raise OAuthTokenRefreshError(
-                "wrong token_type: %s" % result.get("token_type")
+                f"wrong token_type: {result.get('token_type')}"
             )
 
-        self._headers["Authorization"] = "Bearer %s" % result["access_token"]
+        self._headers["Authorization"] = f"Bearer {result['access_token']}"
         self._expires = time.time() + result.get("expires_in", float("Inf"))
 
         if result.get("expires_in"):
-            logger.debug("Token expires in %s seconds.", result["expires_in"])
+            logger.debug(f"Token expires in {result['expires_in']} seconds.",)
         if result.get("scope"):
-            logger.debug("Token scopes: %s", result["scope"])
+            logger.debug(f"Token scopes: {result['scope']}")
 
     def _request_with_retries(self, method, url, *args, **kwargs):
         prepared_request = self._session.prepare_request(
@@ -163,7 +161,7 @@ class OAuthClient:
                     prepared_request, timeout=remaining_timeout
                 )
             except requests.RequestException as e:
-                logger.debug("Fetching %s failed: %s", prepared_request.url, e)
+                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
                 status_code = None
                 backoff_time = 0
                 result = None
@@ -174,7 +172,7 @@ class OAuthClient:
 
             if status_code >= 400 and status_code < 600:
                 logger.debug(
-                    "Fetching %s failed: %s", prepared_request.url, status_code
+                    f"Fetching {prepared_request.url} failed: {status_code}"
                 )
 
             # Filter out cases where we should not retry.
@@ -189,9 +187,8 @@ class OAuthClient:
             # Decide how long to sleep in the next iteration.
             backoff_time = backoff_time or (2 ** i * self._backoff_factor)
             logger.debug(
-                "Retrying %s in %.3f seconds.",
-                prepared_request.url,
-                backoff_time,
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} "
+                "seconds."
             )
 
         if status_code == 401:
@@ -265,7 +262,7 @@ class WebResponse(dict):
         self._etag = etag
         self._status_code = status_code
         super().__init__(data or {})
-        _trace("New WebResponse %s", self)
+        _trace(f"New WebResponse {self}")
 
     @classmethod
     def from_requests(cls, request, response):
@@ -283,7 +280,7 @@ class WebResponse(dict):
             return response.json()
         except ValueError as e:
             url = response.request.url
-            logger.error("JSON decoding %s failed: %s", url, e)
+            logger.error(f"JSON decoding {url} failed: {e}")
             return None
 
     @staticmethod
@@ -319,7 +316,7 @@ class WebResponse(dict):
     def expired(self):
         status_str = {True: "expired", False: "fresh"}
         result = self._expires < time.time()
-        _trace("Cached data %s for %s", status_str[result], self)
+        _trace(f"Cached data {status_str[result]} for {self}")
         return result
 
     @property
@@ -337,20 +334,16 @@ class WebResponse(dict):
         if self._etag is None:
             return False
         elif self.url != response.url:
-            logger.error(
-                "ETag mismatch (different URI) for %s %s", self, response
-            )
+            logger.error(f"ETag mismatch (different URI) for {self} {response}")
             return False
         elif not response.status_ok:
-            logger.debug(
-                "ETag mismatch (bad response) for %s %s", self, response
-            )
+            logger.debug(f"ETag mismatch (bad response) for {self} {response}")
             return False
         elif response._status_code != 304:
-            _trace("ETag mismatch for %s %s", self, response)
+            _trace(f"ETag mismatch for {self} {response}")
             return False
 
-        _trace("ETag match for %s %s", self, response)
+        _trace(f"ETag match for {self} {response}")
         self._expires = response._expires
         self._etag = response._etag
         return True

@@ -26,7 +26,7 @@ def get_distinct(config, session, web_client, field, query=None):
 
 
 def _get_distinct_artists(config, session, web_client, query):
-    logger.debug("Getting distinct artists: %s", query)
+    logger.debug(f"Getting distinct artists: {query}")
     if query:
         search_result = _get_search(
             config, session, web_client, query, artist=True
@@ -41,7 +41,7 @@ def _get_distinct_artists(config, session, web_client, query):
 
 
 def _get_distinct_albumartists(config, session, web_client, query):
-    logger.debug("Getting distinct albumartists: %s", query)
+    logger.debug(f"Getting distinct albumartists: {query}")
     if query:
         search_result = _get_search(
             config, session, web_client, query, album=True
@@ -61,7 +61,7 @@ def _get_distinct_albumartists(config, session, web_client, query):
 
 
 def _get_distinct_albums(config, session, web_client, query):
-    logger.debug("Getting distinct albums: %s", query)
+    logger.debug(f"Getting distinct albums: {query}")
     if query:
         search_result = _get_search(
             config, session, web_client, query, album=True
@@ -76,7 +76,7 @@ def _get_distinct_albums(config, session, web_client, query):
 
 
 def _get_distinct_dates(config, session, web_client, query):
-    logger.debug("Getting distinct album years: %s", query)
+    logger.debug(f"Getting distinct album years: {query}")
     if query:
         search_result = _get_search(
             config, session, web_client, query, album=True
@@ -88,7 +88,7 @@ def _get_distinct_dates(config, session, web_client, query):
         }
     else:
         return {
-            "%s" % track.album.year
+            f"{track.album.year}"
             for track in _get_playlist_tracks(config, session)
             if track.album and track.album.year not in (None, 0)
         }

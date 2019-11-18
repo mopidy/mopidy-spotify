@@ -158,7 +158,7 @@ def test_results_are_cached(web_client_mock, img_provider):
 
 
 def test_max_50_ids_per_request(web_client_mock, img_provider):
-    uris = ["spotify:track:%d" % i for i in range(51)]
+    uris = [f"spotify:track:{i}" for i in range(51)]
 
     web_client_mock.get.return_value = {}
 

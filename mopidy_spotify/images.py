@@ -53,7 +53,7 @@ def _parse_uri(uri):
             "key": (uri_type, uri_id),
         }
 
-    raise ValueError("Could not parse %r as a Spotify URI" % uri)
+    raise ValueError(f"Could not parse {repr(uri)} as a Spotify URI")
 
 
 def _process_uris(web_client, uri_type, uris):

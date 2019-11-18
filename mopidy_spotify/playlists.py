@@ -41,24 +41,22 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 yield playlist_ref
 
     def get_items(self, uri):
-        with utils.time_logger("playlist.get_items(%s)" % uri):
+        with utils.time_logger(f"playlist.get_items({uri})"):
             return self._get_playlist(uri, as_items=True)
 
     def lookup(self, uri):
-        with utils.time_logger("playlists.lookup(%s)" % uri):
+        with utils.time_logger(f"playlists.lookup({uri})"):
             return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
         try:
             sp_playlist = self._backend._session.get_playlist(uri)
         except spotify.Error as exc:
-            logger.debug("Failed to lookup Spotify URI %s: %s", uri, exc)
+            logger.debug(f"Failed to lookup Spotify URI {uri}: {exc}")
             return
 
         if not sp_playlist.is_loaded:
-            logger.debug(
-                "Waiting for Spotify playlist to load: %s", sp_playlist
-            )
+            logger.debug(f"Waiting for Spotify playlist to load: {sp_playlist}")
             sp_playlist.load(self._timeout)
 
         username = self._backend._session.user_name
@@ -79,10 +77,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             )
         except ValueError as exc:
             logger.warning(
-                'Failed creating new Spotify playlist "%s": %s', name, exc
+                f'Failed creating new Spotify playlist "{name}": {exc}'
             )
         except spotify.Error:
-            logger.warning('Failed creating new Spotify playlist "%s"', name)
+            logger.warning(f'Failed creating new Spotify playlist "{name}"')
         else:
             username = self._backend._session.user_name
             return translator.to_playlist(sp_playlist, username=username)
@@ -107,7 +105,7 @@ def on_container_loaded(sp_playlist_container):
 def on_playlist_added(sp_playlist_container, sp_playlist, index):
     # Called from the pyspotify event loop, and not in an actor context.
     logger.debug(
-        'Spotify playlist "%s" added to index %d', sp_playlist.name, index
+        f'Spotify playlist "{sp_playlist.name}" added to index {index}'
     )
 
     # XXX Should Mopidy support more fine grained playlist events which this
@@ -117,7 +115,7 @@ def on_playlist_added(sp_playlist_container, sp_playlist, index):
 def on_playlist_removed(sp_playlist_container, sp_playlist, index):
     # Called from the pyspotify event loop, and not in an actor context.
     logger.debug(
-        'Spotify playlist "%s" removed from index %d', sp_playlist.name, index
+        f'Spotify playlist "{sp_playlist.name}" removed from index {index}'
     )
 
     # XXX Should Mopidy support more fine grained playlist events which this
@@ -127,10 +125,8 @@ def on_playlist_removed(sp_playlist_container, sp_playlist, index):
 def on_playlist_moved(sp_playlist_container, sp_playlist, old_index, new_index):
     # Called from the pyspotify event loop, and not in an actor context.
     logger.debug(
-        'Spotify playlist "%s" moved from index %d to %d',
-        sp_playlist.name,
-        old_index,
-        new_index,
+        f'Spotify playlist "{sp_playlist.name}" '
+        f"moved from index {old_index} to {new_index}"
     )
 
     # XXX Should Mopidy support more fine grained playlist events which this

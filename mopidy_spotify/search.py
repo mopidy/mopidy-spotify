@@ -34,8 +34,8 @@ def search(
         logger.debug("Ignored search with empty query")
         return models.SearchResult(uri="spotify:search")
 
-    uri = "spotify:search:%s" % urllib.parse.quote(sp_query)
-    logger.info("Searching Spotify for: %s", sp_query)
+    uri = f"spotify:search:{urllib.parse.quote(sp_query)}"
+    logger.info(f"Searching Spotify for: {sp_query}")
 
     if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
         logger.info("Spotify search aborted: Spotify is offline")

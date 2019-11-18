@@ -113,7 +113,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
         proxy_uri = httpclient.format_proxy(config["proxy"], auth=False)
         if proxy_uri is not None:
-            logger.debug("Connecting to Spotify through proxy: %s", proxy_uri)
+            logger.debug(f"Connecting to Spotify through proxy: {proxy_uri}")
 
         spotify_config.proxy = proxy_uri
         spotify_config.proxy_username = config["proxy"].get("username")

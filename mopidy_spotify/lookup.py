@@ -14,7 +14,7 @@ def lookup(config, session, uri):
     try:
         sp_link = session.get_link(uri)
     except ValueError as exc:
-        logger.info('Failed to lookup "%s": %s', uri, exc)
+        logger.info(f'Failed to lookup "{uri}": {exc}')
         return []
 
     try:
@@ -31,11 +31,11 @@ def lookup(config, session, uri):
             return list(reversed(list(_lookup_playlist(config, sp_link))))
         else:
             logger.info(
-                'Failed to lookup "%s": Cannot handle %r', uri, sp_link.type
+                f'Failed to lookup "{uri}": Cannot handle {repr(sp_link.type)}'
             )
             return []
     except spotify.Error as exc:
-        logger.info('Failed to lookup "%s": %s', uri, exc)
+        logger.info(f'Failed to lookup "{uri}": {exc}')
         return []
 
 

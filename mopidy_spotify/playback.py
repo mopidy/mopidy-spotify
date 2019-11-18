@@ -92,7 +92,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
             return True
         except spotify.Error as exc:
-            logger.info("Playback of %s failed: %s", track.uri, exc)
+            logger.info(f"Playback of {track.uri} failed: {exc}")
             return False
 
     def resume(self):
@@ -111,7 +111,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         return super().pause()
 
     def on_seek_data(self, time_position):
-        logger.debug("Audio requested seek to %d", time_position)
+        logger.debug(f"Audio requested seek to {time_position}")
 
         if time_position == 0 and self._first_seek:
             self._seeking_event.clear()
@@ -129,8 +129,8 @@ def need_data_callback(push_audio_data_event, length_hint):
     # This callback is called from GStreamer/the GObject event loop.
     logger.log(
         TRACE_LOG_LEVEL,
-        "Audio requested more data (hint=%d); accepting deliveries",
-        length_hint,
+        f"Audio requested more data (hint={length_hint}); "
+        "accepting deliveries",
     )
     push_audio_data_event.set()
 

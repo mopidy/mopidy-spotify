@@ -27,4 +27,5 @@ def get_requests_session(proxy_config):
 def time_logger(name, level=TRACE):
     start = time.time()
     yield
-    logger.log(level, "%s took %dms", name, (time.time() - start) * 1000)
+    end = time.time() - start
+    logger.log(level, f"{name} took {int(end * 1000)}ms")

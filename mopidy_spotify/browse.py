@@ -45,12 +45,10 @@ def browse(config, session, uri):
                 config, session, variant=parts[0], region=parts[1]
             )
         else:
-            logger.info(
-                'Failed to browse "%s": Toplist URI parsing failed', uri
-            )
+            logger.info(f'Failed to browse "{uri}": Toplist URI parsing failed')
             return []
     else:
-        logger.info('Failed to browse "%s": Unknown URI type', uri)
+        logger.info(f'Failed to browse "{uri}": Unknown URI type')
         return []
 
 
@@ -93,16 +91,16 @@ def _browse_artist(session, uri, config):
 def _browse_toplist_regions(variant):
     return [
         models.Ref.directory(
-            uri="spotify:top:%s:user" % variant, name="Personal"
+            uri=f"spotify:top:{variant}:user", name="Personal"
         ),
         models.Ref.directory(
-            uri="spotify:top:%s:country" % variant, name="Country"
+            uri=f"spotify:top:{variant}:country", name="Country"
         ),
         models.Ref.directory(
-            uri="spotify:top:%s:countries" % variant, name="Other countries"
+            uri=f"spotify:top:{variant}:countries", name="Other countries"
         ),
         models.Ref.directory(
-            uri="spotify:top:%s:everywhere" % variant, name="Global"
+            uri=f"spotify:top:{variant}:everywhere", name="Global"
         ),
     ]
 

@@ -60,7 +60,7 @@ def to_album(sp_album):
         artists = []
 
     if sp_album.year is not None and sp_album.year != 0:
-        date = "%d" % sp_album.year
+        date = f"{sp_album.year}"
     else:
         date = None
 
@@ -96,7 +96,9 @@ def to_track(sp_track, bitrate=None):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug("Error loading %s: %r", sp_track.link.uri, sp_track.error)
+        logger.debug(
+            f"Error loading {sp_track.link.uri}: {repr(sp_track.error)}"
+        )
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
@@ -126,7 +128,9 @@ def to_track_ref(sp_track):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug("Error loading %s: %r", sp_track.link.uri, sp_track.error)
+        logger.debug(
+            f"Error loading {sp_track.link.uri}: {repr(sp_track.error)}"
+        )
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
@@ -217,9 +221,9 @@ def sp_search_query(query):
             if field == "year":
                 value = _transform_year(value)
                 if value is not None:
-                    result.append("%s:%d" % (field, value))
+                    result.append(f"{field}:{value}")
             elif field == "any":
-                result.append('"%s"' % value)
+                result.append(f'"{value}"')
             else:
                 result.append(f'{field}:"{value}"')
 
@@ -231,7 +235,7 @@ def _transform_year(date):
         return int(date.split("-")[0])
     except ValueError:
         logger.debug(
-            "Excluded year from search query: " 'Cannot parse date "%s"', date
+            f'Excluded year from search query: Cannot parse date "{date}"'
         )
 
 
