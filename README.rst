@@ -6,7 +6,7 @@ Mopidy-Spotify
     :target: https://pypi.org/project/Mopidy-Spotify/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/circleci/gh/mopidy/mopidy-spotify
+.. image:: https://img.shields.io/circleci/build/gh/mopidy/mopidy-spotify
     :target: https://circleci.com/gh/mopidy/mopidy-spotify
     :alt: CircleCI build status
 
