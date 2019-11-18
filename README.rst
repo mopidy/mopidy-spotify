@@ -2,20 +2,20 @@
 Mopidy-Spotify
 **************
 
-.. image:: https://img.shields.io/pypi/v/Mopidy-Spotify.svg
+.. image:: https://img.shields.io/pypi/v/Mopidy-Spotify
     :target: https://pypi.org/project/Mopidy-Spotify/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/circleci/project/mopidy/mopidy-spotify/develop.svg
+.. image:: https://img.shields.io/circleci/gh/mopidy/mopidy-spotify
     :target: https://circleci.com/gh/mopidy/mopidy-spotify
     :alt: CircleCI build status
 
-.. image:: https://img.shields.io/codecov/c/github/mopidy/mopidy-spotify/develop.svg
+.. image:: https://img.shields.io/codecov/c/gh/mopidy/mopidy-spotify
     :target: https://codecov.io/gh/mopidy/mopidy-spotify
     :alt: Test coverage
 
-`Mopidy <http://www.mopidy.com/>`_ extension for playing music from
-`Spotify <http://www.spotify.com/>`_.
+`Mopidy <https://www.mopidy.com/>`_ extension for playing music from
+`Spotify <https://www.spotify.com/>`_.
 
 
 Status
