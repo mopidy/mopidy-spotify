@@ -1,29 +1,25 @@
-from __future__ import unicode_literals
-
 import functools
 import logging
 import threading
 
-from mopidy import audio, backend
-
 import spotify
 
+from mopidy import audio, backend
 
 logger = logging.getLogger(__name__)
 
 
 # These GStreamer caps matches the audio data provided by libspotify
-GST_CAPS = 'audio/x-raw,format=S16LE,rate=44100,channels=2,layout=interleaved'
+GST_CAPS = "audio/x-raw,format=S16LE,rate=44100,channels=2,layout=interleaved"
 
 # Extra log level with lower importance than DEBUG=10 for noisy debug logging
 TRACE_LOG_LEVEL = 5
 
 
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
-
     def __init__(self, *args, **kwargs):
-        super(SpotifyPlaybackProvider, self).__init__(*args, **kwargs)
-        self._timeout = self.backend._config['spotify']['timeout']
+        super().__init__(*args, **kwargs)
+        self._timeout = self.backend._config["spotify"]["timeout"]
 
         self._buffer_timestamp = BufferTimestamp(0)
         self._seeking_event = threading.Event()
@@ -37,12 +33,19 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         if not self._events_connected:
             self._events_connected = True
             self.backend._session.on(
-                spotify.SessionEvent.MUSIC_DELIVERY, music_delivery_callback,
-                self.audio, self._seeking_event, self._push_audio_data_event,
-                self._buffer_timestamp)
+                spotify.SessionEvent.MUSIC_DELIVERY,
+                music_delivery_callback,
+                self.audio,
+                self._seeking_event,
+                self._push_audio_data_event,
+                self._buffer_timestamp,
+            )
             self.backend._session.on(
-                spotify.SessionEvent.END_OF_TRACK, end_of_track_callback,
-                self._end_of_track_event, self.audio)
+                spotify.SessionEvent.END_OF_TRACK,
+                end_of_track_callback,
+                self._end_of_track_event,
+                self.audio,
+            )
 
     def change_track(self, track):
         self._connect_events()
@@ -51,16 +54,20 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             return False
 
         logger.debug(
-            'Audio requested change of track; '
-            'loading and starting Spotify player')
+            "Audio requested change of track; "
+            "loading and starting Spotify player"
+        )
 
         need_data_callback_bound = functools.partial(
-            need_data_callback, self._push_audio_data_event)
+            need_data_callback, self._push_audio_data_event
+        )
         enough_data_callback_bound = functools.partial(
-            enough_data_callback, self._push_audio_data_event)
+            enough_data_callback, self._push_audio_data_event
+        )
 
         seek_data_callback_bound = functools.partial(
-            seek_data_callback, self._seeking_event, self.backend._actor_proxy)
+            seek_data_callback, self._seeking_event, self.backend._actor_proxy
+        )
 
         self._buffer_timestamp.set(0)
         self._first_seek = True
@@ -76,7 +83,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
                 GST_CAPS,
                 need_data=need_data_callback_bound,
                 enough_data=enough_data_callback_bound,
-                seek_data=seek_data_callback_bound)
+                seek_data=seek_data_callback_bound,
+            )
             self.audio.set_metadata(track)
 
             # Gapless playback requires that we block until URI change in
@@ -85,35 +93,36 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
             return True
         except spotify.Error as exc:
-            logger.info('Playback of %s failed: %s', track.uri, exc)
+            logger.info(f"Playback of {track.uri} failed: {exc}")
             return False
 
     def resume(self):
-        logger.debug('Audio requested resume; starting Spotify player')
+        logger.debug("Audio requested resume; starting Spotify player")
         self.backend._session.player.play()
-        return super(SpotifyPlaybackProvider, self).resume()
+        return super().resume()
 
     def stop(self):
-        logger.debug('Audio requested stop; pausing Spotify player')
+        logger.debug("Audio requested stop; pausing Spotify player")
         self.backend._session.player.pause()
-        return super(SpotifyPlaybackProvider, self).stop()
+        return super().stop()
 
     def pause(self):
-        logger.debug('Audio requested pause; pausing Spotify player')
+        logger.debug("Audio requested pause; pausing Spotify player")
         self.backend._session.player.pause()
-        return super(SpotifyPlaybackProvider, self).pause()
+        return super().pause()
 
     def on_seek_data(self, time_position):
-        logger.debug('Audio requested seek to %d', time_position)
+        logger.debug(f"Audio requested seek to {time_position}")
 
         if time_position == 0 and self._first_seek:
             self._seeking_event.clear()
             self._first_seek = False
-            logger.debug('Skipping seek due to issue mopidy/mopidy#300')
+            logger.debug("Skipping seek due to issue mopidy/mopidy#300")
             return
 
         self._buffer_timestamp.set(
-            audio.millisecond_to_clocktime(time_position))
+            audio.millisecond_to_clocktime(time_position)
+        )
         self.backend._session.player.seek(time_position)
 
 
@@ -121,15 +130,15 @@ def need_data_callback(push_audio_data_event, length_hint):
     # This callback is called from GStreamer/the GObject event loop.
     logger.log(
         TRACE_LOG_LEVEL,
-        'Audio requested more data (hint=%d); accepting deliveries',
-        length_hint)
+        f"Audio requested more data (hint={length_hint}); "
+        "accepting deliveries",
+    )
     push_audio_data_event.set()
 
 
 def enough_data_callback(push_audio_data_event):
     # This callback is called from GStreamer/the GObject event loop.
-    logger.log(
-        TRACE_LOG_LEVEL, 'Audio has enough data; rejecting deliveries')
+    logger.log(TRACE_LOG_LEVEL, "Audio has enough data; rejecting deliveries")
     push_audio_data_event.clear()
 
 
@@ -141,8 +150,15 @@ def seek_data_callback(seeking_event, spotify_backend, time_position):
 
 
 def music_delivery_callback(
-        session, audio_format, frames, num_frames,
-        audio_actor, seeking_event, push_audio_data_event, buffer_timestamp):
+    session,
+    audio_format,
+    frames,
+    num_frames,
+    audio_actor,
+    seeking_event,
+    push_audio_data_event,
+    buffer_timestamp,
+):
     # This is called from an internal libspotify thread.
     # Ideally, nothing here should block.
 
@@ -162,12 +178,14 @@ def music_delivery_callback(
         return 0  # No audio data; return immediately.
 
     known_format = (
-        audio_format.sample_type == spotify.SampleType.INT16_NATIVE_ENDIAN)
-    assert known_format, 'Expects 16-bit signed integer samples'
+        audio_format.sample_type == spotify.SampleType.INT16_NATIVE_ENDIAN
+    )
+    assert known_format, "Expects 16-bit signed integer samples"
 
     duration = audio.calculate_duration(num_frames, audio_format.sample_rate)
     buffer_ = audio.create_buffer(
-        bytes(frames), timestamp=buffer_timestamp.get(), duration=duration)
+        bytes(frames), timestamp=buffer_timestamp.get(), duration=duration
+    )
 
     # We must block here to know if the buffer was consumed successfully.
     consumed = audio_actor.emit_data(buffer_).get()
@@ -183,15 +201,15 @@ def end_of_track_callback(session, end_of_track_event, audio_actor):
     # This callback is called from the pyspotify event loop.
 
     if end_of_track_event.is_set():
-        logger.debug('End of track already received; ignoring callback')
+        logger.debug("End of track already received; ignoring callback")
         return
 
-    logger.debug('End of track reached')
+    logger.debug("End of track reached")
     end_of_track_event.set()
     audio_actor.emit_data(None)
 
 
-class BufferTimestamp(object):
+class BufferTimestamp:
     """Wrapper around an int to serialize access by multiple threads.
 
     The value is used both from the backend actor and callbacks called by

@@ -1,12 +1,9 @@
-from __future__ import unicode_literals
-
 import email
 import logging
 import os
 import re
 import time
-import urllib
-import urlparse
+import urllib.parse
 from datetime import datetime
 
 import requests
@@ -22,19 +19,27 @@ def _trace(*args, **kwargs):
 
 class OAuthTokenRefreshError(Exception):
     def __init__(self, reason):
-        message = 'OAuth token refresh failed: %s' % reason
-        super(OAuthTokenRefreshError, self).__init__(message)
+        message = f"OAuth token refresh failed: {reason}"
+        super().__init__(message)
 
 
 class OAuthClientError(Exception):
     pass
 
 
-class OAuthClient(object):
-
-    def __init__(self, base_url, refresh_url, client_id=None,
-                 client_secret=None, proxy_config=None, expiry_margin=60,
-                 timeout=10, retries=3, retry_statuses=(500, 502, 503, 429)):
+class OAuthClient:
+    def __init__(
+        self,
+        base_url,
+        refresh_url,
+        client_id=None,
+        client_secret=None,
+        proxy_config=None,
+        expiry_margin=60,
+        timeout=10,
+        retries=3,
+        retry_statuses=(500, 502, 503, 429),
+    ):
 
         if client_id and client_secret:
             self._auth = (client_id, client_secret)
@@ -53,24 +58,24 @@ class OAuthClient(object):
         self._retry_statuses = retry_statuses
         self._backoff_factor = 0.5
 
-        self._headers = {'Content-Type': 'application/json'}
+        self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
 
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
-            logger.debug('Blocking request as previous authorization failed.')
+            logger.debug("Blocking request as previous authorization failed.")
             return {}
 
-        params = kwargs.pop('params', None)
+        params = kwargs.pop("params", None)
         path = self._normalise_query_string(path, params)
 
-        _trace('Get "%s"', path)
+        _trace(f"Get '{path}'")
 
         if cache is not None and path in cache:
             cached_result = cache.get(path)
             if not cached_result.expired:
                 return cached_result
-            kwargs.setdefault('headers', {}).update(cached_result.etag_headers)
+            kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
@@ -82,10 +87,10 @@ class OAuthClient(object):
             return {}
 
         # Make sure our headers always override user supplied ones.
-        kwargs.setdefault('headers', {}).update(self._headers)
-        result = self._request_with_retries('GET', path, *args, **kwargs)
+        kwargs.setdefault("headers", {}).update(self._headers)
+        result = self._request_with_retries("GET", path, *args, **kwargs)
 
-        if result is None or 'error' in result:
+        if result is None or "error" in result:
             return {}
 
         if self._should_cache_response(cache, result):
@@ -104,39 +109,43 @@ class OAuthClient(object):
         return not self._auth or time.time() > self._expires - self._margin
 
     def _refresh_token(self):
-        logger.debug('Fetching OAuth token from %s', self._refresh_url)
+        logger.debug(f"Fetching OAuth token from {self._refresh_url}")
 
-        data = {'grant_type': 'client_credentials'}
+        data = {"grant_type": "client_credentials"}
         result = self._request_with_retries(
-            'POST', self._refresh_url, auth=self._auth, data=data)
+            "POST", self._refresh_url, auth=self._auth, data=data
+        )
 
         if result is None:
-            raise OAuthTokenRefreshError('Unknown error.')
-        elif result.get('error'):
-            raise OAuthTokenRefreshError('%s %s' % (
-                result['error'], result.get('error_description', '')))
-        elif not result.get('access_token'):
-            raise OAuthTokenRefreshError('missing access_token')
-        elif result.get('token_type') != 'Bearer':
-            raise OAuthTokenRefreshError('wrong token_type: %s' %
-                                         result.get('token_type'))
+            raise OAuthTokenRefreshError("Unknown error.")
+        elif result.get("error"):
+            raise OAuthTokenRefreshError(
+                f"{result['error']} {result.get('error_description', '')}"
+            )
+        elif not result.get("access_token"):
+            raise OAuthTokenRefreshError("missing access_token")
+        elif result.get("token_type") != "Bearer":
+            raise OAuthTokenRefreshError(
+                f"wrong token_type: {result.get('token_type')}"
+            )
 
-        self._headers['Authorization'] = 'Bearer %s' % result['access_token']
-        self._expires = time.time() + result.get('expires_in', float('Inf'))
+        self._headers["Authorization"] = f"Bearer {result['access_token']}"
+        self._expires = time.time() + result.get("expires_in", float("Inf"))
 
-        if result.get('expires_in'):
-            logger.debug('Token expires in %s seconds.', result['expires_in'])
-        if result.get('scope'):
-            logger.debug('Token scopes: %s', result['scope'])
+        if result.get("expires_in"):
+            logger.debug(f"Token expires in {result['expires_in']} seconds.",)
+        if result.get("scope"):
+            logger.debug(f"Token scopes: {result['scope']}")
 
     def _request_with_retries(self, method, url, *args, **kwargs):
         prepared_request = self._session.prepare_request(
-            requests.Request(method, self._prepare_url(url, *args), **kwargs))
+            requests.Request(method, self._prepare_url(url, *args), **kwargs)
+        )
 
         try_until = time.time() + self._timeout
 
         result = None
-        backoff_time = None
+        backoff_time = 0
 
         for i in range(self._number_of_retries):
             remaining_timeout = max(try_until - time.time(), 1)
@@ -149,11 +158,12 @@ class OAuthClient(object):
 
             try:
                 response = self._session.send(
-                    prepared_request, timeout=remaining_timeout)
+                    prepared_request, timeout=remaining_timeout
+                )
             except requests.RequestException as e:
-                logger.debug('Fetching %s failed: %s', prepared_request.url, e)
+                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
                 status_code = None
-                backoff_time = None
+                backoff_time = 0
                 result = None
             else:
                 status_code = response.status_code
@@ -161,8 +171,9 @@ class OAuthClient(object):
                 result = WebResponse.from_requests(prepared_request, response)
 
             if status_code >= 400 and status_code < 600:
-                logger.debug('Fetching %s failed: %s',
-                             prepared_request.url, status_code)
+                logger.debug(
+                    f"Fetching {prepared_request.url} failed: {status_code}"
+                )
 
             # Filter out cases where we should not retry.
             if status_code and status_code not in self._retry_statuses:
@@ -174,58 +185,66 @@ class OAuthClient(object):
             # instead some endpoints return 200 with no content, or true/false.
 
             # Decide how long to sleep in the next iteration.
-            backoff_time = backoff_time or (2**i * self._backoff_factor)
-            logger.debug('Retrying %s in %.3f seconds.',
-                         prepared_request.url, backoff_time)
+            backoff_time = backoff_time or (2 ** i * self._backoff_factor)
+            logger.debug(
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} "
+                "seconds."
+            )
 
         if status_code == 401:
             self._authorization_failed = True
-            logger.error('Authorization failed, not attempting Spotify API '
-                         'request. Please get new credentials from '
-                         'https://www.mopidy.com/authenticate and/or restart '
-                         'Mopidy to resolve this problem.')
+            logger.error(
+                "Authorization failed, not attempting Spotify API "
+                "request. Please get new credentials from "
+                "https://www.mopidy.com/authenticate and/or restart "
+                "Mopidy to resolve this problem."
+            )
         return result
 
     def _prepare_url(self, url, *args, **kwargs):
         # TODO: Move this out as a helper and unit-test it directly?
-        b = urlparse.urlsplit(self._base_url)
-        u = urlparse.urlsplit(url.format(*args))
+        b = urllib.parse.urlsplit(self._base_url)
+        u = urllib.parse.urlsplit(url.format(*args))
 
         if u.scheme or u.netloc:
             scheme, netloc, path = u.scheme, u.netloc, u.path
-            query = urlparse.parse_qsl(u.query, keep_blank_values=True)
+            query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
         else:
             scheme, netloc = b.scheme, b.netloc
             path = os.path.normpath(os.path.join(b.path, u.path))
-            query = urlparse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(urlparse.parse_qsl(u.query, keep_blank_values=True))
+            query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
+            query.extend(
+                urllib.parse.parse_qsl(u.query, keep_blank_values=True)
+            )
 
         for key, value in kwargs.items():
-            if isinstance(value, unicode):
-                value = value.encode('utf-8')
             query.append((key, value))
 
-        encoded_query = urllib.urlencode(dict(query))
-        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
+        encoded_query = urllib.parse.urlencode(dict(query))
+        return urllib.parse.urlunsplit(
+            (scheme, netloc, path, encoded_query, "")
+        )
 
     def _normalise_query_string(self, url, params=None):
-        u = urlparse.urlsplit(url)
+        u = urllib.parse.urlsplit(url)
         scheme, netloc, path = u.scheme, u.netloc, u.path
 
-        query = dict(urlparse.parse_qsl(u.query, keep_blank_values=True))
+        query = dict(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
         if isinstance(params, dict):
             query.update(params)
         sorted_unique_query = sorted(query.items())
-        encoded_query = urllib.urlencode(sorted_unique_query)
-        return urlparse.urlunsplit((scheme, netloc, path, encoded_query, ''))
+        encoded_query = urllib.parse.urlencode(sorted_unique_query)
+        return urllib.parse.urlunsplit(
+            (scheme, netloc, path, encoded_query, "")
+        )
 
     def _parse_retry_after(self, response):
         """Parse Retry-After header from response if it is set."""
-        value = response.headers.get('Retry-After')
+        value = response.headers.get("Retry-After")
 
         if not value:
             seconds = 0
-        elif re.match(r'^\s*[0-9]+\s*$', value):
+        elif re.match(r"^\s*[0-9]+\s*$", value):
             seconds = int(value)
         else:
             date_tuple = email.utils.parsedate(value)
@@ -237,14 +256,13 @@ class OAuthClient(object):
 
 
 class WebResponse(dict):
-
     def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
         self.url = url
         self._expires = expires
         self._etag = etag
         self._status_code = status_code
-        super(WebResponse, self).__init__(data or {})
-        _trace('New WebResponse %s', self)
+        super().__init__(data or {})
+        _trace(f"New WebResponse {self}")
 
     @classmethod
     def from_requests(cls, request, response):
@@ -262,18 +280,18 @@ class WebResponse(dict):
             return response.json()
         except ValueError as e:
             url = response.request.url
-            logger.error('JSON decoding %s failed: %s', url, e)
+            logger.error(f"JSON decoding {url} failed: {e}")
             return None
 
     @staticmethod
     def _parse_cache_control(response):
         """Parse Cache-Control header from response if it is set."""
-        value = response.headers.get('Cache-Control', 'no-store').lower()
+        value = response.headers.get("Cache-Control", "no-store").lower()
 
-        if 'no-store' in value:
+        if "no-store" in value:
             seconds = 0
         else:
-            max_age = re.match(r'.*max-age=\s*([0-9]+)\s*', value)
+            max_age = re.match(r".*max-age=\s*([0-9]+)\s*", value)
             if not max_age:
                 seconds = 0
             else:
@@ -283,7 +301,7 @@ class WebResponse(dict):
     @staticmethod
     def _parse_etag(response):
         """Parse ETag header from response if it is set."""
-        value = response.headers.get('ETag')
+        value = response.headers.get("ETag")
 
         if value:
             # 'W/' (case-sensitive) indicates that a weak validator is used,
@@ -296,9 +314,9 @@ class WebResponse(dict):
 
     @property
     def expired(self):
-        status_str = {True: 'expired', False: 'fresh'}
+        status_str = {True: "expired", False: "fresh"}
         result = self._expires < time.time()
-        _trace('Cached data %s for %s', status_str[result], self)
+        _trace(f"Cached data {status_str[result]} for {self}")
         return result
 
     @property
@@ -308,7 +326,7 @@ class WebResponse(dict):
     @property
     def etag_headers(self):
         if self._etag is not None:
-            return {'If-None-Match': self._etag}
+            return {"If-None-Match": self._etag}
         else:
             return {}
 
@@ -316,22 +334,21 @@ class WebResponse(dict):
         if self._etag is None:
             return False
         elif self.url != response.url:
-            logger.error(
-                'ETag mismatch (different URI) for %s %s', self, response)
+            logger.error(f"ETag mismatch (different URI) for {self} {response}")
             return False
         elif not response.status_ok:
-            logger.debug(
-                'ETag mismatch (bad response) for %s %s', self, response)
+            logger.debug(f"ETag mismatch (bad response) for {self} {response}")
             return False
         elif response._status_code != 304:
-            _trace('ETag mismatch for %s %s', self, response)
+            _trace(f"ETag mismatch for {self} {response}")
             return False
 
-        _trace('ETag match for %s %s', self, response)
+        _trace(f"ETag match for {self} {response}")
         self._expires = response._expires
         self._etag = response._etag
         return True
 
     def __str__(self):
-        return 'URL: %s ETag: %s Expires: %s' % (
-            self.url, self._etag, datetime.fromtimestamp(self._expires))
+        return "URL: {} ETag: {} Expires: {}".format(
+            self.url, self._etag, datetime.fromtimestamp(self._expires)
+        )

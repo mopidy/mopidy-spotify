@@ -1,89 +1,117 @@
-from __future__ import unicode_literals
-
 import logging
-import urllib
-
-from mopidy import models
+import urllib.parse
 
 import spotify
 
+from mopidy import models
 from mopidy_spotify import lookup, translator
 
-
-_SEARCH_TYPES = ['album', 'artist', 'track']
+_SEARCH_TYPES = ["album", "artist", "track"]
 
 logger = logging.getLogger(__name__)
 
 
-def search(config, session, web_client,
-           query=None, uris=None, exact=False, types=_SEARCH_TYPES):
+def search(
+    config,
+    session,
+    web_client,
+    query=None,
+    uris=None,
+    exact=False,
+    types=_SEARCH_TYPES,
+):
     # TODO Respect `uris` argument
     # TODO Support `exact` search
 
     if query is None:
-        logger.debug('Ignored search without query')
-        return models.SearchResult(uri='spotify:search')
+        logger.debug("Ignored search without query")
+        return models.SearchResult(uri="spotify:search")
 
-    if 'uri' in query:
+    if "uri" in query:
         return _search_by_uri(config, session, query)
 
     sp_query = translator.sp_search_query(query)
     if not sp_query:
-        logger.debug('Ignored search with empty query')
-        return models.SearchResult(uri='spotify:search')
+        logger.debug("Ignored search with empty query")
+        return models.SearchResult(uri="spotify:search")
 
-    uri = 'spotify:search:%s' % urllib.quote(sp_query.encode('utf-8'))
-    logger.info('Searching Spotify for: %s', sp_query)
+    uri = f"spotify:search:{urllib.parse.quote(sp_query)}"
+    logger.info(f"Searching Spotify for: {sp_query}")
 
     if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
-        logger.info('Spotify search aborted: Spotify is offline')
+        logger.info("Spotify search aborted: Spotify is offline")
         return models.SearchResult(uri=uri)
 
     search_count = max(
-        config['search_album_count'],
-        config['search_artist_count'],
-        config['search_track_count'])
+        config["search_album_count"],
+        config["search_artist_count"],
+        config["search_track_count"],
+    )
 
     if search_count > 50:
         logger.warn(
-            'Spotify currently allows maximum 50 search results of each type. '
-            'Please set the config values spotify/search_album_count, '
-            'spotify/search_artist_count and spotify/search_track_count '
-            'to at most 50.')
+            "Spotify currently allows maximum 50 search results of each type. "
+            "Please set the config values spotify/search_album_count, "
+            "spotify/search_artist_count and spotify/search_track_count "
+            "to at most 50."
+        )
         search_count = 50
 
-    result = web_client.get('search', params={
-        'q': sp_query,
-        'limit': search_count,
-        'market': session.user_country,
-        'type': ','.join(types)})
+    result = web_client.get(
+        "search",
+        params={
+            "q": sp_query,
+            "limit": search_count,
+            "market": session.user_country,
+            "type": ",".join(types),
+        },
+    )
 
-    albums = [
-        translator.web_to_album(web_album) for web_album in
-        result['albums']['items'][:config['search_album_count']]
-    ] if 'albums' in result else []
+    albums = (
+        [
+            translator.web_to_album(web_album)
+            for web_album in result["albums"]["items"][
+                : config["search_album_count"]
+            ]
+        ]
+        if "albums" in result
+        else []
+    )
 
-    artists = [
-        translator.web_to_artist(web_artist) for web_artist in
-        result['artists']['items'][:config['search_artist_count']]
-    ] if 'artists' in result else []
+    artists = (
+        [
+            translator.web_to_artist(web_artist)
+            for web_artist in result["artists"]["items"][
+                : config["search_artist_count"]
+            ]
+        ]
+        if "artists" in result
+        else []
+    )
 
-    tracks = [
-        translator.web_to_track(web_track) for web_track in
-        result['tracks']['items'][:config['search_track_count']]
-    ] if 'tracks' in result else []
+    tracks = (
+        [
+            translator.web_to_track(web_track)
+            for web_track in result["tracks"]["items"][
+                : config["search_track_count"]
+            ]
+        ]
+        if "tracks" in result
+        else []
+    )
 
     return models.SearchResult(
-        uri=uri, albums=albums, artists=artists, tracks=tracks)
+        uri=uri, albums=albums, artists=artists, tracks=tracks
+    )
 
 
 def _search_by_uri(config, session, query):
     tracks = []
-    for uri in query['uri']:
+    for uri in query["uri"]:
         tracks += lookup.lookup(config, session, uri)
 
-    uri = 'spotify:search'
-    if len(query['uri']) == 1:
-        uri = query['uri'][0]
+    uri = "spotify:search"
+    if len(query["uri"]) == 1:
+        uri = query["uri"][0]
 
     return models.SearchResult(uri=uri, tracks=tracks)
