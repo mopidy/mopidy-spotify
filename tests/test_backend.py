@@ -14,6 +14,7 @@ def get_backend(config, session_mock=None):
     else:
         obj._session = mock.Mock()
         obj._session.playlist_container = None
+        obj._web_client = mock.Mock()
     obj._event_loop = mock.Mock()
     return obj
 
@@ -98,7 +99,7 @@ def test_on_start_configures_volume_normalization(spotify_mock, config):
     volume_normalization_mock.assert_called_once_with(False)
 
 
-def test_on_start_configures_proxy(spotify_mock, config):
+def test_on_start_configures_proxy(spotify_mock, web_mock, config):
     config["proxy"] = {
         "scheme": "https",
         "hostname": "my-proxy.example.com",
@@ -115,23 +116,22 @@ def test_on_start_configures_proxy(spotify_mock, config):
     assert spotify_config.proxy_username == "alice"
     assert spotify_config.proxy_password == "s3cret"
 
-    assert (
-        backend._web_client._session.proxies["https"]
-        == "https://alice:s3cret@my-proxy.example.com:8080"
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        mock.ANY,
+        mock.ANY,
+        config['proxy'],
     )
 
 
-def test_on_start_configures_web_client(spotify_mock, config):
+def test_on_start_configures_web_client(spotify_mock, web_mock, config):
     config["spotify"]["client_id"] = "1234567"
     config["spotify"]["client_secret"] = "AbCdEfG"
 
     backend = get_backend(config)
     backend.on_start()
 
-    assert backend._web_client._auth == ("1234567", "AbCdEfG")
-    assert (
-        backend._web_client._refresh_url
-        == "https://auth.mopidy.com/spotify/token"
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        '1234567', 'AbCdEfG', mock.ANY,
     )
 
 
@@ -172,13 +172,14 @@ def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
     spotify_mock.EventLoop.return_value.start.assert_called_once_with()
 
 
-def test_on_start_logs_in(spotify_mock, config):
+def test_on_start_logs_in(spotify_mock, web_mock, config):
     backend = get_backend(config)
     backend.on_start()
 
     spotify_mock.Session.return_value.login.assert_called_once_with(
         "alice", "password"
     )
+    web_mock.SpotifyOAuthClient.return_value.login.assert_called_once()
 
 
 def test_on_stop_logs_out_and_waits_for_logout_to_complete(

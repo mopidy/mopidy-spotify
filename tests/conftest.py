@@ -43,7 +43,14 @@ def config(tmp_path):
 
 
 @pytest.yield_fixture
-def spotify_mock():
+def web_mock():
+    patcher = mock.patch.object(backend, "web", spec=web)
+    yield patcher.start()
+    patcher.stop()
+
+
+@pytest.yield_fixture
+def spotify_mock(web_mock):
     patcher = mock.patch.object(backend, "spotify", spec=spotify)
     yield patcher.start()
     patcher.stop()
@@ -381,7 +388,9 @@ def session_mock():
 
 @pytest.fixture
 def web_client_mock():
-    web_client_mock = mock.Mock(spec=web.OAuthClient)
+    web_client_mock = mock.Mock(spec=web.SpotifyOAuthClient)
+    web_client_mock.user_name = "Jane Doe"
+    web_client_mock.user_country = "GB"
     return web_client_mock
 
 
