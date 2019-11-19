@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+import requests
 import responses
 
 import mopidy_spotify
@@ -46,6 +47,24 @@ def test_still_valid_refresh_token(oauth_client, mock_time):
 def test_user_agent(oauth_client):
     assert oauth_client._session.headers["user-agent"].startswith(
         f"Mopidy-Spotify/{mopidy_spotify.__version__}"
+    )
+
+
+@responses.activate
+def test_request_exception(oauth_client, caplog):
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        body=requests.RequestException("foo"),
+    )
+    oauth_client._number_of_retries = 1
+
+    result = oauth_client.get("tracks/abc")
+
+    assert result == {}
+    assert (
+        "Fetching https://auth.mopidy.com/spotify/token failed: foo"
+        in caplog.text
     )
 
 
