@@ -1,7 +1,6 @@
 import logging
 
 import spotify
-
 from mopidy_spotify import search
 
 logger = logging.getLogger(__name__)

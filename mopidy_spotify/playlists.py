@@ -1,9 +1,10 @@
 import logging
 
-import spotify
-
 from mopidy import backend
+
 from mopidy_spotify import translator, utils
+
+_cache = {}
 
 logger = logging.getLogger(__name__)
 
@@ -18,25 +19,16 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return list(self._get_flattened_playlist_refs())
 
     def _get_flattened_playlist_refs(self):
-        if self._backend._session is None:
+        if self._backend._web_client is None:
             return
 
-        if self._backend._session.playlist_container is None:
+        if self._backend._web_client.user_id is None:
             return
 
-        username = self._backend._session.user_name
-        folders = []
-
-        for sp_playlist in self._backend._session.playlist_container:
-            if isinstance(sp_playlist, spotify.PlaylistFolder):
-                if sp_playlist.type is spotify.PlaylistType.START_FOLDER:
-                    folders.append(sp_playlist.name)
-                elif sp_playlist.type is spotify.PlaylistType.END_FOLDER:
-                    folders.pop()
-                continue
-
+        web_client = self._backend._web_client
+        for web_playlist in web_client.get_user_playlists(_cache):
             playlist_ref = translator.to_playlist_ref(
-                sp_playlist, folders=folders, username=username
+                web_playlist, web_client.user_id
             )
             if playlist_ref is not None:
                 yield playlist_ref
@@ -50,41 +42,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
-        try:
-            sp_playlist = self._backend._session.get_playlist(uri)
-        except spotify.Error as exc:
-            logger.debug(f"Failed to lookup Spotify URI {uri}: {exc}")
-            return
-
-        if not sp_playlist.is_loaded:
-            logger.debug(f"Waiting for Spotify playlist to load: {sp_playlist}")
-            sp_playlist.load(self._timeout)
-
-        username = self._backend._session.user_name
-        return translator.to_playlist(
-            sp_playlist,
-            username=username,
-            bitrate=self._backend._bitrate,
-            as_items=as_items,
+        return playlist_lookup(
+            self._backend._web_client, uri, self._backend._bitrate, as_items
         )
 
     def refresh(self):
-        pass  # Not needed as long as we don't cache anything.
+        pass  # TODO: Clear/invalidate all caches on refresh.
 
     def create(self, name):
-        try:
-            sp_playlist = self._backend._session.playlist_container.add_new_playlist(
-                name
-            )
-        except ValueError as exc:
-            logger.warning(
-                f'Failed creating new Spotify playlist "{name}": {exc}'
-            )
-        except spotify.Error:
-            logger.warning(f'Failed creating new Spotify playlist "{name}"')
-        else:
-            username = self._backend._session.user_name
-            return translator.to_playlist(sp_playlist, username=username)
+        pass  # TODO
 
     def delete(self, uri):
         pass  # TODO
@@ -93,42 +59,30 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         pass  # TODO
 
 
-def on_container_loaded(sp_playlist_container):
+def playlist_lookup(web_client, uri, bitrate, as_items=False):
+    if web_client is None:
+        return
+
+    logger.info(f'Fetching Spotify playlist "{uri}"')
+    web_playlist = web_client.get_playlist(uri, _cache)
+
+    if web_playlist == {}:
+        logger.error(f"Failed to lookup Spotify playlist URI {uri}")
+        return
+
+    return translator.to_playlist(
+        web_playlist,
+        username=web_client.user_id,
+        bitrate=bitrate,
+        as_items=as_items,
+    )
+
+
+def on_playlists_loaded():
     # Called from the pyspotify event loop, and not in an actor context.
-    logger.debug("Spotify playlist container loaded")
+    logger.debug("Spotify playlists loaded")
 
     # This event listener is also called after playlists are added, removed and
     # moved, so since Mopidy currently only supports the "playlists_loaded"
     # event this is the only place we need to trigger a Mopidy backend event.
     backend.BackendListener.send("playlists_loaded")
-
-
-def on_playlist_added(sp_playlist_container, sp_playlist, index):
-    # Called from the pyspotify event loop, and not in an actor context.
-    logger.debug(
-        f'Spotify playlist "{sp_playlist.name}" added to index {index}'
-    )
-
-    # XXX Should Mopidy support more fine grained playlist events which this
-    # event can trigger?
-
-
-def on_playlist_removed(sp_playlist_container, sp_playlist, index):
-    # Called from the pyspotify event loop, and not in an actor context.
-    logger.debug(
-        f'Spotify playlist "{sp_playlist.name}" removed from index {index}'
-    )
-
-    # XXX Should Mopidy support more fine grained playlist events which this
-    # event can trigger?
-
-
-def on_playlist_moved(sp_playlist_container, sp_playlist, old_index, new_index):
-    # Called from the pyspotify event loop, and not in an actor context.
-    logger.debug(
-        f'Spotify playlist "{sp_playlist.name}" '
-        f"moved from index {old_index} to {new_index}"
-    )
-
-    # XXX Should Mopidy support more fine grained playlist events which this
-    # event can trigger?
