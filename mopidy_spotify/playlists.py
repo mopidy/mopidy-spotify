@@ -2,9 +2,12 @@ import logging
 
 from mopidy import backend
 
+import spotify
+
 from mopidy_spotify import translator, utils
 
 _cache = {}
+_sp_links = {}
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +53,18 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def _get_playlist(self, uri, as_items=False):
         return playlist_lookup(
-            self._backend._web_client, uri, self._backend._bitrate, as_items
+            self._backend._session,
+            self._backend._web_client,
+            uri,
+            self._backend._bitrate,
+            as_items,
         )
 
     def refresh(self):
         with utils.time_logger("Refresh Playlists", logging.INFO):
             _cache.clear()
+            _sp_links.clear()
+            # Want libspotify to get track links so they load in the background
             count = 0
             for playlist_ref in self._get_flattened_playlist_refs():
                 self._get_playlist(playlist_ref.uri)
@@ -74,7 +83,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         pass  # TODO
 
 
-def playlist_lookup(web_client, uri, bitrate, as_items=False):
+def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
     if web_client is None:
         return
 
@@ -85,12 +94,31 @@ def playlist_lookup(web_client, uri, bitrate, as_items=False):
         logger.error(f"Failed to lookup Spotify playlist URI {uri}")
         return
 
-    return translator.to_playlist(
+    playlist = translator.to_playlist(
         web_playlist,
         username=web_client.user_id,
         bitrate=bitrate,
         as_items=as_items,
     )
+    if playlist is None:
+        return
+    # Store the libspotify Link for each track so they will be loaded in the
+    # background ready for using later.
+    if session.connection.state is spotify.ConnectionState.LOGGED_IN:
+        if as_items:
+            tracks = playlist
+        else:
+            tracks = playlist.tracks
+
+        for track in tracks:
+            if track.uri in _sp_links:
+                continue
+            try:
+                _sp_links[track.uri] = session.get_link(track.uri)
+            except ValueError as exc:
+                logger.info(f'Failed to get link "{track.uri}": {exc}')
+
+    return playlist
 
 
 def on_playlists_loaded():
