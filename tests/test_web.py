@@ -723,10 +723,10 @@ class TestSpotifyOAuthClient:
         web_resp = web.WebResponse(
             "me/playlists?limit=50", {"items": ["playlist"]}, status_code=200
         )
-        cache = {web_resp.url: web_resp}
+        spotify_client._cache = {web_resp.url: web_resp}
         mock_time.return_value = -1000
 
-        result = list(spotify_client.get_user_playlists(cache))
+        result = list(spotify_client.get_user_playlists())
 
         assert len(responses.calls) == 0
         assert result[0] == "playlist"
@@ -831,21 +831,20 @@ class TestSpotifyOAuthClient:
         )
         mock_time.return_value = -1000
 
-        cache = {}
-        result1 = spotify_client.get_playlist("spotify:playlist:foo", cache)
+        result1 = spotify_client.get_playlist("spotify:playlist:foo")
 
         assert len(responses.calls) == 2
         assert result1["tracks"]["items"] == [1, 2, 3, 4, 5]
 
-        assert len(cache) == 2
+        assert len(spotify_client._cache) == 2
         base_url = self.url("")
         url0 = responses.calls[0].request.url[len(base_url) :]
-        assert cache[url0]["tracks"]["items"] == [1, 2]
+        assert spotify_client._cache[url0]["tracks"]["items"] == [1, 2]
         url1 = responses.calls[1].request.url[len(base_url) :]
-        assert cache[url1]["items"] == [3, 4, 5]
+        assert spotify_client._cache[url1]["items"] == [3, 4, 5]
 
         responses.calls.reset()
-        result2 = spotify_client.get_playlist("spotify:playlist:foo", cache)
+        result2 = spotify_client.get_playlist("spotify:playlist:foo")
 
         assert len(responses.calls) == 0
         assert result1 == result2

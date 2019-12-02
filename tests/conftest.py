@@ -401,7 +401,7 @@ def session_mock():
 
 @pytest.fixture
 def web_client_mock():
-    web_client_mock = mock.Mock(spec=web.SpotifyOAuthClient)
+    web_client_mock = mock.MagicMock(spec=web.SpotifyOAuthClient)
     web_client_mock.user_id = "alice"
     web_client_mock.get_user_playlists.return_value = []
     return web_client_mock

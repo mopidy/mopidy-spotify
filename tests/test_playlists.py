@@ -44,7 +44,6 @@ def web_client_mock(web_client_mock, web_track_mock):
 @pytest.fixture
 def provider(backend_mock, web_client_mock):
     backend_mock._web_client = web_client_mock
-    playlists._cache.clear()
     playlists._sp_links.clear()
     provider = playlists.SpotifyPlaylistsProvider(backend_mock)
     provider._loaded = True
@@ -92,12 +91,6 @@ def test_as_list_when_playlist_wont_translate(provider, caplog):
     )
 
 
-def test_as_list_uses_cache(provider, web_client_mock):
-    provider.as_list()
-
-    web_client_mock.get_user_playlists.assert_called_once_with(playlists._cache)
-
-
 def test_get_items_when_playlist_exists(provider):
     result = provider.get_items("spotify:user:alice:playlist:foo")
 
@@ -142,8 +135,8 @@ def test_refresh_loads_all_playlists(provider, web_client_mock):
     web_client_mock.get_user_playlists.assert_called_once()
     assert web_client_mock.get_playlist.call_count == 2
     expected_calls = [
-        mock.call("spotify:user:alice:playlist:foo", {}),
-        mock.call("spotify:user:bob:playlist:baz", {}),
+        mock.call("spotify:user:alice:playlist:foo"),
+        mock.call("spotify:user:bob:playlist:baz"),
     ]
     web_client_mock.get_playlist.assert_has_calls(expected_calls)
 
@@ -162,14 +155,6 @@ def test_refresh_counts_playlists(provider, caplog):
     provider.refresh()
 
     assert "Refreshed 2 playlists" in caplog.text
-
-
-def test_refresh_clears_web_cache(provider):
-    playlists._cache = {"foo": "foobar", "foo2": "foofoo"}
-
-    provider.refresh()
-
-    assert len(playlists._cache) == 0
 
 
 def test_refresh_clears_link_cache(provider):
@@ -288,16 +273,6 @@ def test_playlist_lookup_when_link_invalid(
 
     assert len(playlist.tracks) == 1
     assert 'Failed to get link "spotify:track:abc"' in caplog.text
-
-
-def test_playlist_lookup_uses_cache(session_mock, web_client_mock):
-    playlists.playlist_lookup(
-        session_mock, web_client_mock, "spotify:user:alice:playlist:foo", None
-    )
-
-    web_client_mock.get_playlist.assert_called_once_with(
-        "spotify:user:alice:playlist:foo", playlists._cache
-    )
 
 
 def test_on_playlists_loaded_triggers_playlists_loaded_event(
