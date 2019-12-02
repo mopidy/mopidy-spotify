@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 from mopidy import backend as backend_api
 from mopidy.models import Ref
@@ -41,7 +43,9 @@ def web_client_mock(web_client_mock, web_track_mock):
 @pytest.fixture
 def provider(backend_mock, web_client_mock):
     backend_mock._web_client = web_client_mock
-    return playlists.SpotifyPlaylistsProvider(backend_mock)
+    provider = playlists.SpotifyPlaylistsProvider(backend_mock)
+    provider._loaded = True
+    return provider
 
 
 def test_is_a_playlists_provider(provider):
@@ -58,6 +62,14 @@ def test_as_list_when_not_logged_in(web_client_mock, provider):
 
 def test_as_list_when_offline(web_client_mock, provider):
     web_client_mock.get_user_playlists.return_value = {}
+
+    result = provider.as_list()
+
+    assert len(result) == 0
+
+
+def test_as_list_blocked_when_not_loaded(provider):
+    provider._loaded = False
 
     result = provider.as_list()
 
@@ -99,6 +111,16 @@ def test_get_items_when_playlist_without_tracks(provider):
     assert result == []
 
 
+def test_get_items_blocked_when_not_loaded(provider):
+    provider._loaded = False
+
+    result = provider.get_items("spotify:user:alice:playlist:foo")
+
+    assert len(result) == 0
+
+    assert result == []
+
+
 def test_get_items_when_playlist_wont_translate(provider, caplog):
     assert provider.get_items("spotify:user:alice:playlist:malformed") is None
 
@@ -111,12 +133,40 @@ def test_get_items_when_playlist_is_unknown(provider, caplog):
     )
 
 
-def test_as_get_items_uses_cache(provider, web_client_mock):
-    provider.get_items("spotify:user:alice:playlist:foo")
+def test_refresh_loads_all_playlists(provider, web_client_mock):
+    provider.refresh()
 
-    web_client_mock.get_playlist.assert_called_once_with(
-        "spotify:user:alice:playlist:foo", playlists._cache
-    )
+    web_client_mock.get_user_playlists.assert_called_once()
+    assert web_client_mock.get_playlist.call_count == 2
+    expected_calls = [
+        mock.call("spotify:user:alice:playlist:foo", {}),
+        mock.call("spotify:user:bob:playlist:baz", {}),
+    ]
+    web_client_mock.get_playlist.assert_has_calls(expected_calls)
+
+
+def test_refresh_when_not_loaded(provider, web_client_mock):
+    provider._loaded = False
+
+    provider.refresh()
+
+    web_client_mock.get_user_playlists.assert_called_once()
+    web_client_mock.get_playlist.assert_called()
+    assert provider._loaded
+
+
+def test_refresh_counts_playlists(provider, caplog):
+    provider.refresh()
+
+    assert "Refreshed 2 playlists" in caplog.text
+
+
+def test_refresh_clears_web_cache(provider):
+    playlists._cache = {"foo": "foobar", "foo2": "foofoo"}
+
+    provider.refresh()
+
+    assert len(playlists._cache) == 0
 
 
 def test_lookup(provider):
@@ -125,6 +175,15 @@ def test_lookup(provider):
     assert playlist.uri == "spotify:user:alice:playlist:foo"
     assert playlist.name == "Foo"
     assert playlist.tracks[0].bitrate == 160
+
+
+def test_lookup_when_not_loaded(provider):
+    provider._loaded = False
+
+    playlist = provider.lookup("spotify:user:alice:playlist:foo")
+
+    assert playlist.uri == "spotify:user:alice:playlist:foo"
+    assert playlist.name == "Foo"
 
 
 def test_lookup_when_playlist_is_empty(provider, caplog):

@@ -352,8 +352,9 @@ class WebResponse(dict):
 
     def __str__(self):
         return (
-            f"URL: {self.url} ETag: {self._etag} "
-            f"Expires: {datetime.fromtimestamp(self._expires)}"
+            f"URL: {self.url} "
+            f"expires at: {datetime.fromtimestamp(self._expires)} "
+            f"[ETag: {self._etag}]"
         )
 
 
