@@ -25,10 +25,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             return list(self._get_flattened_playlist_refs())
 
     def _get_flattened_playlist_refs(self):
-        if self._backend._web_client is None:
-            return
-
-        if self._backend._web_client.user_id is None:
+        if not self._backend._web_client.logged_in:
             return
 
         web_client = self._backend._web_client
@@ -41,9 +38,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def get_items(self, uri):
         with utils.time_logger(f"playlist.get_items({uri})", logging.INFO):
-            if not self._loaded:
-                return []
-
             return self._get_playlist(uri, as_items=True)
 
     def lookup(self, uri):
@@ -60,14 +54,17 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         )
 
     def refresh(self):
+        if not self._backend._web_client.logged_in:
+            return
+
         with utils.time_logger("Refresh Playlists", logging.INFO):
             _sp_links.clear()
-            with self._backend._web_client.refresh_playlists():
-                count = 0
-                for playlist_ref in self._get_flattened_playlist_refs():
-                    self._get_playlist(playlist_ref.uri)
-                    count = count + 1
-                logger.info(f"Refreshed {count} playlists")
+            self._backend._web_client.clear_cache()
+            count = 0
+            for playlist_ref in self._get_flattened_playlist_refs():
+                self._get_playlist(playlist_ref.uri)
+                count = count + 1
+            logger.info(f"Refreshed {count} playlists")
 
         self._loaded = True
 
@@ -82,7 +79,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
 
 def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
-    if web_client is None or web_client.user_id is None:
+    if web_client is None or not web_client.logged_in:
         return
 
     logger.debug(f'Fetching Spotify playlist "{uri}"')

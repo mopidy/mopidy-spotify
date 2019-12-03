@@ -6,7 +6,6 @@ import os
 import re
 import time
 import urllib.parse
-from contextlib import contextmanager
 from datetime import datetime
 
 import requests
@@ -74,9 +73,10 @@ class OAuthClient:
 
         _trace(f"Get '{path}'")
 
+        ignore_expiry = kwargs.pop("ignore_expiry", False)
         if cache is not None and path in cache:
             cached_result = cache.get(path)
-            if not cached_result.expired:
+            if cached_result.still_valid(ignore_expiry):
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
@@ -260,6 +260,7 @@ class OAuthClient:
 
 class WebResponse(dict):
     def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
+        self._from_cache = False
         self.url = url
         self._expires = expires
         self._etag = etag
@@ -315,12 +316,23 @@ class WebResponse(dict):
             if etag and len(etag.groups()) == 2:
                 return etag.groups()[1]
 
-    @property
-    def expired(self):
-        status_str = {True: "expired", False: "fresh"}
-        result = self._expires < time.time()
-        _trace(f"Cached data {status_str[result]} for {self}")
+    def still_valid(self, ignore_expiry=False):
+        if ignore_expiry:
+            result = True
+            status = "forced"
+        elif self._expires >= time.time():
+            result = True
+            status = "fresh"
+        else:
+            result = False
+            status = "expired"
+        self._from_cache = result
+        _trace("Cached data %s for %s", status, self)
         return result
+
+    @property
+    def status_unchanged(self):
+        return self._from_cache or 304 == self._status_code
 
     @property
     def status_ok(self):
@@ -334,6 +346,7 @@ class WebResponse(dict):
             return {}
 
     def updated(self, response):
+        self._from_cache = False
         if self._etag is None:
             return False
         elif self.url != response.url:
@@ -349,6 +362,7 @@ class WebResponse(dict):
         _trace(f"ETag match for {self} {response}")
         self._expires = response._expires
         self._etag = response._etag
+        self._status_code = response._status_code
         return True
 
     def __str__(self):
@@ -357,6 +371,10 @@ class WebResponse(dict):
             f"expires at: {datetime.fromtimestamp(self._expires)} "
             f"[ETag: {self._etag}]"
         )
+
+    def increase_expiry(self, delta_seconds):
+        if self.status_ok and not self._from_cache:
+            self._expires += delta_seconds
 
 
 class SpotifyOAuthClient(OAuthClient):
@@ -368,6 +386,7 @@ class SpotifyOAuthClient(OAuthClient):
     PLAYLIST_FIELDS = (
         f"name,owner.id,type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
     )
+    DEFAULT_EXTRA_EXPIRY = 10
 
     def __init__(self, client_id, client_secret, proxy_config):
         super(SpotifyOAuthClient, self).__init__(
@@ -379,11 +398,17 @@ class SpotifyOAuthClient(OAuthClient):
         )
         self.user_id = None
         self._cache = {}
+        self._extra_expiry = self.DEFAULT_EXTRA_EXPIRY
+
+    def get_one(self, path, *args, **kwargs):
+        logger.debug(f'Fetching page "{path}"')
+        result = self.get(path, cache=self._cache, *args, **kwargs)
+        result.increase_expiry(self._extra_expiry)
+        return result
 
     def get_all(self, path, *args, **kwargs):
         while path is not None:
-            logger.debug(f'Fetching page "{path}"')
-            result = self.get(path, *args, **kwargs)
+            result = self.get_one(path, *args, **kwargs)
             path = result.get("next")
             yield result
 
@@ -396,11 +421,13 @@ class SpotifyOAuthClient(OAuthClient):
             logger.info(f"Logged into Spotify Web API as {self.user_id}")
             return True
 
+    @property
+    def logged_in(self):
+        return self.user_id is not None
+
     def get_user_playlists(self):
         with utils.time_logger("get_user_playlists"):
-            pages = self.get_all(
-                "me/playlists", cache=self._cache, params={"limit": 50}
-            )
+            pages = self.get_all("me/playlists", params={"limit": 50})
             for page in pages:
                 for playlist in page.get("items", []):
                     yield playlist
@@ -416,17 +443,16 @@ class SpotifyOAuthClient(OAuthClient):
             logger.error(exc)
             return {}
 
-        playlist = self.get(
+        playlist = self.get_one(
             f"playlists/{parsed.id}",
-            cache=self._cache,
             params={"fields": self.PLAYLIST_FIELDS, "market": "from_token"},
         )
 
         tracks_path = playlist.get("tracks", {}).get("next")
         track_pages = self.get_all(
             tracks_path,
-            cache=self._cache,
             params={"fields": self.TRACK_FIELDS, "market": "from_token"},
+            ignore_expiry=playlist.status_unchanged,
         )
 
         more_tracks = []
@@ -440,14 +466,8 @@ class SpotifyOAuthClient(OAuthClient):
 
         return playlist
 
-    @contextmanager
-    def refresh_playlists(self, extra_expiry=None):
+    def clear_cache(self, extra_expiry=None):
         self._cache.clear()
-        old_extra_expiry = self._extra_expiry
-        if extra_expiry is not None:
-            self._extra_expiry = extra_expiry
-        yield
-        self._extra_expiry = old_extra_expiry
 
 
 WebLink = collections.namedtuple("WebLink", ["uri", "type", "id", "owner"])
