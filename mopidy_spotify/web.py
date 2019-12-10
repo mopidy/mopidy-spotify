@@ -389,7 +389,7 @@ class SpotifyOAuthClient(OAuthClient):
     DEFAULT_EXTRA_EXPIRY = 10
 
     def __init__(self, client_id, client_secret, proxy_config):
-        super(SpotifyOAuthClient, self).__init__(
+        super().__init__(
             base_url="https://api.spotify.com/v1",
             refresh_url="https://auth.mopidy.com/spotify/token",
             client_id=client_id,
@@ -429,8 +429,7 @@ class SpotifyOAuthClient(OAuthClient):
         with utils.time_logger("get_user_playlists"):
             pages = self.get_all("me/playlists", params={"limit": 50})
             for page in pages:
-                for playlist in page.get("items", []):
-                    yield playlist
+                yield from page.get("items", [])
 
     def get_playlist(self, uri):
         try:
