@@ -113,13 +113,3 @@ def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
                 logger.info(f"Failed to get link {track.uri!r}: {exc}")
 
     return playlist
-
-
-def on_playlists_loaded():
-    # Called from the pyspotify event loop, and not in an actor context.
-    logger.debug("Spotify playlists loaded")
-
-    # This event listener is also called after playlists are added, removed and
-    # moved, so since Mopidy currently only supports the "playlists_loaded"
-    # event this is the only place we need to trigger a Mopidy backend event.
-    backend.BackendListener.send("playlists_loaded")

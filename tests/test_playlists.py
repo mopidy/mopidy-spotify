@@ -306,12 +306,3 @@ def test_playlist_lookup_when_link_invalid(
 
     assert len(playlist.tracks) == 1
     assert "Failed to get link 'spotify:track:abc'" in caplog.text
-
-
-def test_on_playlists_loaded_triggers_playlists_loaded_event(
-    caplog, backend_listener_mock
-):
-    playlists.on_playlists_loaded()
-
-    assert "Spotify playlists loaded" in caplog.text
-    backend_listener_mock.send.assert_called_once_with("playlists_loaded")
