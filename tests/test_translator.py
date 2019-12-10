@@ -154,7 +154,7 @@ class TestToTrack:
 
         assert track is None
         assert (
-            "Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>"
+            "Error loading 'spotify:track:abc': <ErrorType.OTHER_PERMANENT: 10>"
             in caplog.text
         )
 
@@ -214,7 +214,7 @@ class TestToTrackRef:
 
         assert ref is None
         assert (
-            "Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>"
+            "Error loading 'spotify:track:abc': <ErrorType.OTHER_PERMANENT: 10>"
             in caplog.text
         )
 
@@ -283,7 +283,7 @@ class TestWebToTrackRef:
         ref = translator.web_to_track_ref(web_track_mock)
 
         assert ref is None
-        assert "spotify:track:abc is not playable" in caplog.text
+        assert "'spotify:track:abc' is not playable" in caplog.text
 
     def test_successful_translation(self, web_track_mock):
         ref = translator.web_to_track_ref(web_track_mock)

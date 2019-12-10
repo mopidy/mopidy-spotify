@@ -118,7 +118,7 @@ def test_get_items_when_offline(web_client_mock, provider, caplog):
     assert provider.get_items("spotify:user:alice:playlist:foo") is None
     assert (
         "Failed to lookup Spotify playlist URI "
-        "spotify:user:alice:playlist:foo" in caplog.text
+        "'spotify:user:alice:playlist:foo'" in caplog.text
     )
 
 
@@ -139,7 +139,7 @@ def test_get_items_when_playlist_is_unknown(provider, caplog):
     assert provider.get_items("spotify:user:alice:playlist:unknown") is None
     assert (
         "Failed to lookup Spotify playlist URI "
-        "spotify:user:alice:playlist:unknown" in caplog.text
+        "'spotify:user:alice:playlist:unknown'" in caplog.text
     )
 
 
@@ -179,7 +179,7 @@ def test_refresh_sets_loaded(provider, web_client_mock):
 def test_refresh_counts_playlists(provider, caplog):
     provider.refresh()
 
-    assert "Refreshed 2 playlists" in caplog.text
+    assert "Refreshed 2 Spotify playlists" in caplog.text
 
 
 def test_refresh_clears_caches(provider, web_client_mock):
@@ -218,7 +218,7 @@ def test_lookup_when_not_loaded(provider):
 
 def test_lookup_when_playlist_is_empty(provider, caplog):
     assert provider.lookup("nothing") is None
-    assert "Failed to lookup Spotify playlist URI nothing" in caplog.text
+    assert "Failed to lookup Spotify playlist URI 'nothing'" in caplog.text
 
 
 def test_lookup_of_playlist_with_other_owner(provider):
@@ -289,7 +289,7 @@ def test_playlist_lookup_when_playlist_is_empty(
     )
 
     assert playlist is None
-    assert "Failed to lookup Spotify playlist URI nothing" in caplog.text
+    assert "Failed to lookup Spotify playlist URI 'nothing'" in caplog.text
     assert len(playlists._sp_links) == 0
 
 
@@ -305,7 +305,7 @@ def test_playlist_lookup_when_link_invalid(
     )
 
     assert len(playlist.tracks) == 1
-    assert 'Failed to get link "spotify:track:abc"' in caplog.text
+    assert "Failed to get link 'spotify:track:abc'" in caplog.text
 
 
 def test_on_playlists_loaded_triggers_playlists_loaded_event(

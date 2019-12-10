@@ -36,11 +36,11 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 yield playlist_ref
 
     def get_items(self, uri):
-        with utils.time_logger(f"playlist.get_items({uri})", logging.INFO):
+        with utils.time_logger(f"playlist.get_items({uri!r})", logging.INFO):
             return self._get_playlist(uri, as_items=True)
 
     def lookup(self, uri):
-        with utils.time_logger(f"playlists.lookup({uri})", logging.DEBUG):
+        with utils.time_logger(f"playlists.lookup({uri!r})", logging.DEBUG):
             return self._get_playlist(uri)
 
     def _get_playlist(self, uri, as_items=False):
@@ -56,14 +56,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if not self._backend._web_client.logged_in:
             return
 
-        with utils.time_logger("Refresh Playlists", logging.INFO):
+        with utils.time_logger("playlists.refresh()", logging.INFO):
             _sp_links.clear()
             self._backend._web_client.clear_cache()
             count = 0
             for playlist_ref in self._get_flattened_playlist_refs():
                 self._get_playlist(playlist_ref.uri)
                 count = count + 1
-            logger.info(f"Refreshed {count} playlists")
+            logger.info(f"Refreshed {count} Spotify playlists")
 
         self._loaded = True
 
@@ -81,11 +81,11 @@ def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
     if web_client is None or not web_client.logged_in:
         return
 
-    logger.debug(f'Fetching Spotify playlist "{uri}"')
+    logger.debug(f'Fetching Spotify playlist "{uri!r}"')
     web_playlist = web_client.get_playlist(uri)
 
     if web_playlist == {}:
-        logger.error(f"Failed to lookup Spotify playlist URI {uri}")
+        logger.error(f"Failed to lookup Spotify playlist URI {uri!r}")
         return
 
     playlist = translator.to_playlist(
@@ -110,7 +110,7 @@ def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
             try:
                 _sp_links[track.uri] = session.get_link(track.uri)
             except ValueError as exc:
-                logger.info(f'Failed to get link "{track.uri}": {exc}')
+                logger.info(f"Failed to get link {track.uri!r}: {exc}")
 
     return playlist
 

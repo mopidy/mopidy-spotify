@@ -7,14 +7,14 @@ def test_lookup_of_invalid_uri(provider, caplog):
     results = provider.lookup("invalid")
 
     assert len(results) == 0
-    assert 'Failed to lookup "invalid": Could not parse' in caplog.text
+    assert "Failed to lookup 'invalid': Could not parse" in caplog.text
 
 
 def test_lookup_of_invalid_playlist_uri(provider, caplog):
     results = provider.lookup("spotify:playlist")
 
     assert len(results) == 0
-    assert 'Failed to lookup "spotify:playlist": Could not parse' in caplog.text
+    assert "Failed to lookup 'spotify:playlist': Could not parse" in caplog.text
 
 
 def test_lookup_of_invalid_track_uri(session_mock, provider, caplog):
@@ -24,7 +24,7 @@ def test_lookup_of_invalid_track_uri(session_mock, provider, caplog):
 
     assert len(results) == 0
     assert (
-        'Failed to lookup "spotify:track:invalid": an error message'
+        "Failed to lookup 'spotify:track:invalid': an error message"
         in caplog.text
     )
 
@@ -38,7 +38,7 @@ def test_lookup_of_unhandled_uri(session_mock, provider, caplog):
 
     assert len(results) == 0
     assert (
-        'Failed to lookup "spotify:artist:something": '
+        "Failed to lookup 'spotify:artist:something': "
         "Cannot handle <LinkType.INVALID: 0>" in caplog.text
     )
 
@@ -53,7 +53,7 @@ def test_lookup_when_offline(session_mock, sp_track_mock, provider, caplog):
 
     assert len(results) == 0
     assert (
-        'Failed to lookup "spotify:track:abc": Must be online to load objects'
+        "Failed to lookup 'spotify:track:abc': Must be online to load objects"
         in caplog.text
     )
 
@@ -189,6 +189,6 @@ def test_lookup_of_playlist_uri_when_not_logged_in(
 
     assert len(results) == 0
     assert (
-        'Failed to lookup "spotify:playlist:alice:foo": '
+        "Failed to lookup 'spotify:playlist:alice:foo': "
         "Playlist Web API lookup failed" in caplog.text
     )

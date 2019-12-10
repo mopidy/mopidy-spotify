@@ -401,7 +401,7 @@ class SpotifyOAuthClient(OAuthClient):
         self._extra_expiry = self.DEFAULT_EXTRA_EXPIRY
 
     def get_one(self, path, *args, **kwargs):
-        logger.debug(f'Fetching page "{path}"')
+        logger.debug(f"Fetching page {path!r}")
         result = self.get(path, cache=self._cache, *args, **kwargs)
         result.increase_expiry(self._extra_expiry)
         return result
@@ -436,7 +436,7 @@ class SpotifyOAuthClient(OAuthClient):
             parsed = parse_uri(uri)
             if parsed.type != "playlist":
                 raise ValueError(
-                    f"Could not parse {repr(uri)} as a Spotify playlist URI"
+                    f"Could not parse {uri!r} as a Spotify playlist URI"
                 )
         except ValueError as exc:
             logger.error(exc)
@@ -499,4 +499,4 @@ def parse_uri(uri):
     elif len(parts) == 4 and parts[0] == "user" and parts[2] == "playlist":
         return WebLink(uri, "playlist", parts[3], parts[1])
 
-    raise ValueError(f"Could not parse {repr(uri)} as a Spotify URI")
+    raise ValueError(f"Could not parse {uri!r} as a Spotify URI")

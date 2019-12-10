@@ -185,7 +185,7 @@ def test_on_start_refreshes_playlists(spotify_mock, web_mock, config, caplog):
 
     client_mock = web_mock.SpotifyOAuthClient.return_value
     client_mock.get_user_playlists.assert_called_once()
-    assert "Refreshed 0 playlists" in caplog.text
+    assert "Refreshed 0 Spotify playlists" in caplog.text
     assert backend.playlists._loaded
 
 

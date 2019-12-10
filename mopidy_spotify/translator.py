@@ -97,9 +97,7 @@ def to_track(sp_track, bitrate=None):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(
-            f"Error loading {sp_track.link.uri}: {repr(sp_track.error)}"
-        )
+        logger.debug(f"Error loading {sp_track.link.uri!r}: {sp_track.error!r}")
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
@@ -129,9 +127,7 @@ def to_track_ref(sp_track):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(
-            f"Error loading {sp_track.link.uri}: {repr(sp_track.error)}"
-        )
+        logger.debug(f"Error loading {sp_track.link.uri!r}: {sp_track.error!r}")
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
@@ -161,7 +157,7 @@ def web_to_track_ref(web_track):
     uri = web_track.get("linked_from", {}).get("uri") or web_track["uri"]
 
     if not web_track.get("is_playable", False):
-        logger.debug(f"{uri} is not playable")
+        logger.debug(f"{uri!r} is not playable")
         return
 
     return models.Ref.track(uri=uri, name=web_track.get("name"))
