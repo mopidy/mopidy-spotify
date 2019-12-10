@@ -1,4 +1,3 @@
-import collections
 import copy
 import email
 import logging
@@ -6,7 +5,10 @@ import os
 import re
 import time
 import urllib.parse
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum, unique
+from typing import Optional
 
 import requests
 
@@ -433,8 +435,8 @@ class SpotifyOAuthClient(OAuthClient):
 
     def get_playlist(self, uri):
         try:
-            parsed = parse_uri(uri)
-            if parsed.type != "playlist":
+            parsed = WebLink.from_uri(uri)
+            if parsed.type != LinkType.PLAYLIST:
                 raise ValueError(
                     f"Could not parse {uri!r} as a Spotify playlist URI"
                 )
@@ -469,34 +471,51 @@ class SpotifyOAuthClient(OAuthClient):
         self._cache.clear()
 
 
-WebLink = collections.namedtuple("WebLink", ["uri", "type", "id", "owner"])
+@unique
+class LinkType(Enum):
+    TRACK = "track"
+    ALBUM = "album"
+    ARTIST = "artist"
+    PLAYLIST = "playlist"
 
 
-# TODO: Make a WebSession class method?
-def parse_uri(uri):
-    parsed_uri = urllib.parse.urlparse(uri)
+@dataclass
+class WebLink:
+    uri: str
+    type: LinkType
+    id: Optional[str] = None
+    owner: Optional[str] = None
 
-    schemes = ("http", "https")
-    netlocs = ("open.spotify.com", "play.spotify.com")
+    @classmethod
+    def from_uri(cls, uri):
+        parsed_uri = urllib.parse.urlparse(uri)
 
-    if parsed_uri.scheme == "spotify":
-        parts = parsed_uri.path.split(":")
-    elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
-        parts = parsed_uri.path[1:].split("/")
-    else:
-        parts = []
+        schemes = ("http", "https")
+        netlocs = ("open.spotify.com", "play.spotify.com")
 
-    # Strip out empty parts to ensure we are strict about URI parsing.
-    parts = [p for p in parts if p.strip()]
-
-    if len(parts) == 2 and parts[0] in ("track", "album", "artist", "playlist"):
-        return WebLink(uri, parts[0], parts[1], None)
-    elif len(parts) == 3 and parts[0] == "user" and parts[2] == "starred":
         if parsed_uri.scheme == "spotify":
-            return WebLink(uri, "playlist", None, parts[1])
-    elif len(parts) == 3 and parts[0] == "playlist":
-        return WebLink(uri, "playlist", parts[2], parts[1])
-    elif len(parts) == 4 and parts[0] == "user" and parts[2] == "playlist":
-        return WebLink(uri, "playlist", parts[3], parts[1])
+            parts = parsed_uri.path.split(":")
+        elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
+            parts = parsed_uri.path[1:].split("/")
+        else:
+            parts = []
 
-    raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
+        # Strip out empty parts to ensure we are strict about URI parsing.
+        parts = [p for p in parts if p.strip()]
+
+        if len(parts) == 2 and parts[0] in (
+            "track",
+            "album",
+            "artist",
+            "playlist",
+        ):
+            return cls(uri, LinkType(parts[0]), parts[1], None)
+        elif len(parts) == 3 and parts[0] == "user" and parts[2] == "starred":
+            if parsed_uri.scheme == "spotify":
+                return cls(uri, LinkType.PLAYLIST, None, parts[1])
+        elif len(parts) == 3 and parts[0] == "playlist":
+            return cls(uri, LinkType.PLAYLIST, parts[2], parts[1])
+        elif len(parts) == 4 and parts[0] == "user" and parts[2] == "playlist":
+            return cls(uri, LinkType.PLAYLIST, parts[3], parts[1])
+
+        raise ValueError(f"Could not parse {uri!r} as a Spotify URI")

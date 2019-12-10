@@ -994,14 +994,14 @@ class TestSpotifyOAuthClient:
 @pytest.mark.parametrize(
     "uri,type_,id_",
     [
-        ("spotify:playlist:foo", "playlist", "foo"),
-        ("spotify:track:bar", "track", "bar"),
-        ("spotify:artist:blah", "artist", "blah"),
-        ("spotify:album:stuff", "album", "stuff"),
+        ("spotify:playlist:foo", web.LinkType.PLAYLIST, "foo"),
+        ("spotify:track:bar", web.LinkType.TRACK, "bar"),
+        ("spotify:artist:blah", web.LinkType.ARTIST, "blah"),
+        ("spotify:album:stuff", web.LinkType.ALBUM, "stuff"),
     ],
 )
-def test_parse_uri_spotify_uri(uri, type_, id_):
-    result = web.parse_uri(uri)
+def test_weblink_from_uri_spotify_uri(uri, type_, id_):
+    result = web.WebLink.from_uri(uri)
 
     assert result.uri == uri
     assert result.type == type_
@@ -1019,11 +1019,11 @@ def test_parse_uri_spotify_uri(uri, type_, id_):
         ("https://play.spotify.com/playlist/foo", "foo", None),
     ],
 )
-def test_parse_uri_playlist(uri, id_, owner):
-    result = web.parse_uri(uri)
+def test_weblink_from_uri_playlist(uri, id_, owner):
+    result = web.WebLink.from_uri(uri)
 
     assert result.uri == uri
-    assert result.type == "playlist"
+    assert result.type == web.LinkType.PLAYLIST
     assert result.id == id_
     assert result.owner == owner
 
@@ -1040,9 +1040,9 @@ def test_parse_uri_playlist(uri, id_, owner):
         ("total/junk"),
     ],
 )
-def test_parse_uri_raises(uri):
+def test_weblink_from_uri_raises(uri):
     with pytest.raises(ValueError) as excinfo:
-        result = web.parse_uri(uri)
+        result = web.WebLink.from_uri(uri)
         assert result is None
 
-    assert f"Could not parse {repr(uri)} as a Spotify URI" in str(excinfo.value)
+    assert f"Could not parse {uri!r} as a Spotify URI" in str(excinfo.value)

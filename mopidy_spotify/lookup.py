@@ -12,15 +12,15 @@ _VARIOUS_ARTISTS_URIS = [
 
 def lookup(config, session, web_client, uri):
     try:
-        web_link = web.parse_uri(uri)
-        if web_link.type != "playlist":
+        web_link = web.WebLink.from_uri(uri)
+        if web_link.type != web.LinkType.PLAYLIST:
             sp_link = session.get_link(uri)
     except ValueError as exc:
         logger.info(f"Failed to lookup {uri!r}: {exc}")
         return []
 
     try:
-        if web_link.type == "playlist":
+        if web_link.type == web.LinkType.PLAYLIST:
             return _lookup_playlist(config, session, web_client, uri)
         elif sp_link.type is spotify.LinkType.TRACK:
             return list(_lookup_track(config, sp_link))
