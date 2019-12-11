@@ -116,7 +116,9 @@ def test_on_start_configures_proxy(spotify_mock, web_mock, config):
     assert spotify_config.proxy_password == "s3cret"
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        mock.ANY, mock.ANY, config["proxy"],
+        client_id=mock.ANY,
+        client_secret=mock.ANY,
+        proxy_config=config["proxy"],
     )
 
 
@@ -128,7 +130,7 @@ def test_on_start_configures_web_client(spotify_mock, web_mock, config):
     backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        "1234567", "AbCdEfG", mock.ANY,
+        client_id="1234567", client_secret="AbCdEfG", proxy_config=mock.ANY,
     )
 
 

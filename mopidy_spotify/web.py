@@ -390,7 +390,7 @@ class SpotifyOAuthClient(OAuthClient):
     )
     DEFAULT_EXTRA_EXPIRY = 10
 
-    def __init__(self, client_id, client_secret, proxy_config):
+    def __init__(self, *, client_id, client_secret, proxy_config):
         super().__init__(
             base_url="https://api.spotify.com/v1",
             refresh_url="https://auth.mopidy.com/spotify/token",

@@ -58,9 +58,9 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         )
 
         self._web_client = web.SpotifyOAuthClient(
-            self._config["spotify"]["client_id"],
-            self._config["spotify"]["client_secret"],
-            self._config["proxy"],
+            client_id=self._config["spotify"]["client_id"],
+            client_secret=self._config["spotify"]["client_secret"],
+            proxy_config=self._config["proxy"],
         )
         self._web_client.login()
 

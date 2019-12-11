@@ -679,7 +679,9 @@ def test_updated_responses_changed(web_response_mock, oauth_client, mock_time):
 @pytest.fixture
 def spotify_client(config):
     return web.SpotifyOAuthClient(
-        config["spotify"]["client_id"], config["spotify"]["client_secret"], None
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        proxy_config=None,
     )
 
 
@@ -720,7 +722,9 @@ class TestSpotifyOAuthClient:
         assert field in web.SpotifyOAuthClient.PLAYLIST_FIELDS
 
     def test_configures_auth(self):
-        client = web.SpotifyOAuthClient("1234567", "AbCdEfG", None)
+        client = web.SpotifyOAuthClient(
+            client_id="1234567", client_secret="AbCdEfG", proxy_config=None
+        )
 
         assert client._auth == ("1234567", "AbCdEfG")
 
@@ -732,7 +736,9 @@ class TestSpotifyOAuthClient:
             "username": "alice",
             "password": "s3cret",
         }
-        client = web.SpotifyOAuthClient(None, None, proxy_config)
+        client = web.SpotifyOAuthClient(
+            client_id=None, client_secret=None, proxy_config=proxy_config
+        )
 
         assert (
             client._session.proxies["https"]
