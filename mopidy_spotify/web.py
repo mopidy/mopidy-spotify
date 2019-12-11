@@ -403,7 +403,7 @@ class SpotifyOAuthClient(OAuthClient):
         self._extra_expiry = self.DEFAULT_EXTRA_EXPIRY
 
     def get_one(self, path, *args, **kwargs):
-        logger.debug(f"Fetching page {path!r}")
+        _trace(f"Fetching page {path!r}")
         result = self.get(path, cache=self._cache, *args, **kwargs)
         result.increase_expiry(self._extra_expiry)
         return result
@@ -428,10 +428,9 @@ class SpotifyOAuthClient(OAuthClient):
         return self.user_id is not None
 
     def get_user_playlists(self):
-        with utils.time_logger("get_user_playlists"):
-            pages = self.get_all("me/playlists", params={"limit": 50})
-            for page in pages:
-                yield from page.get("items", [])
+        pages = self.get_all("me/playlists", params={"limit": 50})
+        for page in pages:
+            yield from page.get("items", [])
 
     def get_playlist(self, uri):
         try:

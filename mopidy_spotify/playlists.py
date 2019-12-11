@@ -17,7 +17,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         self._loaded = False
 
     def as_list(self):
-        with utils.time_logger("playlists.as_list()", logging.INFO):
+        with utils.time_logger("playlists.as_list()", logging.DEBUG):
             if not self._loaded:
                 return []
 
@@ -36,7 +36,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 yield playlist_ref
 
     def get_items(self, uri):
-        with utils.time_logger(f"playlist.get_items({uri!r})", logging.INFO):
+        with utils.time_logger(f"playlist.get_items({uri!r})", logging.DEBUG):
             return self._get_playlist(uri, as_items=True)
 
     def lookup(self, uri):
@@ -56,7 +56,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if not self._backend._web_client.logged_in:
             return
 
-        with utils.time_logger("playlists.refresh()", logging.INFO):
+        with utils.time_logger("playlists.refresh()", logging.DEBUG):
             _sp_links.clear()
             self._backend._web_client.clear_cache()
             count = 0
