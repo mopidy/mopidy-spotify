@@ -38,10 +38,6 @@ Mopidy-Spotify support for the following:
   `#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) - available via
   web API
 
-- Top Tracks/curated playlists (`#140 
-  <https://github.com/mopidy/mopidy-spotify/issues/140>`_) - available via web
-  API
-
 - Podcasts (`#201 <https://github.com/mopidy/mopidy-spotify/issues/201>`_) -
   unavailable
 
@@ -57,6 +53,8 @@ Working support for the following features is currently available:
 - Search
 
 - Playlists
+
+- Top lists
 
 - Lookup by URI
 

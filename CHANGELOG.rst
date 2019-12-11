@@ -3,6 +3,14 @@ Changelog
 *********
 
 
+v4.0.0a3 (UNRELEASED)
+=====================
+
+Alpha release.
+
+- Use the Spotify Web API for personal top lists. (PR: #237)
+
+
 v4.0.0a2 (2019-12-12)
 =====================
 

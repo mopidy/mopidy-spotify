@@ -14,6 +14,16 @@ def test_has_a_root_directory(provider):
 def test_browse_root_directory(provider):
     results = provider.browse("spotify:directory")
 
+    assert len(results) == 1
+    assert (
+        models.Ref.directory(uri="spotify:top:lists", name="Top lists")
+        in results
+    )
+
+
+def test_browse_top_lists_directory(provider):
+    results = provider.browse("spotify:top:lists")
+
     assert len(results) == 3
     assert (
         models.Ref.directory(uri="spotify:top:tracks", name="Top tracks")
@@ -97,9 +107,17 @@ def test_browse_toplist_when_offline(session_mock, provider):
     toplist_mock.is_loaded = False
     type(toplist_mock).tracks = mock.PropertyMock(side_effect=Exception)
 
-    provider.browse("spotify:top:tracks:user")
+    provider.browse("spotify:top:tracks:country")
 
     assert toplist_mock.load.call_count == 0
+
+
+def test_browse_toplist_when_offline_web(web_client_mock, provider):
+    web_client_mock.user_id = None
+
+    results = provider.browse("spotify:top:tracks:user")
+
+    assert len(results) == 0
 
 
 def test_browse_top_tracks(provider):
@@ -129,11 +147,7 @@ def test_browse_top_tracks(provider):
 def test_browse_top_albums(provider):
     results = provider.browse("spotify:top:albums")
 
-    assert len(results) == 4
-    assert (
-        models.Ref.directory(uri="spotify:top:albums:user", name="Personal")
-        in results
-    )
+    assert len(results) == 3
     assert (
         models.Ref.directory(uri="spotify:top:albums:country", name="Country")
         in results
@@ -182,17 +196,23 @@ def test_browse_top_tracks_with_too_many_uri_parts(provider):
     assert len(results) == 0
 
 
-def test_browse_personal_top_tracks(session_mock, sp_track_mock, provider):
-    session_mock.get_toplist.return_value.tracks = [
-        sp_track_mock,
-        sp_track_mock,
-    ]
+def test_browse_unsupported_top_tracks(web_client_mock, provider):
+    results = provider.browse("spotify:top:albums:user")
+
+    web_client_mock.get_one.assert_not_called()
+    assert len(results) == 0
+
+
+def test_browse_personal_top_tracks(web_client_mock, web_track_mock, provider):
+    # The tracks from this endpoint are erroneously missing some fields:
+    del web_track_mock["is_playable"]
+    web_client_mock.get_one.return_value = {
+        "items": [web_track_mock, web_track_mock],
+    }
 
     results = provider.browse("spotify:top:tracks:user")
 
-    session_mock.get_toplist.assert_called_once_with(
-        type=spotify.ToplistType.TRACKS, region=spotify.ToplistRegion.USER
-    )
+    web_client_mock.get_one.assert_called_once_with("me/top/tracks")
     assert len(results) == 2
     assert results[0] == models.Ref.track(
         uri="spotify:track:abc", name="ABC 123"
@@ -313,23 +333,6 @@ def test_browse_unknown_country_top_tracks(
     )
 
 
-def test_browse_personal_top_albums(session_mock, sp_album_mock, provider):
-    session_mock.get_toplist.return_value.albums = [
-        sp_album_mock,
-        sp_album_mock,
-    ]
-
-    results = provider.browse("spotify:top:albums:user")
-
-    session_mock.get_toplist.assert_called_once_with(
-        type=spotify.ToplistType.ALBUMS, region=spotify.ToplistRegion.USER
-    )
-    assert len(results) == 2
-    assert results[0] == models.Ref.album(
-        uri="spotify:album:def", name="ABBA - DEF 456"
-    )
-
-
 def test_browse_top_albums_countries_list(
     session_mock, sp_track_mock, provider
 ):
@@ -351,17 +354,16 @@ def test_browse_top_albums_countries_list(
     )
 
 
-def test_browse_personal_top_artists(session_mock, sp_artist_mock, provider):
-    session_mock.get_toplist.return_value.artists = [
-        sp_artist_mock,
-        sp_artist_mock,
-    ]
+def test_browse_personal_top_artists(
+    web_client_mock, web_artist_mock, provider
+):
+    web_client_mock.get_one.return_value = {
+        "items": [web_artist_mock, web_artist_mock],
+    }
 
     results = provider.browse("spotify:top:artists:user")
 
-    session_mock.get_toplist.assert_called_once_with(
-        type=spotify.ToplistType.ARTISTS, region=spotify.ToplistRegion.USER
-    )
+    web_client_mock.get_one.assert_called_once_with("me/top/artists")
     assert len(results) == 2
     assert results[0] == models.Ref.artist(
         uri="spotify:artist:abba", name="ABBA"

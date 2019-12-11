@@ -50,6 +50,20 @@ def to_artist_refs(sp_artists, timeout=None):
             yield ref
 
 
+def web_to_artist_ref(web_artist):
+    if not valid_web_data(web_artist, "artist"):
+        return
+
+    return models.Ref.artist(uri=web_artist["uri"], name=web_artist.get("name"))
+
+
+def web_to_artist_refs(web_artists):
+    for web_artist in web_artists:
+        ref = web_to_artist_ref(web_artist)
+        if ref is not None:
+            yield ref
+
+
 @memoized
 def to_album(sp_album):
     if not sp_album.is_loaded:
@@ -148,7 +162,7 @@ def to_track_refs(sp_tracks, timeout=None):
             yield ref
 
 
-def web_to_track_ref(web_track):
+def web_to_track_ref(web_track, check_playable=True):
     if not valid_web_data(web_track, "track"):
         return
 
@@ -156,16 +170,17 @@ def web_to_track_ref(web_track):
     # libspotfy will handle any relinking when track is loaded for playback.
     uri = web_track.get("linked_from", {}).get("uri") or web_track["uri"]
 
-    if not web_track.get("is_playable", False):
+    if check_playable and not web_track.get("is_playable", False):
         logger.debug(f"{uri!r} is not playable")
         return
 
     return models.Ref.track(uri=uri, name=web_track.get("name"))
 
 
-def web_to_track_refs(web_tracks):
+def web_to_track_refs(web_tracks, check_playable=True):
     for web_track in web_tracks:
-        ref = web_to_track_ref(web_track.get("track", {}))
+        web_track = web_track.get("track", web_track)
+        ref = web_to_track_ref(web_track, check_playable)
         if ref is not None:
             yield ref
 
