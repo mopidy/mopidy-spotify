@@ -49,6 +49,33 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             as_items,
         )
 
+    def _playlist_edit(self, playlist, method, **kwargs):
+        user_id = playlist.uri.split(':')[-3]
+        playlist_id = playlist.uri.split(':')[-1]
+        url = f'users/{user_id}/playlists/{playlist_id}/tracks'
+        method = getattr(self._backend._web_client, method.lower())
+        if not method:
+            self.logger.error(f'Invalid HTTP method "{method}"')
+            return playlist
+
+        logger.debug(f'API request: {method} {url}')
+        response = method(
+                url, headers={'Content-Type': 'application/json'}, json=kwargs)
+
+        logger.debug(f'API response: {response}')
+
+        if response and 'error' not in response:
+            # TODO invalidating the whole cache is probably a bit much if we have
+            # updated only one playlist - maybe we should expose an API to clear
+            # cache items by key?
+            self._backend._web_client.clear_cache()
+            return self.lookup(playlist.uri)
+        else:
+            logging.error('Error on playlist item(s) removal: {}'.format(
+                response['error'] if response else '(Unknown error)'))
+
+            return playlist
+
     def refresh(self):
         if not self._backend._web_client.logged_in:
             return
@@ -65,13 +92,93 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         self._loaded = True
 
     def create(self, name):
-        pass  # TODO
+        logger.info(f'Creating playlist {name}')
+        url = f'users/{user_id}/playlists'
+        response = self._backend._web_client.post(
+                url, headers={'Content-Type': 'application/json'})
+
+        return self.lookup(response['uri'])
 
     def delete(self, uri):
-        pass  # TODO
+        # Playlist deletion is not implemented in the web API, see
+        # https://github.com/spotify/web-api/issues/555
+        pass
 
     def save(self, playlist):
-        pass  # TODO
+        # Note that for sake of simplicity the diff calculation between the
+        # old and new playlist won't take duplicate items into account
+        # (i.e. tracks that occur multiple times in the same playlist)
+        saved_playlist = self.lookup(playlist.uri)
+        if not saved_playlist:
+            return
+
+        new_tracks = {track.uri: track for track in playlist.tracks}
+        cur_tracks = {track.uri: track for track in saved_playlist.tracks}
+        removed_uris = set([track.uri
+            for track in saved_playlist.tracks
+            if track.uri not in new_tracks])
+
+        # Remove tracks logic
+        if removed_uris:
+            logger.info('Removing {} tracks from playlist {}: {}'.format(
+                len(removed_uris), playlist.name, removed_uris))
+
+            cur_tracks = {
+                track.uri: track
+                for track in self._playlist_edit(
+                    playlist, method='delete',
+                    tracks=[{'uri': uri for uri in removed_uris}]).tracks
+                }
+
+        # Add tracks logic
+        position = None
+        added_uris = {}
+
+        for i, track in enumerate(playlist.tracks):
+            if track.uri not in cur_tracks:
+                if position is None:
+                    position = i
+                    added_uris[position] = []
+                added_uris[position].append(track.uri)
+            else:
+                position = None
+
+        if added_uris:
+            for pos, uris in added_uris.items():
+                logger.info(f'Adding {uris} to playlist {playlist.name}')
+
+                cur_tracks = {
+                    track.uri: track
+                    for track in self._playlist_edit(
+                        playlist, method='post',
+                        uris=uris, position=pos).tracks
+                    }
+
+        # Swap tracks logic
+        cur_tracks_by_uri = {}
+
+        for i, track in enumerate(playlist.tracks):
+            if i >= len(saved_playlist.tracks):
+                break
+
+            if track.uri != saved_playlist.tracks[i].uri:
+                cur_tracks_by_uri[saved_playlist.tracks[i].uri] = i
+
+                if track.uri in cur_tracks_by_uri:
+                    cur_pos = cur_tracks_by_uri[track.uri]
+                    new_pos = i+1
+                    logger.info('Moving item position [{}] to [{}] in playlist {}'.
+                                format(cur_pos, new_pos, playlist.name))
+
+                    cur_tracks = {
+                        track.uri: track
+                        for track in self._playlist_edit(
+                            playlist, method='put',
+                            range_start=cur_pos, insert_before=new_pos).tracks
+                        }
+
+        self._backend._web_client.clear_cache()
+        return self.lookup(saved_playlist.uri)
 
 
 def playlist_lookup(session, web_client, uri, bitrate, as_items=False):

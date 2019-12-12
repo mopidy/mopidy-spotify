@@ -65,7 +65,7 @@ class OAuthClient:
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
 
-    def get(self, path, cache=None, *args, **kwargs):
+    def request(self, method, path, *args, cache=None, **kwargs):
         if self._authorization_failed:
             logger.debug("Blocking request as previous authorization failed.")
             return WebResponse(None, None)
@@ -82,7 +82,6 @@ class OAuthClient:
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
-        # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
         try:
             if self._should_refresh_token():
@@ -93,7 +92,7 @@ class OAuthClient:
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault("headers", {}).update(self._headers)
-        result = self._request_with_retries("GET", path, *args, **kwargs)
+        result = self._request_with_retries(method.upper(), path, *args, **kwargs)
 
         if result is None or "error" in result:
             logger.error(
@@ -109,6 +108,18 @@ class OAuthClient:
             cache[path] = result
 
         return result
+
+    def get(self, path, cache=None, *args, **kwargs):
+        return self.request('GET', path, cache, *args, **kwargs)
+
+    def post(self, path, *args, **kwargs):
+        return self.request('POST', path, cache=None, *args, **kwargs)
+
+    def put(self, path, *args, **kwargs):
+        return self.request('PUT', path, cache=None, *args, **kwargs)
+
+    def delete(self, path, *args, **kwargs):
+        return self.request('DELETE', path, cache=None, *args, **kwargs)
 
     def _should_cache_response(self, cache, response):
         return cache is not None and response.status_ok
