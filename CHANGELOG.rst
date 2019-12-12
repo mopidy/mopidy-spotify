@@ -3,13 +3,13 @@ Changelog
 *********
 
 
-v4.0.0a2 (UNRELEASED)
+v4.0.0a2 (2019-12-12)
 =====================
 
 Alpha release.
 
 - Use the Spotify Web API for playlists. (#182, #122, PR: #235)
- 
+
 
 v4.0.0a1 (2019-11-18)
 =====================
