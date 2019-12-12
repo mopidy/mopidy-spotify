@@ -1,8 +1,8 @@
 import logging
 
-import spotify
-
 from mopidy import models
+
+import spotify
 from mopidy_spotify import countries, translator
 
 logger = logging.getLogger(__name__)

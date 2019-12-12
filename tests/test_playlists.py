@@ -1,88 +1,84 @@
 from unittest import mock
 
 import pytest
-import spotify
-
 from mopidy import backend as backend_api
 from mopidy.models import Ref
-from mopidy_spotify import backend, playlists
+
+import spotify
+from mopidy_spotify import playlists
 
 
 @pytest.fixture
-def session_mock(
-    sp_playlist_mock,
-    sp_playlist_folder_start_mock,
-    sp_playlist_folder_end_mock,
-    sp_user_mock,
-):
+def web_client_mock(web_client_mock, web_track_mock):
+    web_playlist1 = {
+        "owner": {"id": "alice"},
+        "name": "Foo",
+        "tracks": {"items": [{"track": web_track_mock}]},
+        "uri": "spotify:user:alice:playlist:foo",
+        "type": "playlist",
+    }
+    web_playlist2 = {
+        "owner": {"id": "bob"},
+        "name": "Baz",
+        "uri": "spotify:user:bob:playlist:baz",
+        "type": "playlist",
+    }
+    web_playlist3 = {
+        "owner": {"id": "alice"},
+        "name": "Malformed",
+        "tracks": {"items": []},
+        "uri": "spotify:user:alice:playlist:malformed",
+        "type": "bogus",
+    }
+    web_playlists = [web_playlist1, web_playlist2, web_playlist3]
+    web_playlists_map = {x["uri"]: x for x in web_playlists}
 
-    sp_playlist2_mock = mock.Mock(spec=spotify.Playlist)
-    sp_playlist2_mock.is_loaded = True
-    sp_playlist2_mock.owner = mock.Mock(spec=spotify.User)
-    sp_playlist2_mock.owner.canonical_name = "bob"
-    sp_playlist2_mock.link.uri = "spotify:playlist:bob:baz"
-    sp_playlist2_mock.name = "Baz"
-    sp_playlist2_mock.tracks = []
+    def get_playlist(*args, **kwargs):
+        return web_playlists_map.get(args[0], {})
 
-    sp_playlist3_mock = mock.Mock(spec=spotify.Playlist)
-    sp_playlist3_mock.is_loaded = False
-
-    sp_session_mock = mock.Mock(spec=spotify.Session)
-    sp_session_mock.user = sp_user_mock
-    sp_session_mock.user_name = "alice"
-    sp_session_mock.playlist_container = [
-        sp_playlist_mock,
-        sp_playlist_folder_start_mock,
-        sp_playlist2_mock,
-        sp_playlist_folder_end_mock,
-        sp_playlist3_mock,
-    ]
-    return sp_session_mock
-
-
-@pytest.fixture
-def backend_mock(session_mock, config):
-    backend_mock = mock.Mock(spec=backend.SpotifyBackend)
-    backend_mock._config = config
-    backend_mock._session = session_mock
-    backend_mock._bitrate = 160
-    return backend_mock
+    web_client_mock.get_user_playlists.return_value = web_playlists
+    web_client_mock.get_playlist.side_effect = get_playlist
+    return web_client_mock
 
 
 @pytest.fixture
-def provider(backend_mock):
-    return playlists.SpotifyPlaylistsProvider(backend_mock)
+def provider(backend_mock, web_client_mock):
+    backend_mock._web_client = web_client_mock
+    playlists._sp_links.clear()
+    provider = playlists.SpotifyPlaylistsProvider(backend_mock)
+    provider._loaded = True
+    return provider
 
 
 def test_is_a_playlists_provider(provider):
     assert isinstance(provider, backend_api.PlaylistsProvider)
 
 
-def test_as_list_when_not_logged_in(session_mock, provider):
-    session_mock.playlist_container = None
+def test_as_list_when_not_logged_in(web_client_mock, provider):
+    web_client_mock.logged_in = False
 
     result = provider.as_list()
 
     assert len(result) == 0
 
 
-def test_as_list_when_offline(session_mock, provider):
-    session_mock.connection.state = spotify.ConnectionState.OFFLINE
-
-    result = provider.as_list()
-
-    assert len(result) == 2
-
-
-def test_as_list_when_playlist_container_isnt_loaded(session_mock, provider):
-    session_mock.playlist_container = None
+def test_as_list_when_offline(web_client_mock, provider):
+    web_client_mock.get_user_playlists.return_value = {}
 
     result = provider.as_list()
 
     assert len(result) == 0
 
 
-def test_as_list_with_folders_and_ignored_unloaded_playlist(provider):
+def test_as_list_when_not_loaded(provider):
+    provider._loaded = False
+
+    result = provider.as_list()
+
+    assert len(result) == 0
+
+
+def test_as_list_when_playlist_wont_translate(provider):
     result = provider.as_list()
 
     assert len(result) == 2
@@ -91,15 +87,11 @@ def test_as_list_with_folders_and_ignored_unloaded_playlist(provider):
         uri="spotify:user:alice:playlist:foo", name="Foo"
     )
     assert result[1] == Ref.playlist(
-        uri="spotify:playlist:bob:baz", name="Bar/Baz (by bob)"
+        uri="spotify:user:bob:playlist:baz", name="Baz (by bob)"
     )
 
 
-def test_get_items_when_playlist_exists(
-    session_mock, sp_playlist_mock, provider
-):
-    session_mock.get_playlist.return_value = sp_playlist_mock
-
+def test_get_items_when_playlist_exists(provider):
     result = provider.get_items("spotify:user:alice:playlist:foo")
 
     assert len(result) == 1
@@ -107,15 +99,99 @@ def test_get_items_when_playlist_exists(
     assert result[0] == Ref.track(uri="spotify:track:abc", name="ABC 123")
 
 
-def test_get_items_when_playlist_is_unknown(provider):
-    result = provider.get_items("spotify:user:alice:playlist:unknown")
+def test_get_items_when_playlist_without_tracks(provider):
+    result = provider.get_items("spotify:user:bob:playlist:baz")
 
-    assert result is None
+    assert len(result) == 0
 
 
-def test_lookup(session_mock, sp_playlist_mock, provider):
-    session_mock.get_playlist.return_value = sp_playlist_mock
+def test_get_items_when_not_logged_in(web_client_mock, provider):
+    web_client_mock.logged_in = False
 
+    assert provider.get_items("spotify:user:alice:playlist:foo") is None
+
+
+def test_get_items_when_offline(web_client_mock, provider, caplog):
+    web_client_mock.get_playlist.side_effect = None
+    web_client_mock.get_playlist.return_value = {}
+
+    assert provider.get_items("spotify:user:alice:playlist:foo") is None
+    assert (
+        "Failed to lookup Spotify playlist URI "
+        "'spotify:user:alice:playlist:foo'" in caplog.text
+    )
+
+
+def test_get_items_when_not_loaded(provider):
+    provider._loaded = False
+
+    result = provider.get_items("spotify:user:alice:playlist:foo")
+
+    assert len(result) == 1
+    assert result[0] == Ref.track(uri="spotify:track:abc", name="ABC 123")
+
+
+def test_get_items_when_playlist_wont_translate(provider):
+    assert provider.get_items("spotify:user:alice:playlist:malformed") is None
+
+
+def test_get_items_when_playlist_is_unknown(provider, caplog):
+    assert provider.get_items("spotify:user:alice:playlist:unknown") is None
+    assert (
+        "Failed to lookup Spotify playlist URI "
+        "'spotify:user:alice:playlist:unknown'" in caplog.text
+    )
+
+
+def test_refresh_loads_all_playlists(provider, web_client_mock):
+    provider.refresh()
+
+    web_client_mock.get_user_playlists.assert_called_once()
+    assert web_client_mock.get_playlist.call_count == 2
+    expected_calls = [
+        mock.call("spotify:user:alice:playlist:foo"),
+        mock.call("spotify:user:bob:playlist:baz"),
+    ]
+    web_client_mock.get_playlist.assert_has_calls(expected_calls)
+
+
+def test_refresh_when_not_logged_in(provider, web_client_mock):
+    provider._loaded = False
+    web_client_mock.logged_in = False
+
+    provider.refresh()
+
+    web_client_mock.get_user_playlists.assert_not_called()
+    web_client_mock.get_playlist.assert_not_called()
+    assert not provider._loaded
+
+
+def test_refresh_sets_loaded(provider, web_client_mock):
+    provider._loaded = False
+
+    provider.refresh()
+
+    web_client_mock.get_user_playlists.assert_called_once()
+    web_client_mock.get_playlist.assert_called()
+    assert provider._loaded
+
+
+def test_refresh_counts_playlists(provider, caplog):
+    provider.refresh()
+
+    assert "Refreshed 2 Spotify playlists" in caplog.text
+
+
+def test_refresh_clears_caches(provider, web_client_mock):
+    playlists._sp_links = {"bar": "foobar"}
+
+    provider.refresh()
+
+    assert "bar" not in playlists._sp_links
+    web_client_mock.clear_cache.assert_called_once()
+
+
+def test_lookup(provider):
     playlist = provider.lookup("spotify:user:alice:playlist:foo")
 
     assert playlist.uri == "spotify:user:alice:playlist:foo"
@@ -123,115 +199,110 @@ def test_lookup(session_mock, sp_playlist_mock, provider):
     assert playlist.tracks[0].bitrate == 160
 
 
-def test_lookup_loads_playlist_when_a_playlist_isnt_loaded(
-    sp_playlist_mock, session_mock, provider
-):
-    is_loaded_mock = mock.PropertyMock()
-    type(sp_playlist_mock).is_loaded = is_loaded_mock
-    is_loaded_mock.side_effect = [False, True]
-    session_mock.get_playlist.return_value = sp_playlist_mock
+def test_lookup_when_not_logged_in(web_client_mock, provider):
+    web_client_mock.logged_in = False
 
     playlist = provider.lookup("spotify:user:alice:playlist:foo")
 
-    sp_playlist_mock.load.assert_called_once_with(10)
-    assert playlist.uri == "spotify:user:alice:playlist:foo"
-    assert playlist.name == "Foo"
+    assert playlist is None
 
 
-def test_lookup_when_playlist_is_unknown(session_mock, provider):
-    session_mock.get_playlist.side_effect = spotify.Error
-
-    assert provider.lookup("foo") is None
-
-
-def test_lookup_of_playlist_with_other_owner(
-    session_mock, sp_user_mock, sp_playlist_mock, provider
-):
-    sp_user_mock.canonical_name = "bob"
-    sp_playlist_mock.owner = sp_user_mock
-    session_mock.get_playlist.return_value = sp_playlist_mock
+def test_lookup_when_not_loaded(provider):
+    provider._loaded = False
 
     playlist = provider.lookup("spotify:user:alice:playlist:foo")
 
     assert playlist.uri == "spotify:user:alice:playlist:foo"
-    assert playlist.name == "Foo (by bob)"
-
-
-def test_create(session_mock, sp_playlist_mock, provider):
-    session_mock.playlist_container = mock.Mock(spec=spotify.PlaylistContainer)
-    session_mock.playlist_container.add_new_playlist.return_value = (
-        sp_playlist_mock
-    )
-
-    playlist = provider.create("Foo")
-
-    session_mock.playlist_container.add_new_playlist.assert_called_once_with(
-        "Foo"
-    )
-    assert playlist.uri == "spotify:user:alice:playlist:foo"
     assert playlist.name == "Foo"
 
 
-def test_create_with_invalid_name(session_mock, provider, caplog):
-    session_mock.playlist_container = mock.Mock(spec=spotify.PlaylistContainer)
-    session_mock.playlist_container.add_new_playlist.side_effect = ValueError(
-        "Too long name"
+def test_lookup_when_playlist_is_empty(provider, caplog):
+    assert provider.lookup("nothing") is None
+    assert "Failed to lookup Spotify playlist URI 'nothing'" in caplog.text
+
+
+def test_lookup_of_playlist_with_other_owner(provider):
+    playlist = provider.lookup("spotify:user:bob:playlist:baz")
+
+    assert playlist.uri == "spotify:user:bob:playlist:baz"
+    assert playlist.name == "Baz (by bob)"
+
+
+@pytest.mark.parametrize("as_items", [(False), (True)])
+def test_playlist_lookup_stores_track_link(
+    session_mock,
+    web_client_mock,
+    sp_track_mock,
+    web_playlist_mock,
+    web_track_mock,
+    as_items,
+):
+    session_mock.get_link.return_value = sp_track_mock.link
+    web_playlist_mock["tracks"]["items"] = [{"track": web_track_mock}] * 5
+    web_client_mock.get_playlist.return_value = web_playlist_mock
+    playlists._sp_links.clear()
+
+    playlists.playlist_lookup(
+        session_mock,
+        web_client_mock,
+        "spotify:user:alice:playlist:foo",
+        None,
+        as_items,
     )
 
-    playlist = provider.create("Foo")
+    session_mock.get_link.assert_called_once_with("spotify:track:abc")
+    assert {"spotify:track:abc": sp_track_mock.link} == playlists._sp_links
+
+
+@pytest.mark.parametrize(
+    "connection_state",
+    [
+        (spotify.ConnectionState.OFFLINE),
+        (spotify.ConnectionState.DISCONNECTED),
+        (spotify.ConnectionState.LOGGED_OUT),
+    ],
+)
+def test_playlist_lookup_when_not_logged_in(
+    session_mock, web_client_mock, web_playlist_mock, connection_state
+):
+    web_client_mock.get_playlist.return_value = web_playlist_mock
+    session_mock.connection.state = connection_state
+    playlists._sp_links.clear()
+
+    playlist = playlists.playlist_lookup(
+        session_mock, web_client_mock, "spotify:user:alice:playlist:foo", None
+    )
+
+    assert playlist.uri == "spotify:user:alice:playlist:foo"
+    assert playlist.name == "Foo"
+    assert len(playlists._sp_links) == 0
+
+
+def test_playlist_lookup_when_playlist_is_empty(
+    session_mock, web_client_mock, caplog
+):
+    web_client_mock.get_playlist.return_value = {}
+    playlists._sp_links.clear()
+
+    playlist = playlists.playlist_lookup(
+        session_mock, web_client_mock, "nothing", None
+    )
 
     assert playlist is None
-    assert (
-        'Failed creating new Spotify playlist "Foo": Too long name'
-        in caplog.text
+    assert "Failed to lookup Spotify playlist URI 'nothing'" in caplog.text
+    assert len(playlists._sp_links) == 0
+
+
+def test_playlist_lookup_when_link_invalid(
+    session_mock, web_client_mock, web_playlist_mock, caplog
+):
+    session_mock.get_link.side_effect = ValueError("an error message")
+    web_client_mock.get_playlist.return_value = web_playlist_mock
+    playlists._sp_links.clear()
+
+    playlist = playlists.playlist_lookup(
+        session_mock, web_client_mock, "spotify:user:alice:playlist:foo", None
     )
 
-
-def test_create_fails_in_libspotify(session_mock, provider, caplog):
-    session_mock.playlist_container = mock.Mock(spec=spotify.PlaylistContainer)
-    session_mock.playlist_container.add_new_playlist.side_effect = spotify.Error
-
-    playlist = provider.create("Foo")
-
-    assert playlist is None
-    assert 'Failed creating new Spotify playlist "Foo"' in caplog.text
-
-
-def test_on_container_loaded_triggers_playlists_loaded_event(
-    sp_playlist_container_mock, caplog, backend_listener_mock
-):
-    playlists.on_container_loaded(sp_playlist_container_mock)
-
-    assert "Spotify playlist container loaded" in caplog.text
-    backend_listener_mock.send.assert_called_once_with("playlists_loaded")
-
-
-def test_on_playlist_added_does_nothing_yet(
-    sp_playlist_container_mock, sp_playlist_mock, caplog, backend_listener_mock
-):
-    playlists.on_playlist_added(sp_playlist_container_mock, sp_playlist_mock, 0)
-
-    assert 'Spotify playlist "Foo" added to index 0' in caplog.text
-    assert backend_listener_mock.send.call_count == 0
-
-
-def test_on_playlist_removed_does_nothing_yet(
-    sp_playlist_container_mock, sp_playlist_mock, caplog, backend_listener_mock
-):
-    playlists.on_playlist_removed(
-        sp_playlist_container_mock, sp_playlist_mock, 0
-    )
-
-    assert 'Spotify playlist "Foo" removed from index 0' in caplog.text
-    assert backend_listener_mock.send.call_count == 0
-
-
-def test_on_playlist_moved_does_nothing_yet(
-    sp_playlist_container_mock, sp_playlist_mock, caplog, backend_listener_mock
-):
-    playlists.on_playlist_moved(
-        sp_playlist_container_mock, sp_playlist_mock, 0, 1
-    )
-
-    assert 'Spotify playlist "Foo" moved from index 0 to 1' in caplog.text
-    assert backend_listener_mock.send.call_count == 0
+    assert len(playlist.tracks) == 1
+    assert "Failed to get link 'spotify:track:abc'" in caplog.text

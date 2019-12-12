@@ -1,8 +1,6 @@
-from unittest import mock
+from mopidy import models
 
 import spotify
-
-from mopidy import models
 from mopidy_spotify import translator
 
 
@@ -156,7 +154,7 @@ class TestToTrack:
 
         assert track is None
         assert (
-            "Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>"
+            "Error loading 'spotify:track:abc': <ErrorType.OTHER_PERMANENT: 10>"
             in caplog.text
         )
 
@@ -216,7 +214,7 @@ class TestToTrackRef:
 
         assert ref is None
         assert (
-            "Error loading spotify:track:abc: <ErrorType.OTHER_PERMANENT: 10>"
+            "Error loading 'spotify:track:abc': <ErrorType.OTHER_PERMANENT: 10>"
             in caplog.text
         )
 
@@ -241,25 +239,85 @@ class TestToTrackRef:
         assert ref1 is ref2
 
 
+class TestValidWebData(object):
+    def test_returns_none_if_missing_type(self, web_track_mock):
+        del web_track_mock["type"]
+        assert translator.valid_web_data(web_track_mock, "track") is False
+
+    def test_returns_none_if_wrong_type(self, web_track_mock):
+        assert translator.valid_web_data(web_track_mock, "playlist") is False
+
+    def test_returns_none_if_missing_uri(self, web_track_mock):
+        del web_track_mock["uri"]
+        assert translator.valid_web_data(web_track_mock, "track") is False
+
+    def test_returns_success(self, web_track_mock):
+        assert translator.valid_web_data(web_track_mock, "track") is True
+
+
+class TestWebToTrackRef:
+    def test_returns_none_if_unloaded(self):
+        web_track_mock = {}
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref is None
+
+    def test_returns_none_if_wrong_type(self, web_track_mock):
+        web_track_mock["type"] = "playlist"
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref is None
+
+    def test_returns_none_if_missing_uri(self, web_track_mock):
+        del web_track_mock["uri"]
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref is None
+
+    def test_returns_none_if_not_playable(self, web_track_mock, caplog):
+        web_track_mock["is_playable"] = False
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref is None
+        assert "'spotify:track:abc' is not playable" in caplog.text
+
+    def test_successful_translation(self, web_track_mock):
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref.type == models.Ref.TRACK
+        assert ref.uri == "spotify:track:abc"
+        assert ref.name == "ABC 123"
+
+    def test_uri_uses_relinked_from_uri(self, web_track_mock):
+        web_track_mock["linked_from"] = {"uri": "spotify:track:xyz"}
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref.uri == "spotify:track:xyz"
+
+
 class TestToPlaylist:
     def test_returns_none_if_unloaded(self):
-        sp_playlist = mock.Mock(spec=spotify.Playlist)
-        sp_playlist.is_loaded = False
+        web_playlist = {}
 
-        playlist = translator.to_playlist(sp_playlist)
-
-        assert playlist is None
-
-    def test_returns_none_if_playlist_folder(self):
-        sp_playlist_folder = mock.Mock(spec=spotify.PlaylistFolder)
-
-        playlist = translator.to_playlist(sp_playlist_folder)
+        playlist = translator.to_playlist(web_playlist)
 
         assert playlist is None
 
-    def test_successful_translation(self, sp_track_mock, sp_playlist_mock):
-        track = translator.to_track(sp_track_mock)
-        playlist = translator.to_playlist(sp_playlist_mock)
+    def test_returns_none_if_wrong_type(self, web_playlist_mock):
+        web_playlist_mock["type"] = "track"
+
+        playlist = translator.to_playlist(web_playlist_mock)
+
+        assert playlist is None
+
+    def test_successful_translation(self, web_track_mock, web_playlist_mock):
+        track = translator.web_to_track(web_track_mock)
+        playlist = translator.to_playlist(web_playlist_mock)
 
         assert playlist.uri == "spotify:user:alice:playlist:foo"
         assert playlist.name == "Foo"
@@ -267,45 +325,41 @@ class TestToPlaylist:
         assert track in playlist.tracks
         assert playlist.last_modified is None
 
-    def test_as_items(self, sp_track_mock, sp_playlist_mock):
-        track_ref = translator.to_track_ref(sp_track_mock)
-        items = translator.to_playlist(sp_playlist_mock, as_items=True)
+    def test_no_track_data(self, web_playlist_mock):
+        del web_playlist_mock["tracks"]
+
+        playlist = translator.to_playlist(web_playlist_mock)
+
+        assert playlist.uri == "spotify:user:alice:playlist:foo"
+        assert playlist.name == "Foo"
+        assert playlist.length == 0
+
+    def test_as_items(self, web_track_mock, web_playlist_mock):
+        track_ref = translator.web_to_track_ref(web_track_mock)
+        items = translator.to_playlist(web_playlist_mock, as_items=True)
 
         assert track_ref in items
 
-    def test_adds_name_for_starred_playlists(self, sp_starred_mock):
-        playlist = translator.to_playlist(sp_starred_mock)
+    def test_as_items_no_track_data(self, web_playlist_mock):
+        del web_playlist_mock["tracks"]
 
-        assert playlist.name == "Starred"
+        items = translator.to_playlist(web_playlist_mock, as_items=True)
 
-    def test_reorders_starred_playlists(self, sp_starred_mock):
-        playlist = translator.to_playlist(sp_starred_mock)
-
-        assert len(playlist.tracks) == 2
-        assert playlist.tracks[0].name == "Newest"
-        assert playlist.tracks[1].name == "Oldest"
+        assert len(items) == 0
 
     def test_includes_by_owner_in_name_if_owned_by_another_user(
-        self, sp_playlist_mock, sp_user_mock
+        self, web_playlist_mock
     ):
-        sp_user_mock.canonical_name = "bob"
-        sp_playlist_mock.user = sp_user_mock
+        web_playlist_mock["owner"]["id"] = "bob"
 
-        playlist = translator.to_playlist(sp_playlist_mock, username="alice")
+        playlist = translator.to_playlist(web_playlist_mock, username="alice")
 
         assert playlist.name == "Foo (by bob)"
 
-    def test_includes_folders_in_name(self, sp_playlist_mock):
-        playlist = translator.to_playlist(
-            sp_playlist_mock, folders=["Bar", "Baz"]
-        )
+    def test_filters_out_none_tracks(self, web_track_mock, web_playlist_mock):
+        del web_track_mock["type"]
 
-        assert playlist.name == "Bar/Baz/Foo"
-
-    def test_filters_out_none_tracks(self, sp_track_mock, sp_playlist_mock):
-        sp_track_mock.is_loaded = False
-
-        playlist = translator.to_playlist(sp_playlist_mock)
+        playlist = translator.to_playlist(web_playlist_mock)
 
         assert playlist.length == 0
         assert list(playlist.tracks) == []
@@ -313,47 +367,41 @@ class TestToPlaylist:
 
 class TestToPlaylistRef:
     def test_returns_none_if_unloaded(self):
-        sp_playlist = mock.Mock(spec=spotify.Playlist)
-        sp_playlist.is_loaded = False
+        web_playlist = {}
 
-        ref = translator.to_playlist_ref(sp_playlist)
-
-        assert ref is None
-
-    def test_returns_none_if_playlist_folder(self):
-        sp_playlist_folder = mock.Mock(spec=spotify.PlaylistFolder)
-
-        ref = translator.to_playlist_ref(sp_playlist_folder)
+        ref = translator.to_playlist_ref(web_playlist)
 
         assert ref is None
 
-    def test_successful_translation(self, sp_track_mock, sp_playlist_mock):
-        ref = translator.to_playlist_ref(sp_playlist_mock)
+    def test_returns_none_if_wrong_type(self, web_playlist_mock):
+        web_playlist_mock["type"] = "track"
+
+        ref = translator.to_playlist_ref(web_playlist_mock)
+
+        assert ref is None
+
+    def test_successful_translation(self, web_playlist_mock):
+        ref = translator.to_playlist_ref(web_playlist_mock)
 
         assert ref.uri == "spotify:user:alice:playlist:foo"
         assert ref.name == "Foo"
 
-    def test_adds_name_for_starred_playlists(self, sp_starred_mock):
-        ref = translator.to_playlist_ref(sp_starred_mock)
+    def test_success_without_track_data(self, web_playlist_mock):
+        del web_playlist_mock["tracks"]
 
-        assert ref.name == "Starred"
+        ref = translator.to_playlist_ref(web_playlist_mock)
+
+        assert ref.uri == "spotify:user:alice:playlist:foo"
+        assert ref.name == "Foo"
 
     def test_includes_by_owner_in_name_if_owned_by_another_user(
-        self, sp_playlist_mock, sp_user_mock
+        self, web_playlist_mock
     ):
-        sp_user_mock.canonical_name = "bob"
-        sp_playlist_mock.user = sp_user_mock
+        web_playlist_mock["owner"]["id"] = "bob"
 
-        ref = translator.to_playlist_ref(sp_playlist_mock, username="alice")
+        ref = translator.to_playlist_ref(web_playlist_mock, username="alice")
 
         assert ref.name == "Foo (by bob)"
-
-    def test_includes_folders_in_name(self, sp_playlist_mock):
-        ref = translator.to_playlist_ref(
-            sp_playlist_mock, folders=["Bar", "Baz"]
-        )
-
-        assert ref.name == "Bar/Baz/Foo"
 
 
 class TestSpotifySearchQuery:
@@ -463,3 +511,26 @@ class TestWebToTrack:
         assert track.track_no == 7
         assert track.disc_no == 1
         assert track.length == 174300
+
+    def test_sets_bitrate(self, web_track_mock):
+        track = translator.web_to_track(web_track_mock, bitrate=100)
+
+        assert track.bitrate == 100
+
+    def test_filters_out_none_artists(self, web_track_mock):
+        web_track_mock["artists"].insert(0, {})
+        web_track_mock["artists"].insert(0, {"foo": "bar"})
+
+        track = translator.web_to_track(web_track_mock)
+        artists = [models.Artist(uri="spotify:artist:abba", name="ABBA")]
+
+        assert list(track.artists) == artists
+
+    def test_ignores_missing_album(self, web_track_mock):
+        del web_track_mock["album"]
+
+        track = translator.web_to_track(web_track_mock)
+
+        assert track.name == "ABC 123"
+        assert track.length == 174300
+        assert track.album is None

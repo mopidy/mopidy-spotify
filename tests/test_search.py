@@ -1,6 +1,6 @@
-import spotify
-
 from mopidy import models
+
+import spotify
 from mopidy_spotify import search
 
 
@@ -75,7 +75,7 @@ def test_search_returns_albums_and_artists_and_tracks(
         params={
             "q": '"ABBA"',
             "limit": 50,
-            "market": "GB",
+            "market": "from_token",
             "type": "album,artist,track",
         },
     )
@@ -127,7 +127,7 @@ def test_sets_api_limit_to_album_count_when_max(
         params={
             "q": '"ABBA"',
             "limit": 6,
-            "market": "GB",
+            "market": "from_token",
             "type": "album,artist,track",
         },
     )
@@ -151,7 +151,7 @@ def test_sets_api_limit_to_artist_count_when_max(
         params={
             "q": '"ABBA"',
             "limit": 6,
-            "market": "GB",
+            "market": "from_token",
             "type": "album,artist,track",
         },
     )
@@ -175,7 +175,7 @@ def test_sets_api_limit_to_track_count_when_max(
         params={
             "q": '"ABBA"',
             "limit": 6,
-            "market": "GB",
+            "market": "from_token",
             "type": "album,artist,track",
         },
     )
@@ -201,16 +201,15 @@ def test_sets_types_parameter(
         params={
             "q": '"ABBA"',
             "limit": 50,
-            "market": "GB",
+            "market": "from_token",
             "type": "album,artist",
         },
     )
 
 
-def test_sets_market_parameter_from_user_country(
-    web_client_mock, web_search_mock_large, provider, session_mock
+def test_sets_market_parameter(
+    web_client_mock, web_search_mock_large, provider
 ):
-    session_mock.user_country = "SE"
     web_client_mock.get.return_value = web_search_mock_large
 
     provider.search({"any": ["ABBA"]})
@@ -220,7 +219,7 @@ def test_sets_market_parameter_from_user_country(
         params={
             "q": '"ABBA"',
             "limit": 50,
-            "market": "SE",
+            "market": "from_token",
             "type": "album,artist,track",
         },
     )

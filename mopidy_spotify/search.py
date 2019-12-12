@@ -1,9 +1,9 @@
 import logging
 import urllib.parse
 
-import spotify
-
 from mopidy import models
+
+import spotify
 from mopidy_spotify import lookup, translator
 
 _SEARCH_TYPES = ["album", "artist", "track"]
@@ -28,7 +28,7 @@ def search(
         return models.SearchResult(uri="spotify:search")
 
     if "uri" in query:
-        return _search_by_uri(config, session, query)
+        return _search_by_uri(config, session, web_client, query)
 
     sp_query = translator.sp_search_query(query)
     if not sp_query:
@@ -62,7 +62,7 @@ def search(
         params={
             "q": sp_query,
             "limit": search_count,
-            "market": session.user_country,
+            "market": "from_token",
             "type": ",".join(types),
         },
     )
@@ -105,10 +105,10 @@ def search(
     )
 
 
-def _search_by_uri(config, session, query):
+def _search_by_uri(config, session, web_client, query):
     tracks = []
     for uri in query["uri"]:
-        tracks += lookup.lookup(config, session, uri)
+        tracks += lookup.lookup(config, session, web_client, uri)
 
     uri = "spotify:search"
     if len(query["uri"]) == 1:

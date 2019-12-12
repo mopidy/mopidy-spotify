@@ -1,9 +1,9 @@
 import collections
 import logging
 
-import spotify
-
 from mopidy import models
+
+import spotify
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +97,7 @@ def to_track(sp_track, bitrate=None):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(
-            f"Error loading {sp_track.link.uri}: {repr(sp_track.error)}"
-        )
+        logger.debug(f"Error loading {sp_track.link.uri!r}: {sp_track.error!r}")
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
@@ -129,15 +127,17 @@ def to_track_ref(sp_track):
         return
 
     if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(
-            f"Error loading {sp_track.link.uri}: {repr(sp_track.error)}"
-        )
+        logger.debug(f"Error loading {sp_track.link.uri!r}: {sp_track.error!r}")
         return
 
     if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
         return
 
     return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
+
+
+def valid_web_data(data, object_type):
+    return data.get("type") == object_type and "uri" in data
 
 
 def to_track_refs(sp_tracks, timeout=None):
@@ -148,54 +148,64 @@ def to_track_refs(sp_tracks, timeout=None):
             yield ref
 
 
-def to_playlist(
-    sp_playlist,
-    folders=None,
-    username=None,
-    bitrate=None,
-    as_ref=False,
-    as_items=False,
-):
-    if not isinstance(sp_playlist, spotify.Playlist):
+def web_to_track_ref(web_track):
+    if not valid_web_data(web_track, "track"):
         return
 
-    if not sp_playlist.is_loaded:
+    # Web API track relinking guide says to use original URI.
+    # libspotfy will handle any relinking when track is loaded for playback.
+    uri = web_track.get("linked_from", {}).get("uri") or web_track["uri"]
+
+    if not web_track.get("is_playable", False):
+        logger.debug(f"{uri!r} is not playable")
+        return
+
+    return models.Ref.track(uri=uri, name=web_track.get("name"))
+
+
+def web_to_track_refs(web_tracks):
+    for web_track in web_tracks:
+        ref = web_to_track_ref(web_track.get("track", {}))
+        if ref is not None:
+            yield ref
+
+
+def to_playlist(
+    web_playlist, username=None, bitrate=None, as_ref=False, as_items=False,
+):
+    if not valid_web_data(web_playlist, "playlist"):
+        return
+
+    web_tracks = web_playlist.get("tracks", {}).get("items", [])
+    if (as_items or not as_ref) and not isinstance(web_tracks, list):
         return
 
     if as_items:
-        return list(to_track_refs(sp_playlist.tracks))
+        return list(web_to_track_refs(web_tracks))
 
-    name = sp_playlist.name
+    name = web_playlist.get("name")
 
     if not as_ref:
         tracks = [
-            to_track(sp_track, bitrate=bitrate)
-            for sp_track in sp_playlist.tracks
+            web_to_track(web_track.get("track", {}), bitrate=bitrate)
+            for web_track in web_tracks
         ]
         tracks = [t for t in tracks if t]
-        if name is None:
-            # Use same starred order as the Spotify client
-            tracks = list(reversed(tracks))
 
-    if name is None:
-        name = "Starred"
-    if folders is not None:
-        name = "/".join(folders + [name])
-    if username is not None and sp_playlist.owner.canonical_name != username:
-        name = f"{name} (by {sp_playlist.owner.canonical_name})"
+    owner = web_playlist.get("owner", {}).get("id", username)
+    if username is not None and owner != username:
+        name = f"{name} (by {owner})"
 
     if as_ref:
-        return models.Ref.playlist(uri=sp_playlist.link.uri, name=name)
+        return models.Ref.playlist(uri=web_playlist["uri"], name=name)
     else:
         return models.Playlist(
-            uri=sp_playlist.link.uri, name=name, tracks=tracks
+            uri=web_playlist["uri"], name=name, tracks=tracks
         )
 
 
-def to_playlist_ref(sp_playlist, folders=None, username=None):
-    return to_playlist(
-        sp_playlist, folders=folders, username=username, as_ref=True
-    )
+def to_playlist_ref(web_playlist, username=None):
+    return to_playlist(web_playlist, username=username, as_ref=True)
 
 
 # Maps from Mopidy search query field to Spotify search query field.
@@ -241,27 +251,45 @@ def _transform_year(date):
 
 
 def web_to_artist(web_artist):
-    return models.Artist(uri=web_artist["uri"], name=web_artist["name"])
+    if not valid_web_data(web_artist, "artist"):
+        return
+
+    return models.Artist(uri=web_artist["uri"], name=web_artist.get("name"))
 
 
 def web_to_album(web_album):
-    artists = [web_to_artist(web_artist) for web_artist in web_album["artists"]]
+    if not valid_web_data(web_album, "album"):
+        return
+
+    artists = [
+        web_to_artist(web_artist) for web_artist in web_album.get("artists", [])
+    ]
+    artists = [a for a in artists if a]
 
     return models.Album(
-        uri=web_album["uri"], name=web_album["name"], artists=artists
+        uri=web_album["uri"], name=web_album.get("name"), artists=artists
     )
 
 
-def web_to_track(web_track):
-    artists = [web_to_artist(web_artist) for web_artist in web_track["artists"]]
-    album = web_to_album(web_track["album"])
+def web_to_track(web_track, bitrate=None):
+    ref = web_to_track_ref(web_track)
+    if ref is None:
+        return
+
+    artists = [
+        web_to_artist(web_artist) for web_artist in web_track.get("artists", [])
+    ]
+    artists = [a for a in artists if a]
+
+    album = web_to_album(web_track.get("album", {}))
 
     return models.Track(
-        uri=web_track["uri"],
-        name=web_track["name"],
+        uri=ref.uri,
+        name=ref.name,
         artists=artists,
         album=album,
-        length=web_track["duration_ms"],
-        disc_no=web_track["disc_number"],
-        track_no=web_track["track_number"],
+        length=web_track.get("duration_ms"),
+        disc_no=web_track.get("disc_number"),
+        track_no=web_track.get("track_number"),
+        bitrate=bitrate,
     )

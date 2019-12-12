@@ -1,10 +1,14 @@
+import copy
 import email
 import logging
 import os
 import re
 import time
 import urllib.parse
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum, unique
+from typing import Optional
 
 import requests
 
@@ -71,9 +75,10 @@ class OAuthClient:
 
         _trace(f"Get '{path}'")
 
+        ignore_expiry = kwargs.pop("ignore_expiry", False)
         if cache is not None and path in cache:
             cached_result = cache.get(path)
-            if not cached_result.expired:
+            if cached_result.still_valid(ignore_expiry):
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
@@ -257,6 +262,7 @@ class OAuthClient:
 
 class WebResponse(dict):
     def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
+        self._from_cache = False
         self.url = url
         self._expires = expires
         self._etag = etag
@@ -312,12 +318,23 @@ class WebResponse(dict):
             if etag and len(etag.groups()) == 2:
                 return etag.groups()[1]
 
-    @property
-    def expired(self):
-        status_str = {True: "expired", False: "fresh"}
-        result = self._expires < time.time()
-        _trace(f"Cached data {status_str[result]} for {self}")
+    def still_valid(self, ignore_expiry=False):
+        if ignore_expiry:
+            result = True
+            status = "forced"
+        elif self._expires >= time.time():
+            result = True
+            status = "fresh"
+        else:
+            result = False
+            status = "expired"
+        self._from_cache = result
+        _trace("Cached data %s for %s", status, self)
         return result
+
+    @property
+    def status_unchanged(self):
+        return self._from_cache or 304 == self._status_code
 
     @property
     def status_ok(self):
@@ -331,6 +348,7 @@ class WebResponse(dict):
             return {}
 
     def updated(self, response):
+        self._from_cache = False
         if self._etag is None:
             return False
         elif self.url != response.url:
@@ -346,10 +364,157 @@ class WebResponse(dict):
         _trace(f"ETag match for {self} {response}")
         self._expires = response._expires
         self._etag = response._etag
+        self._status_code = response._status_code
         return True
 
     def __str__(self):
         return (
-            f"URL: {self.url} ETag: {self._etag} "
-            f"Expires: {datetime.fromtimestamp(self._expires)}"
+            f"URL: {self.url} "
+            f"expires at: {datetime.fromtimestamp(self._expires)} "
+            f"[ETag: {self._etag}]"
         )
+
+    def increase_expiry(self, delta_seconds):
+        if self.status_ok and not self._from_cache:
+            self._expires += delta_seconds
+
+
+class SpotifyOAuthClient(OAuthClient):
+
+    TRACK_FIELDS = (
+        "next,items(track(type,uri,name,duration_ms,disc_number,track_number,"
+        "artists,album,is_playable,linked_from.uri))"
+    )
+    PLAYLIST_FIELDS = (
+        f"name,owner.id,type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
+    )
+    DEFAULT_EXTRA_EXPIRY = 10
+
+    def __init__(self, *, client_id, client_secret, proxy_config):
+        super().__init__(
+            base_url="https://api.spotify.com/v1",
+            refresh_url="https://auth.mopidy.com/spotify/token",
+            client_id=client_id,
+            client_secret=client_secret,
+            proxy_config=proxy_config,
+        )
+        self.user_id = None
+        self._cache = {}
+        self._extra_expiry = self.DEFAULT_EXTRA_EXPIRY
+
+    def get_one(self, path, *args, **kwargs):
+        _trace(f"Fetching page {path!r}")
+        result = self.get(path, cache=self._cache, *args, **kwargs)
+        result.increase_expiry(self._extra_expiry)
+        return result
+
+    def get_all(self, path, *args, **kwargs):
+        while path is not None:
+            result = self.get_one(path, *args, **kwargs)
+            path = result.get("next")
+            yield result
+
+    def login(self):
+        self.user_id = self.get("me").get("id")
+        if self.user_id is None:
+            logger.error("Failed to load Spotify user profile")
+            return False
+        else:
+            logger.info(f"Logged into Spotify Web API as {self.user_id}")
+            return True
+
+    @property
+    def logged_in(self):
+        return self.user_id is not None
+
+    def get_user_playlists(self):
+        pages = self.get_all("me/playlists", params={"limit": 50})
+        for page in pages:
+            yield from page.get("items", [])
+
+    def get_playlist(self, uri):
+        try:
+            parsed = WebLink.from_uri(uri)
+            if parsed.type != LinkType.PLAYLIST:
+                raise ValueError(
+                    f"Could not parse {uri!r} as a Spotify playlist URI"
+                )
+        except ValueError as exc:
+            logger.error(exc)
+            return {}
+
+        playlist = self.get_one(
+            f"playlists/{parsed.id}",
+            params={"fields": self.PLAYLIST_FIELDS, "market": "from_token"},
+        )
+
+        tracks_path = playlist.get("tracks", {}).get("next")
+        track_pages = self.get_all(
+            tracks_path,
+            params={"fields": self.TRACK_FIELDS, "market": "from_token"},
+            ignore_expiry=playlist.status_unchanged,
+        )
+
+        more_tracks = []
+        for page in track_pages:
+            more_tracks += page.get("items", [])
+        if more_tracks:
+            # Take a copy to avoid changing the cached response.
+            playlist = copy.deepcopy(playlist)
+            playlist.setdefault("tracks", {}).setdefault("items", [])
+            playlist["tracks"]["items"] += more_tracks
+
+        return playlist
+
+    def clear_cache(self, extra_expiry=None):
+        self._cache.clear()
+
+
+@unique
+class LinkType(Enum):
+    TRACK = "track"
+    ALBUM = "album"
+    ARTIST = "artist"
+    PLAYLIST = "playlist"
+
+
+@dataclass
+class WebLink:
+    uri: str
+    type: LinkType
+    id: Optional[str] = None
+    owner: Optional[str] = None
+
+    @classmethod
+    def from_uri(cls, uri):
+        parsed_uri = urllib.parse.urlparse(uri)
+
+        schemes = ("http", "https")
+        netlocs = ("open.spotify.com", "play.spotify.com")
+
+        if parsed_uri.scheme == "spotify":
+            parts = parsed_uri.path.split(":")
+        elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
+            parts = parsed_uri.path[1:].split("/")
+        else:
+            parts = []
+
+        # Strip out empty parts to ensure we are strict about URI parsing.
+        parts = [p for p in parts if p.strip()]
+
+        if len(parts) == 2 and parts[0] in (
+            "track",
+            "album",
+            "artist",
+            "playlist",
+        ):
+            return cls(uri, LinkType(parts[0]), parts[1], None)
+        elif len(parts) == 3 and parts[0] == "user" and parts[2] == "starred":
+            if parsed_uri.scheme == "spotify":
+                return cls(uri, LinkType.PLAYLIST, None, parts[1])
+        elif len(parts) == 3 and parts[0] == "playlist":
+            return cls(uri, LinkType.PLAYLIST, parts[2], parts[1])
+        elif len(parts) == 4 and parts[0] == "user" and parts[2] == "playlist":
+            return cls(uri, LinkType.PLAYLIST, parts[3], parts[1])
+
+        raise ValueError(f"Could not parse {uri!r} as a Spotify URI")

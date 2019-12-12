@@ -1,10 +1,10 @@
 from unittest import mock
 
 import pytest
-import spotify
-
 from mopidy import backend as backend_api
 from mopidy import models
+
+import spotify
 from mopidy_spotify import backend, library, utils, web
 
 
@@ -43,7 +43,14 @@ def config(tmp_path):
 
 
 @pytest.yield_fixture
-def spotify_mock():
+def web_mock():
+    patcher = mock.patch.object(backend, "web", spec=web)
+    yield patcher.start()
+    patcher.stop()
+
+
+@pytest.yield_fixture
+def spotify_mock(web_mock):
     patcher = mock.patch.object(backend, "spotify", spec=spotify)
     yield patcher.start()
     patcher.stop()
@@ -299,7 +306,7 @@ def web_search_mock_large(web_album_mock, web_artist_mock, web_track_mock):
 
 @pytest.fixture
 def web_artist_mock():
-    return {"name": "ABBA", "uri": "spotify:artist:abba"}
+    return {"name": "ABBA", "uri": "spotify:artist:abba", "type": "artist"}
 
 
 @pytest.fixture
@@ -307,6 +314,7 @@ def web_album_mock(web_artist_mock):
     return {
         "name": "DEF 456",
         "uri": "spotify:album:def",
+        "type": "album",
         "artists": [web_artist_mock],
     }
 
@@ -321,6 +329,8 @@ def web_track_mock(web_artist_mock, web_album_mock):
         "name": "ABC 123",
         "track_number": 7,
         "uri": "spotify:track:abc",
+        "type": "track",
+        "is_playable": True,
     }
 
 
@@ -356,6 +366,18 @@ def web_oauth_mock():
 
 
 @pytest.fixture
+def web_playlist_mock(web_track_mock):
+    return {
+        "owner": {"id": "alice"},
+        "name": "Foo",
+        "tracks": {"items": [{"track": web_track_mock}]},
+        "snapshot_id": "abcderfg12364",
+        "uri": "spotify:user:alice:playlist:foo",
+        "type": "playlist",
+    }
+
+
+@pytest.fixture
 def mopidy_artist_mock():
     return models.Artist(name="ABBA", uri="spotify:artist:abba")
 
@@ -374,14 +396,14 @@ def mopidy_album_mock(mopidy_artist_mock):
 def session_mock():
     sp_session_mock = mock.Mock(spec=spotify.Session)
     sp_session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
-    sp_session_mock.playlist_container = []
-    sp_session_mock.user_country = "GB"
     return sp_session_mock
 
 
 @pytest.fixture
 def web_client_mock():
-    web_client_mock = mock.Mock(spec=web.OAuthClient)
+    web_client_mock = mock.MagicMock(spec=web.SpotifyOAuthClient)
+    web_client_mock.user_id = "alice"
+    web_client_mock.get_user_playlists.return_value = []
     return web_client_mock
 
 

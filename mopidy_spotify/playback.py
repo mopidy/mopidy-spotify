@@ -2,9 +2,9 @@ import functools
 import logging
 import threading
 
-import spotify
-
 from mopidy import audio, backend
+
+import spotify
 
 logger = logging.getLogger(__name__)
 

@@ -3,9 +3,9 @@ import pathlib
 import threading
 
 import pykka
-import spotify
-
 from mopidy import backend, httpclient
+
+import spotify
 from mopidy_spotify import Extension, library, playback, playlists, web
 
 logger = logging.getLogger(__name__)
@@ -57,13 +57,15 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
             self._config["spotify"]["password"],
         )
 
-        self._web_client = web.OAuthClient(
-            base_url="https://api.spotify.com/v1",
-            refresh_url="https://auth.mopidy.com/spotify/token",
+        self._web_client = web.SpotifyOAuthClient(
             client_id=self._config["spotify"]["client_id"],
             client_secret=self._config["spotify"]["client_secret"],
             proxy_config=self._config["proxy"],
         )
+        self._web_client.login()
+
+        if self.playlists is not None:
+            self.playlists.refresh()
 
     def on_stop(self):
         logger.debug("Logging out of Spotify")
@@ -125,23 +127,6 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         if self._config["spotify"]["private_session"]:
             logger.info("Spotify private session activated")
             self._session.social.private_session = True
-
-        self._session.playlist_container.on(
-            spotify.PlaylistContainerEvent.CONTAINER_LOADED,
-            playlists.on_container_loaded,
-        )
-        self._session.playlist_container.on(
-            spotify.PlaylistContainerEvent.PLAYLIST_ADDED,
-            playlists.on_playlist_added,
-        )
-        self._session.playlist_container.on(
-            spotify.PlaylistContainerEvent.PLAYLIST_REMOVED,
-            playlists.on_playlist_removed,
-        )
-        self._session.playlist_container.on(
-            spotify.PlaylistContainerEvent.PLAYLIST_MOVED,
-            playlists.on_playlist_moved,
-        )
 
     def on_play_token_lost(self):
         if self._session.player.state == spotify.PlayerState.PLAYING:
