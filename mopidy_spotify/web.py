@@ -95,8 +95,7 @@ class OAuthClient:
         result = self._request_with_retries(method.upper(), path, *args, **kwargs)
 
         if result is None or "error" in result:
-            logger.error('Spotify web API call failed: {} {}: {}'.format(
-                method.upper(), path, result))
+            logger.error(f'Spotify web API call failed: {method.upper()} {path}: {result}')
             return {}
 
         if self._should_cache_response(cache, result):

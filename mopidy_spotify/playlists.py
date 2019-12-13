@@ -52,32 +52,29 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             as_items,
         )
 
+    @staticmethod
+    def _get_user_and_playlist_id_from_uri(uri):
+        user_id = uri.split(':')[-3]
+        playlist_id = uri.split(':')[-1]
+        return user_id, playlist_id
+
     def _playlist_edit(self, playlist, method, **kwargs):
-        user_id = playlist.uri.split(':')[-3]
-        playlist_id = playlist.uri.split(':')[-1]
+        user_id, playlist_id = self._get_user_and_playlist_id_from_uri(playlist.uri)
         url = f'users/{user_id}/playlists/{playlist_id}/tracks'
         method = getattr(self._backend._web_client, method.lower())
         if not method:
-            self.logger.error(f'Invalid HTTP method "{method}"')
-            return playlist
+            raise AttributeError(f'Invalid HTTP method "{method}"')
 
         logger.debug(f'API request: {method} {url}')
-        response = method(
-                url, headers={'Content-Type': 'application/json'}, json=kwargs)
+        response = method(url, json=kwargs)
 
         logger.debug(f'API response: {response}')
 
-        if response and 'error' not in response:
-            # TODO invalidating the whole cache is probably a bit much if we have
-            # updated only one playlist - maybe we should expose an API to clear
-            # cache items by key?
-            self._backend._web_client.clear_cache()
-            return self.lookup(playlist.uri)
-        else:
-            logging.error('Error on playlist item(s) removal: {}'.format(
-                response['error'] if response else '(Unknown error)'))
-
-            return playlist
+        # TODO invalidating the whole cache is probably a bit much if we have
+        # updated only one playlist - maybe we should expose an API to clear
+        # cache items by key?
+        self._backend._web_client.clear_cache()
+        return self.lookup(playlist.uri)
 
     def refresh(self):
         if not self._backend._web_client.logged_in:
@@ -96,10 +93,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def create(self, name):
         logger.info(f'Creating playlist {name}')
-        url = f'users/{user_id}/playlists'
-        response = self._backend._web_client.post(
-                url, headers={'Content-Type': 'application/json'})
-
+        url = f'users/{web_client.user_id}/playlists'
+        response = self._backend._web_client.post(url)
         return self.lookup(response['uri'])
 
     def delete(self, uri):
@@ -117,14 +112,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         new_tracks = {track.uri: track for track in playlist.tracks}
         cur_tracks = {track.uri: track for track in saved_playlist.tracks}
-        removed_uris = set([track.uri
-            for track in saved_playlist.tracks
-            if track.uri not in new_tracks])
+        removed_uris = set(cur_tracks.keys()).difference(set(new_tracks.keys()))
 
         # Remove tracks logic
         if removed_uris:
-            logger.info('Removing {} tracks from playlist {}: {}'.format(
-                len(removed_uris), playlist.name, removed_uris))
+            logger.info(f'Removing {len(removed_uris)} tracks from playlist ' +
+                    f'{saved_playlist.name}: {removed_uris}')
 
             cur_tracks = {
                 track.uri: track
@@ -170,8 +163,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 if track.uri in cur_tracks_by_uri:
                     cur_pos = cur_tracks_by_uri[track.uri]
                     new_pos = i+1
-                    logger.info('Moving item position [{}] to [{}] in playlist {}'.
-                                format(cur_pos, new_pos, playlist.name))
+                    logger.info(f'Moving item position [{cur_pos}] to [{new_pos}] in ' +
+                            f'playlist {playlist.name}')
 
                     cur_tracks = {
                         track.uri: track
@@ -179,6 +172,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                             playlist, method='put',
                             range_start=cur_pos, insert_before=new_pos).tracks
                         }
+
+        # Playlist rename logic
+        if playlist.name != saved_playlist.name:
+            logger.info(f'Renaming playlist [{saved_playlist.name}] to [{playlist.name}]')
+            user_id, playlist_id = self._get_user_and_playlist_id_from_uri(saved_playlist.uri)
+            self._backend._web_client.put(f'users/{user_id}/playlists/{playlist_id}',
+                    json={'name': playlist.name})
 
         self._backend._web_client.clear_cache()
         return self.lookup(saved_playlist.uri)
