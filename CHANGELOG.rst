@@ -8,7 +8,8 @@ v4.0.0a2 (2019-12-12)
 
 Alpha release.
 
-- Use the Spotify Web API for playlists. (#182, #122, PR: #235)
+- Use the Spotify Web API for playlists. (#122, #133, #140, #182, #213, PR:
+  #235)
 
 
 v4.0.0a1 (2019-11-18)
@@ -21,6 +22,12 @@ Alpha release.
 - Require Python >= 3.7. (PR: #223)
 
 - Update project setup. (PR: #223)
+
+- Improved Web API client, including support for retries. (PR: #147)
+
+- Pause Spotify playback when Mopidy is paused. (#75, #146, PR: #162)
+
+- Only return search results available in the user's country. (#97, PR: #131)
 
 
 v3.1.0 (2017-06-08)
