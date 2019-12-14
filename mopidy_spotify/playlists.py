@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
+    # Maximum number of items accepted by the Spotify Web API
+    _chunk_size = 100
+
     def __init__(self, backend):
         self._backend = backend
         self._timeout = self._backend._config["spotify"]["timeout"]
@@ -58,6 +61,11 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         playlist_id = uri.split(':')[-1]
         return user_id, playlist_id
 
+    @staticmethod
+    def partitions(lst, n):
+        for i in range(0, len(lst), n):
+            yield lst[i:i+n]
+
     def _playlist_edit(self, playlist, method, **kwargs):
         user_id, playlist_id = self._get_user_and_playlist_id_from_uri(playlist.uri)
         url = f'users/{user_id}/playlists/{playlist_id}/tracks'
@@ -94,7 +102,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def create(self, name):
         logger.info(f'Creating playlist {name}')
         url = f'users/{web_client.user_id}/playlists'
-        response = self._backend._web_client.post(url)
+        response = self._backend._web_client.post(url, json={'name': name})
+        self.refresh()
         return self.lookup(response['uri'])
 
     def delete(self, uri):
@@ -119,12 +128,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.info(f'Removing {len(removed_uris)} tracks from playlist ' +
                     f'{saved_playlist.name}: {removed_uris}')
 
-            cur_tracks = {
-                track.uri: track
-                for track in self._playlist_edit(
-                    playlist, method='delete',
-                    tracks=[{'uri': uri for uri in removed_uris}]).tracks
-                }
+            for chunk in self.partitions(removed_uris, self._chunk_size):
+                saved_playlist = self._playlist_edit(saved_playlist, method='delete',
+                        tracks=[{'uri': uri for uri in removed_uris}])
+                cur_tracks = {track.uri: track for track in saved_playlist.tracks}
 
         # Add tracks logic
         position = None
@@ -141,14 +148,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         if added_uris:
             for pos, uris in added_uris.items():
-                logger.info(f'Adding {uris} to playlist {playlist.name}')
+                logger.info(f'Adding {uris} to playlist {saved_playlist.name}')
+                processed_tracks = 0
 
-                cur_tracks = {
-                    track.uri: track
-                    for track in self._playlist_edit(
-                        playlist, method='post',
-                        uris=uris, position=pos).tracks
-                    }
+                for chunk in self.partitions(uris):
+                    saved_playlist = self._playlist_edit(saved_playlist, method='post',
+                            uris=chunk, position=pos+processed_tracks)
+
+                    cur_tracks = {track.uri: track for track in saved_playlist.tracks}
+                    processed_tracks += len(chunk)
 
         # Swap tracks logic
         cur_tracks_by_uri = {}
@@ -164,12 +172,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                     cur_pos = cur_tracks_by_uri[track.uri]
                     new_pos = i+1
                     logger.info(f'Moving item position [{cur_pos}] to [{new_pos}] in ' +
-                            f'playlist {playlist.name}')
+                            f'playlist {saved_playlist.name}')
 
                     cur_tracks = {
                         track.uri: track
                         for track in self._playlist_edit(
-                            playlist, method='put',
+                            saved_playlist, method='put',
                             range_start=cur_pos, insert_before=new_pos).tracks
                         }
 
