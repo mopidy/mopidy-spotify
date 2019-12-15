@@ -9,7 +9,13 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = models.Ref.directory(uri="spotify:directory", name="Spotify")
 
+_TOPLIST_DIR = models.Ref.directory(uri="spotify:top:lists", name="Top lists")
+
 _ROOT_DIR_CONTENTS = [
+    _TOPLIST_DIR,
+]
+
+_TOPLIST_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:top:tracks", name="Top tracks"),
     models.Ref.directory(uri="spotify:top:albums", name="Top albums"),
     models.Ref.directory(uri="spotify:top:artists", name="Top artists"),
@@ -22,15 +28,16 @@ _TOPLIST_TYPES = {
 }
 
 _TOPLIST_REGIONS = {
-    "user": lambda session: spotify.ToplistRegion.USER,
     "country": lambda session: session.user_country,
     "everywhere": lambda session: spotify.ToplistRegion.EVERYWHERE,
 }
 
 
-def browse(config, session, uri):
+def browse(*, config, session, web_client, uri):
     if uri == ROOT_DIR.uri:
         return _ROOT_DIR_CONTENTS
+    elif uri == _TOPLIST_DIR.uri:
+        return _TOPLIST_DIR_CONTENTS
     elif uri.startswith("spotify:user:"):
         return _browse_playlist(session, uri, config)
     elif uri.startswith("spotify:album:"):
@@ -42,14 +49,16 @@ def browse(config, session, uri):
         if len(parts) == 1:
             return _browse_toplist_regions(variant=parts[0])
         elif len(parts) == 2:
+            if parts[1] == "user":
+                return _browse_toplist_user(web_client, variant=parts[0])
             return _browse_toplist(
                 config, session, variant=parts[0], region=parts[1]
             )
         else:
-            logger.info(f'Failed to browse "{uri}": Toplist URI parsing failed')
+            logger.info(f"Failed to browse {uri!r}: Toplist URI parsing failed")
             return []
     else:
-        logger.info(f'Failed to browse "{uri}": Unknown URI type')
+        logger.info(f"Failed to browse {uri!r}: Unknown URI type")
         return []
 
 
@@ -90,10 +99,7 @@ def _browse_artist(session, uri, config):
 
 
 def _browse_toplist_regions(variant):
-    return [
-        models.Ref.directory(
-            uri=f"spotify:top:{variant}:user", name="Personal"
-        ),
+    dir_contents = [
         models.Ref.directory(
             uri=f"spotify:top:{variant}:country", name="Country"
         ),
@@ -104,6 +110,30 @@ def _browse_toplist_regions(variant):
             uri=f"spotify:top:{variant}:everywhere", name="Global"
         ),
     ]
+    if variant in ("tracks", "artists"):
+        dir_contents.insert(
+            0,
+            models.Ref.directory(
+                uri=f"spotify:top:{variant}:user", name="Personal"
+            ),
+        )
+    return dir_contents
+
+
+def _browse_toplist_user(web_client, variant):
+    if not web_client.logged_in:
+        return []
+
+    if variant in ("tracks", "artists"):
+        items = web_client.get_one(f"me/top/{variant}").get("items", [])
+        if variant == "tracks":
+            return list(
+                translator.web_to_track_refs(items, check_playable=False)
+            )
+        else:
+            return list(translator.web_to_artist_refs(items))
+    else:
+        return []
 
 
 def _browse_toplist(config, session, variant, region):
@@ -119,7 +149,7 @@ def _browse_toplist(config, session, variant, region):
             for code in codes
         ]
 
-    if region in ("user", "country", "everywhere"):
+    if region in ("country", "everywhere"):
         sp_toplist = session.get_toplist(
             type=_TOPLIST_TYPES[variant],
             region=_TOPLIST_REGIONS[region](session),
