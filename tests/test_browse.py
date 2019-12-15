@@ -15,14 +15,11 @@ def test_browse_root_directory(provider):
     results = provider.browse("spotify:directory")
 
     assert len(results) == 1
-    assert (
-        models.Ref.directory(uri="spotify:top:lists", name="Top lists")
-        in results
-    )
+    assert models.Ref.directory(uri="spotify:top", name="Top lists") in results
 
 
 def test_browse_top_lists_directory(provider):
-    results = provider.browse("spotify:top:lists")
+    results = provider.browse("spotify:top")
 
     assert len(results) == 3
     assert (

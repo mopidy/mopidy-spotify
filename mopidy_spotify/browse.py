@@ -9,13 +9,13 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = models.Ref.directory(uri="spotify:directory", name="Spotify")
 
-_TOPLIST_DIR = models.Ref.directory(uri="spotify:top:lists", name="Top lists")
+_TOP_LIST_DIR = models.Ref.directory(uri="spotify:top", name="Top lists")
 
 _ROOT_DIR_CONTENTS = [
-    _TOPLIST_DIR,
+    _TOP_LIST_DIR,
 ]
 
-_TOPLIST_DIR_CONTENTS = [
+_TOP_LIST_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:top:tracks", name="Top tracks"),
     models.Ref.directory(uri="spotify:top:albums", name="Top albums"),
     models.Ref.directory(uri="spotify:top:artists", name="Top artists"),
@@ -36,8 +36,8 @@ _TOPLIST_REGIONS = {
 def browse(*, config, session, web_client, uri):
     if uri == ROOT_DIR.uri:
         return _ROOT_DIR_CONTENTS
-    elif uri == _TOPLIST_DIR.uri:
-        return _TOPLIST_DIR_CONTENTS
+    elif uri == _TOP_LIST_DIR.uri:
+        return _TOP_LIST_DIR_CONTENTS
     elif uri.startswith("spotify:user:"):
         return _browse_playlist(session, uri, config)
     elif uri.startswith("spotify:album:"):
