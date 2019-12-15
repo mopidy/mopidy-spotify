@@ -203,6 +203,15 @@ def test_browse_unsupported_top_tracks(web_client_mock, provider):
     assert len(results) == 0
 
 
+def test_browse_personal_top_tracks_empty(web_client_mock, provider):
+    web_client_mock.get_one.return_value = {}
+
+    results = provider.browse("spotify:top:tracks:user")
+
+    web_client_mock.get_one.assert_called_once_with("me/top/tracks")
+    assert len(results) == 0
+
+
 def test_browse_personal_top_tracks(web_client_mock, web_track_mock, provider):
     # The tracks from this endpoint are erroneously missing some fields:
     del web_track_mock["is_playable"]

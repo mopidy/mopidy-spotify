@@ -162,7 +162,7 @@ def to_track_refs(sp_tracks, timeout=None):
             yield ref
 
 
-def web_to_track_ref(web_track, check_playable=True):
+def web_to_track_ref(web_track, *, check_playable=True):
     if not valid_web_data(web_track, "track"):
         return
 
@@ -177,10 +177,10 @@ def web_to_track_ref(web_track, check_playable=True):
     return models.Ref.track(uri=uri, name=web_track.get("name"))
 
 
-def web_to_track_refs(web_tracks, check_playable=True):
+def web_to_track_refs(web_tracks, *, check_playable=True):
     for web_track in web_tracks:
         web_track = web_track.get("track", web_track)
-        ref = web_to_track_ref(web_track, check_playable)
+        ref = web_to_track_ref(web_track, check_playable=check_playable)
         if ref is not None:
             yield ref
 

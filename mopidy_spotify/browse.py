@@ -33,7 +33,7 @@ _TOPLIST_REGIONS = {
 }
 
 
-def browse(config, session, webclient, uri):
+def browse(*, config, session, web_client, uri):
     if uri == ROOT_DIR.uri:
         return _ROOT_DIR_CONTENTS
     elif uri == _TOPLIST_DIR.uri:
@@ -50,7 +50,7 @@ def browse(config, session, webclient, uri):
             return _browse_toplist_regions(variant=parts[0])
         elif len(parts) == 2:
             if parts[1] == "user":
-                return _browse_toplist_user(webclient, variant=parts[0])
+                return _browse_toplist_user(web_client, variant=parts[0])
             return _browse_toplist(
                 config, session, variant=parts[0], region=parts[1]
             )
@@ -120,14 +120,16 @@ def _browse_toplist_regions(variant):
     return dir_contents
 
 
-def _browse_toplist_user(webclient, variant):
-    if not webclient.logged_in:
+def _browse_toplist_user(web_client, variant):
+    if not web_client.logged_in:
         return []
 
     if variant in ("tracks", "artists"):
-        items = webclient.get_one(f"me/top/{variant}").get("items", [])
+        items = web_client.get_one(f"me/top/{variant}").get("items", [])
         if variant == "tracks":
-            return list(translator.web_to_track_refs(items, False))
+            return list(
+                translator.web_to_track_refs(items, check_playable=False)
+            )
         else:
             return list(translator.web_to_artist_refs(items))
     else:

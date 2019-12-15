@@ -16,7 +16,10 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
     def browse(self, uri):
         return browse.browse(
-            self._config, self._backend._session, self._backend._web_client, uri
+            config=self._config,
+            session=self._backend._session,
+            web_client=self._backend._web_client,
+            uri=uri,
         )
 
     def get_distinct(self, field, query=None):
