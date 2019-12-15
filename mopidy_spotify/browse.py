@@ -10,15 +10,22 @@ logger = logging.getLogger(__name__)
 ROOT_DIR = models.Ref.directory(uri="spotify:directory", name="Spotify")
 
 _TOP_LIST_DIR = models.Ref.directory(uri="spotify:top", name="Top lists")
+_YOUR_MUSIC_DIR = models.Ref.directory(uri="spotify:your", name="Your music")
 
 _ROOT_DIR_CONTENTS = [
     _TOP_LIST_DIR,
+    _YOUR_MUSIC_DIR,
 ]
 
 _TOP_LIST_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:top:tracks", name="Top tracks"),
     models.Ref.directory(uri="spotify:top:albums", name="Top albums"),
     models.Ref.directory(uri="spotify:top:artists", name="Top artists"),
+]
+
+_YOUR_MUSIC_DIR_CONTENTS = [
+    models.Ref.directory(uri="spotify:your:tracks", name="Your tracks"),
+    models.Ref.directory(uri="spotify:your:albums", name="Your albums"),
 ]
 
 _TOPLIST_TYPES = {
@@ -38,6 +45,8 @@ def browse(*, config, session, web_client, uri):
         return _ROOT_DIR_CONTENTS
     elif uri == _TOP_LIST_DIR.uri:
         return _TOP_LIST_DIR_CONTENTS
+    elif uri == _YOUR_MUSIC_DIR.uri:
+        return _YOUR_MUSIC_DIR_CONTENTS
     elif uri.startswith("spotify:user:"):
         return _browse_playlist(session, uri, config)
     elif uri.startswith("spotify:album:"):
@@ -57,9 +66,13 @@ def browse(*, config, session, web_client, uri):
         else:
             logger.info(f"Failed to browse {uri!r}: Toplist URI parsing failed")
             return []
-    else:
-        logger.info(f"Failed to browse {uri!r}: Unknown URI type")
-        return []
+    elif uri.startswith("spotify:your:"):
+        parts = uri.replace("spotify:your:", "").split(":")
+        if len(parts) == 1:
+            return _browse_your_music(web_client, variant=parts[0])
+
+    logger.info(f"Failed to browse {uri!r}: Unknown URI type")
+    return []
 
 
 def _browse_playlist(session, uri, config):
@@ -181,5 +194,21 @@ def _browse_toplist(config, session, variant, region):
                 sp_toplist.artists, timeout=config["timeout"]
             )
         )
+    else:
+        return []
+
+
+def _browse_your_music(web_client, variant):
+    if not web_client.logged_in:
+        return []
+
+    if variant in ("tracks", "albums"):
+        items = web_client.get_one(
+            f"me/{variant}", params={"market": "from_token"},
+        ).get("items", [])
+        if variant == "tracks":
+            return list(translator.web_to_track_refs(items))
+        else:
+            return list(translator.web_to_album_refs(items))
     else:
         return []

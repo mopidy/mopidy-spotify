@@ -1,5 +1,6 @@
 import pytest
 from mopidy import models
+from unittest.mock import patch
 
 import spotify
 from mopidy_spotify import translator
@@ -274,14 +275,17 @@ class TestToTrackRef:
 
 
 class TestValidWebData(object):
-    def test_returns_none_if_missing_type(self, web_track_mock):
+    def test_returns_false_if_empty(self):
+        assert translator.valid_web_data({}, "track") is False
+
+    def test_returns_false_if_missing_type(self, web_track_mock):
         del web_track_mock["type"]
         assert translator.valid_web_data(web_track_mock, "track") is False
 
-    def test_returns_none_if_wrong_type(self, web_track_mock):
+    def test_returns_false_if_wrong_type(self, web_track_mock):
         assert translator.valid_web_data(web_track_mock, "playlist") is False
 
-    def test_returns_none_if_missing_uri(self, web_track_mock):
+    def test_returns_false_if_missing_uri(self, web_track_mock):
         del web_track_mock["uri"]
         assert translator.valid_web_data(web_track_mock, "track") is False
 
@@ -289,27 +293,65 @@ class TestValidWebData(object):
         assert translator.valid_web_data(web_track_mock, "track") is True
 
 
+class TestWebToAlbumRef:
+    def test_returns_none_if_invalid(self, web_album_mock):
+        with patch.object(translator, "valid_web_data", return_value=False):
+            assert translator.web_to_album_ref(web_album_mock) is None
+
+    def test_returns_none_if_wrong_type(self, web_album_mock):
+        web_album_mock["type"] = "playlist"
+
+        assert translator.web_to_album_ref(web_album_mock) is None
+
+    def test_successful_translation(self, web_album_mock):
+        ref = translator.web_to_album_ref(web_album_mock)
+
+        assert ref.type == models.Ref.ALBUM
+        assert ref.uri == "spotify:album:def"
+        assert ref.name == "DEF 456"
+
+
+class TestWebToAlbumRefs:
+    def test_returns_albums(self, web_album_mock):
+        web_albums = [{"album": web_album_mock}] * 3
+        refs = list(translator.web_to_album_refs(web_albums))
+
+        assert refs == [refs[0], refs[0], refs[0]]
+
+        assert refs[0].type == models.Ref.ALBUM
+        assert refs[0].uri == "spotify:album:def"
+        assert refs[0].name == "DEF 456"
+
+    def test_returns_bare_albums(self, web_album_mock):
+        web_albums = [web_album_mock] * 3
+        refs = list(translator.web_to_album_refs(web_albums))
+
+        assert refs == [refs[0], refs[0], refs[0]]
+
+        assert refs[0].type == models.Ref.ALBUM
+        assert refs[0].uri == "spotify:album:def"
+        assert refs[0].name == "DEF 456"
+
+    def test_bad_albums_filtered(self, web_album_mock, web_artist_mock):
+        refs = list(
+            translator.web_to_album_refs([{}, web_album_mock, web_artist_mock])
+        )
+
+        assert len(refs) == 1
+
+        assert refs[0].type == models.Ref.ALBUM
+        assert refs[0].uri == "spotify:album:def"
+
+
 class TestWebToTrackRef:
-    def test_returns_none_if_unloaded(self):
-        web_track_mock = {}
-
-        ref = translator.web_to_track_ref(web_track_mock)
-
-        assert ref is None
+    def test_returns_none_if_invalid(self, web_track_mock):
+        with patch.object(translator, "valid_web_data", return_value=False):
+            assert translator.web_to_track_ref(web_track_mock) is None
 
     def test_returns_none_if_wrong_type(self, web_track_mock):
         web_track_mock["type"] = "playlist"
 
-        ref = translator.web_to_track_ref(web_track_mock)
-
-        assert ref is None
-
-    def test_returns_none_if_missing_uri(self, web_track_mock):
-        del web_track_mock["uri"]
-
-        ref = translator.web_to_track_ref(web_track_mock)
-
-        assert ref is None
+        assert translator.web_to_track_ref(web_track_mock) is None
 
     def test_returns_none_if_not_playable(self, web_track_mock, caplog):
         web_track_mock["is_playable"] = False
@@ -393,12 +435,9 @@ class TestWebToTrackRefs:
 
 
 class TestToPlaylist:
-    def test_returns_none_if_unloaded(self):
-        web_playlist = {}
-
-        playlist = translator.to_playlist(web_playlist)
-
-        assert playlist is None
+    def test_returns_none_if_invalid(self, web_playlist_mock):
+        with patch.object(translator, "valid_web_data", return_value=False):
+            assert translator.to_playlist(web_playlist_mock) is None
 
     def test_returns_none_if_wrong_type(self, web_playlist_mock):
         web_playlist_mock["type"] = "track"
@@ -458,12 +497,9 @@ class TestToPlaylist:
 
 
 class TestToPlaylistRef:
-    def test_returns_none_if_unloaded(self):
-        web_playlist = {}
-
-        ref = translator.to_playlist_ref(web_playlist)
-
-        assert ref is None
+    def test_returns_none_if_invalid(self, web_playlist_mock):
+        with patch.object(translator, "valid_web_data", return_value=False):
+            assert translator.to_playlist_ref(web_playlist_mock) is None
 
     def test_returns_none_if_wrong_type(self, web_playlist_mock):
         web_playlist_mock["type"] = "track"

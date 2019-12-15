@@ -105,6 +105,22 @@ def to_album_refs(sp_albums, timeout=None):
             yield ref
 
 
+def web_to_album_ref(web_album):
+    if not valid_web_data(web_album, "album"):
+        return
+
+    return models.Ref.album(uri=web_album["uri"], name=web_album.get("name"))
+
+
+def web_to_album_refs(web_albums):
+    for web_album in web_albums:
+        # The extra level here is to also support "saved album objects".
+        web_album = web_album.get("album", web_album)
+        ref = web_to_album_ref(web_album)
+        if ref is not None:
+            yield ref
+
+
 @memoized
 def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
@@ -179,6 +195,7 @@ def web_to_track_ref(web_track, *, check_playable=True):
 
 def web_to_track_refs(web_tracks, *, check_playable=True):
     for web_track in web_tracks:
+        # The extra level here is to also support "saved track objects".
         web_track = web_track.get("track", web_track)
         ref = web_to_track_ref(web_track, check_playable=check_playable)
         if ref is not None:
