@@ -68,7 +68,7 @@ class OAuthClient:
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
             logger.debug("Blocking request as previous authorization failed.")
-            return {}
+            return WebResponse(None, None)
 
         params = kwargs.pop("params", None)
         path = self._normalise_query_string(path, params)
@@ -89,14 +89,18 @@ class OAuthClient:
                 self._refresh_token()
         except OAuthTokenRefreshError as e:
             logger.error(e)
-            return {}
+            return WebResponse(None, None)
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault("headers", {}).update(self._headers)
         result = self._request_with_retries("GET", path, *args, **kwargs)
 
         if result is None or "error" in result:
-            return {}
+            logger.error(
+                "Spotify Web API request failed: "
+                f"{result.get('error','Unknown')}"
+            )
+            return WebResponse(None, None)
 
         if self._should_cache_response(cache, result):
             previous_result = cache.get(path)
@@ -457,6 +461,8 @@ class SpotifyOAuthClient(OAuthClient):
 
         more_tracks = []
         for page in track_pages:
+            if "items" not in page:
+                return {}
             more_tracks += page.get("items", [])
         if more_tracks:
             # Take a copy to avoid changing the cached response.
