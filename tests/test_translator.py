@@ -1,3 +1,4 @@
+import pytest
 from mopidy import models
 
 import spotify
@@ -55,6 +56,39 @@ class TestToArtistRef:
         ref2 = translator.to_artist_ref(sp_artist_mock)
 
         assert ref1 is ref2
+
+
+class TestWebToArtistRef:
+    @pytest.mark.parametrize(
+        "web_data",
+        [
+            ({}),
+            ({"type": "artist"}),
+            ({"uri": "spotify:artist:abba", "type": "track"}),
+        ],
+    )
+    def test_returns_none_if_bad_data(self, web_data):
+        assert translator.web_to_artist_ref(web_data) is None
+
+    def test_successful_translation(self, web_artist_mock):
+        ref = translator.web_to_artist_ref(web_artist_mock)
+
+        assert ref.type == "artist"
+        assert ref.uri == "spotify:artist:abba"
+        assert ref.name == "ABBA"
+
+
+class TestWebToArtistRefs:
+    def test_bad_artists_filtered(self, web_artist_mock, web_track_mock):
+        refs = list(
+            translator.web_to_artist_refs([{}, web_artist_mock, web_track_mock])
+        )
+
+        assert len(refs) == 1
+
+        assert refs[0].type == "artist"
+        assert refs[0].uri == "spotify:artist:abba"
+        assert refs[0].name == "ABBA"
 
 
 class TestToAlbum:
@@ -285,6 +319,15 @@ class TestWebToTrackRef:
         assert ref is None
         assert "'spotify:track:abc' is not playable" in caplog.text
 
+    def test_ignore_missing_is_playable(self, web_track_mock):
+        del web_track_mock["is_playable"]
+
+        ref = translator.web_to_track_ref(web_track_mock, check_playable=False)
+
+        assert ref.type == models.Ref.TRACK
+        assert ref.uri == "spotify:track:abc"
+        assert ref.name == "ABC 123"
+
     def test_successful_translation(self, web_track_mock):
         ref = translator.web_to_track_ref(web_track_mock)
 
@@ -298,6 +341,55 @@ class TestWebToTrackRef:
         ref = translator.web_to_track_ref(web_track_mock)
 
         assert ref.uri == "spotify:track:xyz"
+
+
+class TestWebToTrackRefs:
+    def test_returns_playlist_tracks(self, web_track_mock):
+        web_tracks = [{"track": web_track_mock}] * 3
+        refs = list(translator.web_to_track_refs(web_tracks))
+
+        assert refs == [refs[0], refs[0], refs[0]]
+
+        assert refs[0].type == models.Ref.TRACK
+        assert refs[0].uri == "spotify:track:abc"
+        assert refs[0].name == "ABC 123"
+
+    def test_returns_top_list_tracks(self, web_track_mock):
+        web_tracks = [web_track_mock] * 3
+        refs = list(translator.web_to_track_refs(web_tracks))
+
+        assert refs == [refs[0], refs[0], refs[0]]
+
+        assert refs[0].type == models.Ref.TRACK
+        assert refs[0].uri == "spotify:track:abc"
+        assert refs[0].name == "ABC 123"
+
+    def test_bad_tracks_filtered(self, web_artist_mock, web_track_mock):
+        refs = list(
+            translator.web_to_track_refs([{}, web_track_mock, web_artist_mock])
+        )
+
+        assert len(refs) == 1
+
+        assert refs[0].type == models.Ref.TRACK
+        assert refs[0].uri == "spotify:track:abc"
+
+    def test_check_playable_default(self, web_track_mock):
+        del web_track_mock["is_playable"]
+        refs = list(translator.web_to_track_refs([web_track_mock]))
+
+        assert refs == []
+
+    def test_dont_check_playable(self, web_track_mock):
+        del web_track_mock["is_playable"]
+        refs = list(
+            translator.web_to_track_refs([web_track_mock], check_playable=False)
+        )
+
+        assert len(refs) == 1
+
+        assert refs[0].type == models.Ref.TRACK
+        assert refs[0].uri == "spotify:track:abc"
 
 
 class TestToPlaylist:
