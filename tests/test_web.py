@@ -769,6 +769,17 @@ class TestSpotifyOAuthClient:
         assert "Failed to load Spotify user profile" in caplog.text
 
     @responses.activate
+    def test_get_one_error(self, spotify_client, caplog):
+        responses.add(
+            responses.GET, self.url("foo"), json={"error": "bar"},
+        )
+
+        result = spotify_client.get_one("foo", json={})
+
+        assert result == {}
+        assert "Spotify Web API request failed: bar" in caplog.text
+
+    @responses.activate
     def test_get_one_cached(self, spotify_client):
         responses.add(responses.GET, self.url("foo"))
 
@@ -895,6 +906,35 @@ class TestSpotifyOAuthClient:
         )
 
     @responses.activate
+    def test_get_playlist_error(self, spotify_client, caplog):
+        responses.add(
+            responses.GET, self.url("playlists/foo"), json={"error": "bar"},
+        )
+
+        result = spotify_client.get_playlist("spotify:playlist:foo")
+
+        assert result == {}
+        assert "Spotify Web API request failed: bar" in caplog.text
+
+    @responses.activate
+    def test_get_playlist_tracks_error(self, spotify_client, caplog):
+        responses.add(
+            responses.GET,
+            self.url("playlists/foo"),
+            json={"tracks": {"next": "playlists/foo/tracks1"}},
+        )
+        responses.add(
+            responses.GET,
+            self.url("playlists/foo/tracks1"),
+            json={"error": "baz"},
+        )
+
+        result = spotify_client.get_playlist("spotify:playlist:foo")
+
+        assert result == {}
+        assert "Spotify Web API request failed: baz" in caplog.text
+
+    @responses.activate
     def test_get_playlist_sets_params_for_tracks(self, spotify_client):
         responses.add(
             responses.GET,
@@ -904,7 +944,7 @@ class TestSpotifyOAuthClient:
         responses.add(
             responses.GET,
             self.url("playlists/foo/tracks1"),
-            json={"next": "playlists/foo/tracks2"},
+            json={"next": "playlists/foo/tracks2", "items": []},
         )
         responses.add(responses.GET, self.url("playlists/foo/tracks2"), json={})
 
