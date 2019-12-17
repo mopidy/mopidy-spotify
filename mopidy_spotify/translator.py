@@ -54,7 +54,8 @@ def web_to_artist_ref(web_artist):
     if not valid_web_data(web_artist, "artist"):
         return
 
-    return models.Ref.artist(uri=web_artist["uri"], name=web_artist.get("name"))
+    uri = web_artist["uri"]
+    return models.Ref.artist(uri=uri, name=web_artist.get("name", uri))
 
 
 def web_to_artist_refs(web_artists):
@@ -109,7 +110,8 @@ def web_to_album_ref(web_album):
     if not valid_web_data(web_album, "album"):
         return
 
-    return models.Ref.album(uri=web_album["uri"], name=web_album.get("name"))
+    uri = web_album["uri"]
+    return models.Ref.album(uri=uri, name=web_album.get("name", uri))
 
 
 def web_to_album_refs(web_albums):
@@ -190,7 +192,7 @@ def web_to_track_ref(web_track, *, check_playable=True):
         logger.debug(f"{uri!r} is not playable")
         return
 
-    return models.Ref.track(uri=uri, name=web_track.get("name"))
+    return models.Ref.track(uri=uri, name=web_track.get("name", uri))
 
 
 def web_to_track_refs(web_tracks, *, check_playable=True):
@@ -205,39 +207,37 @@ def web_to_track_refs(web_tracks, *, check_playable=True):
 def to_playlist(
     web_playlist, username=None, bitrate=None, as_ref=False, as_items=False,
 ):
-    if not valid_web_data(web_playlist, "playlist"):
-        return
+    ref = to_playlist_ref(web_playlist, username)
+    if ref is None or as_ref:
+        return ref
 
     web_tracks = web_playlist.get("tracks", {}).get("items", [])
-    if (as_items or not as_ref) and not isinstance(web_tracks, list):
+    if as_items and not isinstance(web_tracks, list):
         return
 
     if as_items:
         return list(web_to_track_refs(web_tracks))
 
-    name = web_playlist.get("name")
+    tracks = [
+        web_to_track(web_track.get("track", {}), bitrate=bitrate)
+        for web_track in web_tracks
+    ]
+    tracks = [t for t in tracks if t]
 
-    if not as_ref:
-        tracks = [
-            web_to_track(web_track.get("track", {}), bitrate=bitrate)
-            for web_track in web_tracks
-        ]
-        tracks = [t for t in tracks if t]
+    return models.Playlist(uri=ref.uri, name=ref.name, tracks=tracks)
+
+
+def to_playlist_ref(web_playlist, username=None):
+    if not valid_web_data(web_playlist, "playlist"):
+        return
+
+    name = web_playlist.get("name", web_playlist["uri"])
 
     owner = web_playlist.get("owner", {}).get("id", username)
     if username is not None and owner != username:
         name = f"{name} (by {owner})"
 
-    if as_ref:
-        return models.Ref.playlist(uri=web_playlist["uri"], name=name)
-    else:
-        return models.Playlist(
-            uri=web_playlist["uri"], name=name, tracks=tracks
-        )
-
-
-def to_playlist_ref(web_playlist, username=None):
-    return to_playlist(web_playlist, username=username, as_ref=True)
+    return models.Ref.playlist(uri=web_playlist["uri"], name=name)
 
 
 # Maps from Mopidy search query field to Spotify search query field.
@@ -283,14 +283,16 @@ def _transform_year(date):
 
 
 def web_to_artist(web_artist):
-    if not valid_web_data(web_artist, "artist"):
+    ref = web_to_artist_ref(web_artist)
+    if ref is None:
         return
 
-    return models.Artist(uri=web_artist["uri"], name=web_artist.get("name"))
+    return models.Artist(uri=ref.uri, name=ref.name)
 
 
 def web_to_album(web_album):
-    if not valid_web_data(web_album, "album"):
+    ref = web_to_album_ref(web_album)
+    if ref is None:
         return
 
     artists = [
@@ -298,9 +300,7 @@ def web_to_album(web_album):
     ]
     artists = [a for a in artists if a]
 
-    return models.Album(
-        uri=web_album["uri"], name=web_album.get("name"), artists=artists
-    )
+    return models.Album(uri=ref.uri, name=ref.name, artists=artists)
 
 
 def web_to_track(web_track, bitrate=None):
