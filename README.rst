@@ -34,9 +34,8 @@ way for us to provide some Spotify features.
 Limitations and/or bugs in ``libspotify`` currently result in missing/broken
 Mopidy-Spotify support for the following:
 
-- My Music (`#16 <https://github.com/mopidy/mopidy-spotify/issues/16>`_,
-  `#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) - available via
-  web API
+- Saving items to My Music (`#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) -
+  possible via web API
 
 - Podcasts (`#201 <https://github.com/mopidy/mopidy-spotify/issues/201>`_) -
   unavailable
@@ -52,9 +51,9 @@ Working support for the following features is currently available:
 
 - Search
 
-- Playlists
+- Playlists (read-only)
 
-- Top lists
+- Top lists and Your Music (read-only)
 
 - Lookup by URI
 

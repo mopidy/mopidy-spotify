@@ -1,5 +1,7 @@
 import pytest
 from mopidy import models
+from unittest import mock
+from unittest.mock import patch, sentinel
 
 import spotify
 from mopidy_spotify import translator
@@ -76,6 +78,13 @@ class TestWebToArtistRef:
         assert ref.type == "artist"
         assert ref.uri == "spotify:artist:abba"
         assert ref.name == "ABBA"
+
+    def test_without_name_uses_uri(self, web_artist_mock):
+        del web_artist_mock["name"]
+
+        ref = translator.web_to_artist_ref(web_artist_mock)
+
+        assert ref.name == "spotify:artist:abba"
 
 
 class TestWebToArtistRefs:
@@ -274,14 +283,17 @@ class TestToTrackRef:
 
 
 class TestValidWebData(object):
-    def test_returns_none_if_missing_type(self, web_track_mock):
+    def test_returns_false_if_empty(self):
+        assert translator.valid_web_data({}, "track") is False
+
+    def test_returns_false_if_missing_type(self, web_track_mock):
         del web_track_mock["type"]
         assert translator.valid_web_data(web_track_mock, "track") is False
 
-    def test_returns_none_if_wrong_type(self, web_track_mock):
+    def test_returns_false_if_wrong_type(self, web_track_mock):
         assert translator.valid_web_data(web_track_mock, "playlist") is False
 
-    def test_returns_none_if_missing_uri(self, web_track_mock):
+    def test_returns_false_if_missing_uri(self, web_track_mock):
         del web_track_mock["uri"]
         assert translator.valid_web_data(web_track_mock, "track") is False
 
@@ -289,27 +301,72 @@ class TestValidWebData(object):
         assert translator.valid_web_data(web_track_mock, "track") is True
 
 
+class TestWebToAlbumRef:
+    def test_returns_none_if_invalid(self, web_album_mock):
+        with patch.object(translator, "valid_web_data", return_value=False):
+            assert translator.web_to_album_ref(web_album_mock) is None
+
+    def test_returns_none_if_wrong_type(self, web_album_mock):
+        web_album_mock["type"] = "playlist"
+
+        assert translator.web_to_album_ref(web_album_mock) is None
+
+    def test_successful_translation(self, web_album_mock):
+        ref = translator.web_to_album_ref(web_album_mock)
+
+        assert ref.type == models.Ref.ALBUM
+        assert ref.uri == "spotify:album:def"
+        assert ref.name == "DEF 456"
+
+    def test_without_name_uses_uri(self, web_album_mock):
+        del web_album_mock["name"]
+
+        ref = translator.web_to_album_ref(web_album_mock)
+
+        assert ref.name == "spotify:album:def"
+
+
+class TestWebToAlbumRefs:
+    def test_returns_albums(self, web_album_mock):
+        web_albums = [{"album": web_album_mock}] * 3
+        refs = list(translator.web_to_album_refs(web_albums))
+
+        assert refs == [refs[0], refs[0], refs[0]]
+
+        assert refs[0].type == models.Ref.ALBUM
+        assert refs[0].uri == "spotify:album:def"
+        assert refs[0].name == "DEF 456"
+
+    def test_returns_bare_albums(self, web_album_mock):
+        web_albums = [web_album_mock] * 3
+        refs = list(translator.web_to_album_refs(web_albums))
+
+        assert refs == [refs[0], refs[0], refs[0]]
+
+        assert refs[0].type == models.Ref.ALBUM
+        assert refs[0].uri == "spotify:album:def"
+        assert refs[0].name == "DEF 456"
+
+    def test_bad_albums_filtered(self, web_album_mock, web_artist_mock):
+        refs = list(
+            translator.web_to_album_refs([{}, web_album_mock, web_artist_mock])
+        )
+
+        assert len(refs) == 1
+
+        assert refs[0].type == models.Ref.ALBUM
+        assert refs[0].uri == "spotify:album:def"
+
+
 class TestWebToTrackRef:
-    def test_returns_none_if_unloaded(self):
-        web_track_mock = {}
-
-        ref = translator.web_to_track_ref(web_track_mock)
-
-        assert ref is None
+    def test_returns_none_if_invalid(self, web_track_mock):
+        with patch.object(translator, "valid_web_data", return_value=False):
+            assert translator.web_to_track_ref(web_track_mock) is None
 
     def test_returns_none_if_wrong_type(self, web_track_mock):
         web_track_mock["type"] = "playlist"
 
-        ref = translator.web_to_track_ref(web_track_mock)
-
-        assert ref is None
-
-    def test_returns_none_if_missing_uri(self, web_track_mock):
-        del web_track_mock["uri"]
-
-        ref = translator.web_to_track_ref(web_track_mock)
-
-        assert ref is None
+        assert translator.web_to_track_ref(web_track_mock) is None
 
     def test_returns_none_if_not_playable(self, web_track_mock, caplog):
         web_track_mock["is_playable"] = False
@@ -334,6 +391,13 @@ class TestWebToTrackRef:
         assert ref.type == models.Ref.TRACK
         assert ref.uri == "spotify:track:abc"
         assert ref.name == "ABC 123"
+
+    def test_without_name_uses_uri(self, web_track_mock):
+        del web_track_mock["name"]
+
+        ref = translator.web_to_track_ref(web_track_mock)
+
+        assert ref.name == "spotify:track:abc"
 
     def test_uri_uses_relinked_from_uri(self, web_track_mock):
         web_track_mock["linked_from"] = {"uri": "spotify:track:xyz"}
@@ -393,19 +457,23 @@ class TestWebToTrackRefs:
 
 
 class TestToPlaylist:
-    def test_returns_none_if_unloaded(self):
-        web_playlist = {}
+    def test_calls_to_playlist_ref(self, web_playlist_mock):
+        ref_mock = mock.Mock(spec=models.Ref.playlist)
+        ref_mock.uri = str(sentinel.uri)
+        ref_mock.name = str(sentinel.name)
 
-        playlist = translator.to_playlist(web_playlist)
+        with patch.object(
+            translator, "to_playlist_ref", return_value=ref_mock
+        ) as ref_func_mock:
+            playlist = translator.to_playlist(web_playlist_mock)
+            ref_func_mock.assert_called_once_with(web_playlist_mock, mock.ANY)
 
-        assert playlist is None
+        assert playlist.uri == str(sentinel.uri)
+        assert playlist.name == str(sentinel.name)
 
-    def test_returns_none_if_wrong_type(self, web_playlist_mock):
-        web_playlist_mock["type"] = "track"
-
-        playlist = translator.to_playlist(web_playlist_mock)
-
-        assert playlist is None
+    def test_returns_none_if_invalid_ref(self, web_playlist_mock):
+        with patch.object(translator, "to_playlist_ref", return_value=None):
+            assert translator.to_playlist(web_playlist_mock) is None
 
     def test_successful_translation(self, web_track_mock, web_playlist_mock):
         track = translator.web_to_track(web_track_mock)
@@ -439,15 +507,6 @@ class TestToPlaylist:
 
         assert len(items) == 0
 
-    def test_includes_by_owner_in_name_if_owned_by_another_user(
-        self, web_playlist_mock
-    ):
-        web_playlist_mock["owner"]["id"] = "bob"
-
-        playlist = translator.to_playlist(web_playlist_mock, username="alice")
-
-        assert playlist.name == "Foo (by bob)"
-
     def test_filters_out_none_tracks(self, web_track_mock, web_playlist_mock):
         del web_track_mock["type"]
 
@@ -458,12 +517,9 @@ class TestToPlaylist:
 
 
 class TestToPlaylistRef:
-    def test_returns_none_if_unloaded(self):
-        web_playlist = {}
-
-        ref = translator.to_playlist_ref(web_playlist)
-
-        assert ref is None
+    def test_returns_none_if_invalid(self, web_playlist_mock):
+        with patch.object(translator, "valid_web_data", return_value=False):
+            assert translator.to_playlist_ref(web_playlist_mock) is None
 
     def test_returns_none_if_wrong_type(self, web_playlist_mock):
         web_playlist_mock["type"] = "track"
@@ -477,6 +533,13 @@ class TestToPlaylistRef:
 
         assert ref.uri == "spotify:user:alice:playlist:foo"
         assert ref.name == "Foo"
+
+    def test_without_name_uses_uri(self, web_playlist_mock):
+        del web_playlist_mock["name"]
+
+        ref = translator.to_playlist_ref(web_playlist_mock)
+
+        assert ref.name == "spotify:user:alice:playlist:foo"
 
     def test_success_without_track_data(self, web_playlist_mock):
         del web_playlist_mock["tracks"]
@@ -570,6 +633,24 @@ class TestSpotifySearchQuery:
 
 
 class TestWebToArtist:
+    def test_calls_web_to_artist_ref(self, web_artist_mock):
+        ref_mock = mock.Mock(spec=models.Ref.artist)
+        ref_mock.uri = str(sentinel.uri)
+        ref_mock.name = str(sentinel.name)
+
+        with patch.object(
+            translator, "web_to_artist_ref", return_value=ref_mock
+        ) as ref_func_mock:
+            artist = translator.web_to_artist(web_artist_mock)
+            ref_func_mock.assert_called_once_with(web_artist_mock)
+
+        assert artist.uri == str(sentinel.uri)
+        assert artist.name == str(sentinel.name)
+
+    def test_returns_none_if_invalid_ref(self, web_artist_mock):
+        with patch.object(translator, "web_to_artist_ref", return_value=None):
+            assert translator.to_playlist(web_artist_mock) is None
+
     def test_successful_translation(self, web_artist_mock):
         artist = translator.web_to_artist(web_artist_mock)
 
@@ -578,6 +659,24 @@ class TestWebToArtist:
 
 
 class TestWebToAlbum:
+    def test_calls_web_to_album_ref(self, web_album_mock):
+        ref_mock = mock.Mock(spec=models.Ref.album)
+        ref_mock.uri = str(sentinel.uri)
+        ref_mock.name = str(sentinel.name)
+
+        with patch.object(
+            translator, "web_to_album_ref", return_value=ref_mock
+        ) as ref_func_mock:
+            album = translator.web_to_album(web_album_mock)
+            ref_func_mock.assert_called_once_with(web_album_mock)
+
+        assert album.uri == str(sentinel.uri)
+        assert album.name == str(sentinel.name)
+
+    def test_returns_none_if_invalid_ref(self, web_album_mock):
+        with patch.object(translator, "web_to_album_ref", return_value=None):
+            assert translator.web_to_album(web_album_mock) is None
+
     def test_successful_translation(self, web_album_mock):
         album = translator.web_to_album(web_album_mock)
 
@@ -589,6 +688,24 @@ class TestWebToAlbum:
 
 
 class TestWebToTrack:
+    def test_calls_web_to_track_ref(self, web_track_mock):
+        ref_mock = mock.Mock(spec=models.Ref.track)
+        ref_mock.uri = str(sentinel.uri)
+        ref_mock.name = str(sentinel.name)
+
+        with patch.object(
+            translator, "web_to_track_ref", return_value=ref_mock
+        ) as ref_func_mock:
+            track = translator.web_to_track(web_track_mock)
+            ref_func_mock.assert_called_once_with(web_track_mock)
+
+        assert track.uri == str(sentinel.uri)
+        assert track.name == str(sentinel.name)
+
+    def test_returns_none_if_invalid_ref(self, web_track_mock):
+        with patch.object(translator, "web_to_track_ref", return_value=None):
+            assert translator.web_to_track(web_track_mock) is None
+
     def test_successful_translation(self, web_track_mock):
         track = translator.web_to_track(web_track_mock)
 
