@@ -26,6 +26,8 @@ def get_images(web_client, uris):
         for uri in group:
             if uri["key"] in _cache:
                 result[uri["uri"]] = _cache[uri["key"]]
+            elif uri_type == "playlist":
+                result.update(_process_uri(web_client, uri))
             else:
                 batch.append(uri)
                 if len(batch) >= _API_MAX_IDS_PER_REQUEST:
@@ -45,7 +47,8 @@ def _parse_uri(uri):
         if parsed_uri.netloc in ("open.spotify.com", "play.spotify.com"):
             uri_type, uri_id = parsed_uri.path.split("/")[1:3]
 
-    if uri_type and uri_type in ("track", "album", "artist") and uri_id:
+    supported_types = ("track", "album", "artist", "playlist")
+    if uri_type and uri_type in supported_types and uri_id:
         return {
             "uri": uri,
             "type": uri_type,
@@ -54,6 +57,12 @@ def _parse_uri(uri):
         }
 
     raise ValueError(f"Could not parse {repr(uri)} as a Spotify URI")
+
+
+def _process_uri(web_client, uri):
+    data = web_client.get(f"{uri['type']}s/{uri['id']}")
+    _cache[uri["key"]] = tuple(_translate_image(i) for i in data["images"])
+    return {uri["uri"]: _cache[uri["key"]]}
 
 
 def _process_uris(web_client, uri_type, uris):

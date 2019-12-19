@@ -131,6 +131,31 @@ def test_get_track_images(web_client_mock, img_provider):
     assert image.width == 640
 
 
+def test_get_playlist_image(web_client_mock, img_provider):
+    uris = ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
+
+    web_client_mock.get.return_value = {
+        "id": "41shEpOKyyadtG6lDclooa",
+        "images": [{"height": 640, "url": "img://1/a", "width": 640}],
+    }
+
+    result = img_provider.get_images(uris)
+
+    web_client_mock.get.assert_called_once_with(
+        "playlists/41shEpOKyyadtG6lDclooa"
+    )
+
+    assert len(result) == 1
+    assert sorted(result.keys()) == sorted(uris)
+    assert len(result[uris[0]]) == 1
+
+    image = result[uris[0]][0]
+    assert isinstance(image, models.Image)
+    assert image.uri == "img://1/a"
+    assert image.height == 640
+    assert image.width == 640
+
+
 def test_results_are_cached(web_client_mock, img_provider):
     uris = [
         "spotify:track:41shEpOKyyadtG6lDclooa",
