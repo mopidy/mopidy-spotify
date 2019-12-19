@@ -77,7 +77,12 @@ def _process_uris(web_client, uri_type, uris):
     for item in data.get(uri_type + "s", []):
         if not item:
             continue
-        uri = ids_to_uris[item["id"]]
+
+        if "linked_from" in item:
+            uri = ids_to_uris[item["linked_from"]["id"]]
+        else:
+            uri = ids_to_uris[item["id"]]
+
         if uri["key"] not in _cache:
             if uri_type == "track":
                 album_key = _parse_uri(item["album"]["uri"])["key"]

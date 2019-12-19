@@ -131,6 +131,47 @@ def test_get_track_images(web_client_mock, img_provider):
     assert image.width == 640
 
 
+def test_get_relinked_track_images(web_client_mock, img_provider):
+    uris = [
+        "spotify:track:4nqN0p0FjfH39G3hxeuKad",
+    ]
+
+    web_client_mock.get.return_value = {
+        "tracks": [
+            {
+                "id" : "39S0DVDKeneEjsq4pV45PT",
+                "linked_from" : {
+                    "id" : "4nqN0p0FjfH39G3hxeuKad",
+                    "type" : "track",
+                    "uri" : "spotify:track:4nqN0p0FjfH39G3hxeuKad"
+                },
+                "album": {
+                    "uri": "spotify:album:1utFPuvgBHXzLJdqhCDOkg",
+                    "images": [
+                        {"height": 640, "url": "img://1/a", "width": 640}
+                    ],
+                },
+            }
+        ]
+    }
+
+    result = img_provider.get_images(uris)
+
+    web_client_mock.get.assert_called_once_with(
+        "tracks", params={"ids": "4nqN0p0FjfH39G3hxeuKad"}
+    )
+
+    assert len(result) == 1
+    assert sorted(result.keys()) == sorted(uris)
+    assert len(result[uris[0]]) == 1
+
+    image = result[uris[0]][0]
+    assert isinstance(image, models.Image)
+    assert image.uri == "img://1/a"
+    assert image.height == 640
+    assert image.width == 640
+
+
 def test_get_playlist_image(web_client_mock, img_provider):
     uris = ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
 
