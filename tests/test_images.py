@@ -65,9 +65,7 @@ def test_get_artist_images(web_client_mock, img_provider):
 
 
 def test_get_album_images(web_client_mock, img_provider):
-    uris = [
-        "http://play.spotify.com/album/1utFPuvgBHXzLJdqhCDOkg",
-    ]
+    uris = ["http://play.spotify.com/album/1utFPuvgBHXzLJdqhCDOkg"]
 
     web_client_mock.get.return_value = {
         "albums": [
@@ -96,9 +94,7 @@ def test_get_album_images(web_client_mock, img_provider):
 
 
 def test_get_track_images(web_client_mock, img_provider):
-    uris = [
-        "spotify:track:41shEpOKyyadtG6lDclooa",
-    ]
+    uris = ["spotify:track:41shEpOKyyadtG6lDclooa"]
 
     web_client_mock.get.return_value = {
         "tracks": [
@@ -132,18 +128,16 @@ def test_get_track_images(web_client_mock, img_provider):
 
 
 def test_get_relinked_track_images(web_client_mock, img_provider):
-    uris = [
-        "spotify:track:4nqN0p0FjfH39G3hxeuKad",
-    ]
+    uris = ["spotify:track:4nqN0p0FjfH39G3hxeuKad"]
 
     web_client_mock.get.return_value = {
         "tracks": [
             {
-                "id" : "39S0DVDKeneEjsq4pV45PT",
-                "linked_from" : {
-                    "id" : "4nqN0p0FjfH39G3hxeuKad",
-                    "type" : "track",
-                    "uri" : "spotify:track:4nqN0p0FjfH39G3hxeuKad"
+                "id": "39S0DVDKeneEjsq4pV45PT",
+                "linked_from": {
+                    "id": "4nqN0p0FjfH39G3hxeuKad",
+                    "type": "track",
+                    "uri": "spotify:track:4nqN0p0FjfH39G3hxeuKad",
                 },
                 "album": {
                     "uri": "spotify:album:1utFPuvgBHXzLJdqhCDOkg",
@@ -198,9 +192,7 @@ def test_get_playlist_image(web_client_mock, img_provider):
 
 
 def test_results_are_cached(web_client_mock, img_provider):
-    uris = [
-        "spotify:track:41shEpOKyyadtG6lDclooa",
-    ]
+    uris = ["spotify:track:41shEpOKyyadtG6lDclooa"]
 
     web_client_mock.get.return_value = {
         "tracks": [
