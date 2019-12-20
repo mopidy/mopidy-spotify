@@ -9,7 +9,12 @@ v4.0.0a3 (UNRELEASED)
 Alpha release.
 
 - Use the Spotify Web API for personal top lists. (PR: #237)
+
 - Use the Spotify Web API to support browsing Your Music. (#16, PR: #238)
+
+- Use the Spotify web API to fetch playlist images. (#100, PR: #243)
+
+- Fix fetching of track images when track is relinked. (#171, #244, PR: #245)
 
 
 v4.0.0a2 (2019-12-12)
@@ -17,8 +22,8 @@ v4.0.0a2 (2019-12-12)
 
 Alpha release.
 
-- Use the Spotify Web API for playlists. (#122, #133, #140, #182, #213, PR:
-  #235)
+- Use the Spotify Web API for playlists. (#122, #133, #140, #156, #182, #213,
+  #226, PR: #235)
 
 
 v4.0.0a1 (2019-11-18)
