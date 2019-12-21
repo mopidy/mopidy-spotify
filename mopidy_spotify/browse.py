@@ -3,7 +3,7 @@ import logging
 from mopidy import models
 
 import spotify
-from mopidy_spotify import countries, translator
+from mopidy_spotify import countries, playlists, translator
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +11,12 @@ ROOT_DIR = models.Ref.directory(uri="spotify:directory", name="Spotify")
 
 _TOP_LIST_DIR = models.Ref.directory(uri="spotify:top", name="Top lists")
 _YOUR_MUSIC_DIR = models.Ref.directory(uri="spotify:your", name="Your music")
+_PLAYLISTS_DIR = models.Ref.directory(uri="spotify:playlists", name="Playlists")
 
 _ROOT_DIR_CONTENTS = [
     _TOP_LIST_DIR,
     _YOUR_MUSIC_DIR,
+    _PLAYLISTS_DIR,
 ]
 
 _TOP_LIST_DIR_CONTENTS = [
@@ -26,6 +28,10 @@ _TOP_LIST_DIR_CONTENTS = [
 _YOUR_MUSIC_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:your:tracks", name="Your tracks"),
     models.Ref.directory(uri="spotify:your:albums", name="Your albums"),
+]
+
+_PLAYLISTS_DIR_CONTENTS = [
+    models.Ref.directory(uri="spotify:playlists:featured", name="Featured"),
 ]
 
 _TOPLIST_TYPES = {
@@ -47,8 +53,10 @@ def browse(*, config, session, web_client, uri):
         return _TOP_LIST_DIR_CONTENTS
     elif uri == _YOUR_MUSIC_DIR.uri:
         return _YOUR_MUSIC_DIR_CONTENTS
-    elif uri.startswith("spotify:user:"):
-        return _browse_playlist(session, uri, config)
+    elif uri == _PLAYLISTS_DIR.uri:
+        return _PLAYLISTS_DIR_CONTENTS
+    elif uri.startswith("spotify:user:") or uri.startswith("spotify:playlist:"):
+        return _browse_playlist(session, web_client, uri, config)
     elif uri.startswith("spotify:album:"):
         return _browse_album(session, uri, config)
     elif uri.startswith("spotify:artist:"):
@@ -70,16 +78,18 @@ def browse(*, config, session, web_client, uri):
         parts = uri.replace("spotify:your:", "").split(":")
         if len(parts) == 1:
             return _browse_your_music(web_client, variant=parts[0])
+    elif uri.startswith("spotify:playlists:"):
+        parts = uri.replace("spotify:playlists:", "").split(":")
+        if len(parts) == 1:
+            return _browse_playlists(web_client, variant=parts[0])
 
     logger.info(f"Failed to browse {uri!r}: Unknown URI type")
     return []
 
 
-def _browse_playlist(session, uri, config):
-    sp_playlist = session.get_playlist(uri)
-    sp_playlist.load(config["timeout"])
-    return list(
-        translator.to_track_refs(sp_playlist.tracks, timeout=config["timeout"])
+def _browse_playlist(session, web_client, uri, config):
+    return playlists.playlist_lookup(
+        session, web_client, uri, config["bitrate"], as_items=True
     )
 
 
@@ -210,5 +220,20 @@ def _browse_your_music(web_client, variant):
             return list(translator.web_to_track_refs(items))
         else:
             return list(translator.web_to_album_refs(items))
+    else:
+        return []
+
+
+def _browse_playlists(web_client, variant):
+    if not web_client.logged_in:
+        return []
+
+    if variant == "featured":
+        items = (
+            web_client.get_one(f"browse/{variant}")
+            .get("playlists", {})
+            .get("items", [])
+        )
+        return list(translator.to_playlist_refs(items))
     else:
         return []

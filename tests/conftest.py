@@ -5,7 +5,7 @@ from mopidy import backend as backend_api
 from mopidy import models
 
 import spotify
-from mopidy_spotify import backend, library, utils, web
+from mopidy_spotify import backend, library, utils, playlists, web
 
 
 @pytest.yield_fixture()
@@ -428,4 +428,5 @@ def backend_listener_mock():
 
 @pytest.fixture
 def provider(backend_mock):
+    playlists._sp_links.clear()
     return library.SpotifyLibraryProvider(backend_mock)
