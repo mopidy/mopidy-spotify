@@ -25,15 +25,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def _get_flattened_playlist_refs(self):
         if not self._backend._web_client.logged_in:
-            return
+            return []
 
-        web_client = self._backend._web_client
-        for web_playlist in web_client.get_user_playlists():
-            playlist_ref = translator.to_playlist_ref(
-                web_playlist, web_client.user_id
-            )
-            if playlist_ref is not None:
-                yield playlist_ref
+        user_playlists = self._backend._web_client.get_user_playlists()
+        return translator.to_playlist_refs(
+            user_playlists, self._backend._web_client.user_id
+        )
 
     def get_items(self, uri):
         with utils.time_logger(f"playlist.get_items({uri!r})", logging.DEBUG):

@@ -240,6 +240,13 @@ def to_playlist_ref(web_playlist, username=None):
     return models.Ref.playlist(uri=web_playlist["uri"], name=name)
 
 
+def to_playlist_refs(web_playlists, username=None):
+    for web_playlist in web_playlists:
+        ref = to_playlist_ref(web_playlist, username)
+        if ref is not None:
+            yield ref
+
+
 # Maps from Mopidy search query field to Spotify search query field.
 # `None` if there is no matching concept.
 SEARCH_FIELD_MAP = {

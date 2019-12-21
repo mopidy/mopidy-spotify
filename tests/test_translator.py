@@ -559,6 +559,33 @@ class TestToPlaylistRef:
         assert ref.name == "Foo (by bob)"
 
 
+class TestToPlaylistRefs:
+    def test_returns_playlist_refs(self, web_playlist_mock):
+        web_playlists = [web_playlist_mock] * 3
+        refs = list(translator.to_playlist_refs(web_playlists))
+
+        assert refs == [refs[0], refs[0], refs[0]]
+
+        assert refs[0].type == models.Ref.PLAYLIST
+        assert refs[0].uri == "spotify:user:alice:playlist:foo"
+        assert refs[0].name == "Foo"
+
+    def test_bad_playlist_filtered(self, web_playlist_mock):
+        refs = list(
+            translator.to_playlist_refs([{}, web_playlist_mock, {"foo": 1}])
+        )
+
+        assert len(refs) == 1
+
+        assert refs[0].type == models.Ref.PLAYLIST
+        assert refs[0].uri == "spotify:user:alice:playlist:foo"
+
+    def test_passes_username(self, web_playlist_mock):
+        refs = list(translator.to_playlist_refs([web_playlist_mock], "bob"))
+
+        assert refs[0].name == "Foo (by alice)"
+
+
 class TestSpotifySearchQuery:
     def test_any_maps_to_no_field(self):
         query = translator.sp_search_query({"any": ["ABC", "DEF"]})
