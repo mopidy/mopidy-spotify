@@ -2,7 +2,6 @@
 Changelog
 *********
 
-
 v4.0.0a3 (UNRELEASED)
 =====================
 
@@ -11,6 +10,8 @@ Alpha release.
 - Use the Spotify Web API for personal top lists. (PR: #237)
 
 - Use the Spotify Web API to support browsing Your Music. (#16, PR: #238)
+
+- Use the Spotify Web API to support browsing features playlists. (#240, PR: #247)
 
 - Use the Spotify web API to fetch playlist images. (#100, PR: #243)
 
