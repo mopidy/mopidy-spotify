@@ -14,10 +14,14 @@ def test_has_a_root_directory(provider):
 def test_browse_root_directory(provider):
     results = provider.browse("spotify:directory")
 
-    assert len(results) == 2
+    assert len(results) == 3
     assert models.Ref.directory(uri="spotify:top", name="Top lists") in results
     assert (
         models.Ref.directory(uri="spotify:your", name="Your music") in results
+    )
+    assert (
+        models.Ref.directory(uri="spotify:playlists", name="Playlists")
+        in results
     )
 
 
@@ -53,18 +57,25 @@ def test_browse_your_music_directory(provider):
     )
 
 
-def test_browse_playlist(
-    session_mock, sp_playlist_mock, sp_track_mock, provider
-):
-    session_mock.get_playlist.return_value = sp_playlist_mock
-    sp_playlist_mock.tracks = [sp_track_mock, sp_track_mock]
+def test_browse_playlists_directory(provider):
+    results = provider.browse("spotify:playlists")
+
+    assert len(results) == 1
+    assert (
+        models.Ref.directory(uri="spotify:playlists:featured", name="Featured")
+        in results
+    )
+
+
+def test_browse_playlist(web_client_mock, web_playlist_mock, provider):
+    web_client_mock.get_playlist.return_value = web_playlist_mock
 
     results = provider.browse("spotify:user:alice:playlist:foo")
 
-    session_mock.get_playlist.assert_called_once_with(
+    web_client_mock.get_playlist.assert_called_once_with(
         "spotify:user:alice:playlist:foo"
     )
-    assert len(results) == 2
+    assert len(results) == 1
     assert results[0] == models.Ref.track(
         uri="spotify:track:abc", name="ABC 123"
     )
@@ -457,3 +468,17 @@ def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
     assert results[0] == models.Ref.album(
         uri="spotify:album:def", name="DEF 456"
     )
+
+
+def test_browse_playlists_featured(
+    web_client_mock, web_playlist_mock, provider
+):
+    web_client_mock.get_one.return_value = {
+        "playlists": {"items": [web_playlist_mock]}
+    }
+
+    results = provider.browse("spotify:playlists:featured")
+
+    assert len(results) == 1
+    assert results[0].name == "Foo"
+    assert results[0].uri == "spotify:user:alice:playlist:foo"
