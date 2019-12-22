@@ -2,10 +2,10 @@
 Changelog
 *********
 
-v4.0.0a3 (UNRELEASED)
-=====================
+v4.0.0 (2019-12-22)
+===================
 
-Alpha release.
+- Depend on final release of Mopidy 3.0.0.
 
 - Use the Spotify Web API for personal top lists. (PR: #237)
 
