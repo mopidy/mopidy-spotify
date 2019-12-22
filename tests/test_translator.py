@@ -283,6 +283,9 @@ class TestToTrackRef:
 
 
 class TestValidWebData(object):
+    def test_returns_false_if_none(self):
+        assert translator.valid_web_data(None, "track") is False
+
     def test_returns_false_if_empty(self):
         assert translator.valid_web_data({}, "track") is False
 

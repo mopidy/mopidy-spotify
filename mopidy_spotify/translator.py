@@ -169,7 +169,11 @@ def to_track_ref(sp_track):
 
 
 def valid_web_data(data, object_type):
-    return data.get("type") == object_type and "uri" in data
+    return (
+        isinstance(data, dict)
+        and data.get("type") == object_type
+        and "uri" in data
+    )
 
 
 def to_track_refs(sp_tracks, timeout=None):
