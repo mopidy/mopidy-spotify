@@ -83,7 +83,7 @@ Dependencies
   See https://pyspotify.mopidy.com/en/latest/installation/ for how to install
   it and its dependencies on most platforms.
 
-- ``Mopidy`` >= 2.0. The music server that Mopidy-Spotify extends.
+- ``Mopidy`` >= 3.0. The music server that Mopidy-Spotify extends.
 
 If you install Mopidy-Spotify from apt.mopidy.com, AUR, or Homebrew, these
 dependencies are installed automatically.
@@ -92,34 +92,18 @@ dependencies are installed automatically.
 Installation
 ============
 
-Debian/Ubuntu/Raspbian: Ensure you have `added the Mopidy APT repo to your
-package sources <https://docs.mopidy.com/en/latest/installation/debian/>`_ and
-then install the ``mopidy-spotify`` package from `apt.mopidy.com
-<http://apt.mopidy.com/>`_::
+Install by running::
 
-    sudo apt-get install mopidy-spotify
+    sudo python3 -m pip install Mopidy-Spotify
 
-Arch Linux: Install the ``mopidy-spotify`` package from
-`AUR <https://aur.archlinux.org/packages/mopidy-spotify/>`_::
-
-    yay -S mopidy-spotify
-
-OS X: Install the ``mopidy-spotify`` package from the
-`mopidy/mopidy <https://github.com/mopidy/homebrew-mopidy>`_ Homebrew tap::
-
-    brew install mopidy-spotify
-
-Else: Install the dependencies listed above yourself, and then install the
-package from PyPI::
-
-    python3 -m pip install Mopidy-Spotify
+See https://mopidy.com/ext/spotify/ for alternative installation methods.
 
 
 Configuration
 =============
 
 Before starting Mopidy, you must add your Spotify Premium username and password
-to your Mopidy configuration file and also visit 
+to your Mopidy configuration file and also visit
 https://www.mopidy.com/authenticate/#spotify to authorize this extension against
 your Spotify account::
 
