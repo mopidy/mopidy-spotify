@@ -148,7 +148,7 @@ def _browse_toplist_user(web_client, variant):
         return []
 
     if variant in ("tracks", "artists"):
-        items = web_client.get_one(f"me/top/{variant}").get("items", [])
+        items = web_client.get_one(f"me/top/{variant}", True).get("items", [])
         if variant == "tracks":
             return list(
                 translator.web_to_track_refs(items, check_playable=False)
@@ -214,7 +214,7 @@ def _browse_your_music(web_client, variant):
 
     if variant in ("tracks", "albums"):
         items = web_client.get_one(
-            f"me/{variant}", params={"market": "from_token"},
+            f"me/{variant}", True, params={"market": "from_token"}
         ).get("items", [])
         if variant == "tracks":
             return list(translator.web_to_track_refs(items))
@@ -230,7 +230,7 @@ def _browse_playlists(web_client, variant):
 
     if variant == "featured":
         items = (
-            web_client.get_one(f"browse/{variant}")
+            web_client.get_one(f"browse/{variant}", True)
             .get("playlists", {})
             .get("items", [])
         )

@@ -78,7 +78,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         for track in playlist.tracks:
             if track.uri.split(':')[0] != 'spotify':
                 logger.warning('Spotify cannot save playlist containing uri %s',
-                        track.uri)
+                                track.uri)
                 return None
 
         self._backend._web_client.save_playlist(playlist)
@@ -88,7 +88,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
 
 def playlist_lookup(session, web_client, uri, bitrate, as_items=False,
-        use_cache=True):
+                    use_cache=True):
 
     if web_client is None or not web_client.logged_in:
         return

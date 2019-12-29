@@ -1005,7 +1005,7 @@ class TestSpotifyOAuthClient:
         responses.calls.reset()
         mock_time.return_value = 1000
 
-        result2 = spotify_client.get_playlist("spotify:playlist:foo")
+        result2 = spotify_client.get_playlist("spotify:playlist:foo", True)
 
         assert len(responses.calls) == 1
         assert result1["tracks"]["items"] == result2["tracks"]["items"]
