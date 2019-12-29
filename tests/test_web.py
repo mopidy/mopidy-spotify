@@ -774,7 +774,7 @@ class TestSpotifyOAuthClient:
             responses.GET, self.url("foo"), json={"error": "bar"},
         )
 
-        result = spotify_client.get_one("foo", json={})
+        result = spotify_client.get_one("foo", True, json={})
 
         assert result == {}
         assert "Spotify Web API request failed: bar" in caplog.text
@@ -783,8 +783,8 @@ class TestSpotifyOAuthClient:
     def test_get_one_cached(self, spotify_client):
         responses.add(responses.GET, self.url("foo"))
 
-        spotify_client.get_one("foo")
-        spotify_client.get_one("foo")
+        spotify_client.get_one("foo", True)
+        spotify_client.get_one("foo", True)
 
         assert len(responses.calls) == 1
         assert "foo" in spotify_client._cache
@@ -794,7 +794,7 @@ class TestSpotifyOAuthClient:
         responses.add(responses.GET, self.url("foo"))
         mock_time.return_value = 1000
 
-        result = spotify_client.get_one("foo")
+        result = spotify_client.get_one("foo", True)
 
         assert 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY == result._expires
 
@@ -884,7 +884,7 @@ class TestSpotifyOAuthClient:
         )
         responses.add(responses.GET, self.url("playlists/fake"), json=None)
 
-        result = spotify_client.get_playlist(uri)
+        result = spotify_client.get_playlist(uri, True)
 
         if success:
             assert result == web_playlist_mock
@@ -895,7 +895,7 @@ class TestSpotifyOAuthClient:
     def test_get_playlist_sets_params_for_playlist(self, spotify_client):
         responses.add(responses.GET, self.url("playlists/foo"), json={})
 
-        spotify_client.get_playlist("spotify:playlist:foo")
+        spotify_client.get_playlist("spotify:playlist:foo", True)
 
         assert len(responses.calls) == 1
         encoded_params = urllib.parse.urlencode(
@@ -911,7 +911,7 @@ class TestSpotifyOAuthClient:
             responses.GET, self.url("playlists/foo"), json={"error": "bar"},
         )
 
-        result = spotify_client.get_playlist("spotify:playlist:foo")
+        result = spotify_client.get_playlist("spotify:playlist:foo", True)
 
         assert result == {}
         assert "Spotify Web API request failed: bar" in caplog.text
@@ -929,7 +929,7 @@ class TestSpotifyOAuthClient:
             json={"error": "baz"},
         )
 
-        result = spotify_client.get_playlist("spotify:playlist:foo")
+        result = spotify_client.get_playlist("spotify:playlist:foo", True)
 
         assert result == {}
         assert "Spotify Web API request failed: baz" in caplog.text
@@ -948,7 +948,7 @@ class TestSpotifyOAuthClient:
         )
         responses.add(responses.GET, self.url("playlists/foo/tracks2"), json={})
 
-        spotify_client.get_playlist("spotify:playlist:foo")
+        spotify_client.get_playlist("spotify:playlist:foo", True)
 
         assert len(responses.calls) == 3
         encoded_params = urllib.parse.urlencode(
@@ -974,7 +974,7 @@ class TestSpotifyOAuthClient:
             json={"items": [3, 4, 5]},
         )
 
-        result = spotify_client.get_playlist("spotify:playlist:foo")
+        result = spotify_client.get_playlist("spotify:playlist:foo", True)
 
         assert len(responses.calls) == 2
         assert result["tracks"]["items"] == [1, 2, 3, 4, 5]
@@ -996,7 +996,7 @@ class TestSpotifyOAuthClient:
         )
         mock_time.return_value = -1000
 
-        result1 = spotify_client.get_playlist("spotify:playlist:foo")
+        result1 = spotify_client.get_playlist("spotify:playlist:foo", True)
 
         assert len(responses.calls) == 2
         assert result1["tracks"]["items"] == [1, 2, 3, 4, 5]
@@ -1018,7 +1018,7 @@ class TestSpotifyOAuthClient:
         ],
     )
     def test_get_playlist_error_msg(self, spotify_client, caplog, uri, msg):
-        assert spotify_client.get_playlist(uri) == {}
+        assert spotify_client.get_playlist(uri, True) == {}
         assert f"Could not parse {uri!r} as a {msg} URI" in caplog.text
 
     def test_clear_cache(self, spotify_client):

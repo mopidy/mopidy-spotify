@@ -73,7 +73,8 @@ def test_browse_playlist(web_client_mock, web_playlist_mock, provider):
     results = provider.browse("spotify:user:alice:playlist:foo")
 
     web_client_mock.get_playlist.assert_called_once_with(
-        "spotify:user:alice:playlist:foo"
+        "spotify:user:alice:playlist:foo",
+        True
     )
     assert len(results) == 1
     assert results[0] == models.Ref.track(

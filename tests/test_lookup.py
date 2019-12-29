@@ -170,7 +170,8 @@ def test_lookup_of_playlist_uri(
 
     session_mock.get_link.assert_called_once_with("spotify:track:abc")
     web_client_mock.get_playlist.assert_called_once_with(
-        "spotify:playlist:alice:foo"
+        "spotify:playlist:alice:foo",
+        True
     )
 
     assert len(results) == 1

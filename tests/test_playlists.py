@@ -149,8 +149,8 @@ def test_refresh_loads_all_playlists(provider, web_client_mock):
     web_client_mock.get_user_playlists.assert_called_once()
     assert web_client_mock.get_playlist.call_count == 2
     expected_calls = [
-        mock.call("spotify:user:alice:playlist:foo"),
-        mock.call("spotify:user:bob:playlist:baz"),
+        mock.call("spotify:user:alice:playlist:foo", True),
+        mock.call("spotify:user:bob:playlist:baz", True),
     ]
     web_client_mock.get_playlist.assert_has_calls(expected_calls)
 
@@ -248,6 +248,7 @@ def test_playlist_lookup_stores_track_link(
         "spotify:user:alice:playlist:foo",
         None,
         as_items,
+        True
     )
 
     session_mock.get_link.assert_called_once_with("spotify:track:abc")

@@ -78,7 +78,7 @@ class OAuthClient:
         path = self._normalise_query_string(path, params)
 
         request_type = kwargs.pop('type', 'GET')
-        _trace('Request type %s, path %s',request_type, path)
+        _trace('Request type %s, path %s', request_type, path)
 
         ignore_expiry = kwargs.pop("ignore_expiry", False)
         if cache is not None and path in cache:
@@ -448,7 +448,7 @@ class SpotifyOAuthClient(OAuthClient):
 
     def save_playlist(self, playlist):
         playlistid = playlist.uri.split(':')[2]
-        logger.info('Saving Playlist %s',playlist.uri)
+        logger.info('Saving Playlist %s', playlist.uri)
         url = 'playlists/%s/tracks' % playlistid
         tracks = []
         for track in playlist.tracks:
