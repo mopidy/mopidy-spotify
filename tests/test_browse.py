@@ -446,8 +446,7 @@ def test_browse_your_music_tracks(web_client_mock, web_track_mock, provider):
     results = provider.browse("spotify:your:tracks")
 
     web_client_mock.get_one.assert_called_once_with(
-        "me/tracks", params={"market": "from_token"},
-        True
+        "me/tracks", True, params={"market": "from_token"},
     )
     assert results == [results[0], results[0]]
     assert results[0] == models.Ref.track(
@@ -464,8 +463,7 @@ def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
     results = provider.browse("spotify:your:albums")
 
     web_client_mock.get_one.assert_called_once_with(
-        "me/albums", params={"market": "from_token"},
-        True
+        "me/albums", True, params={"market": "from_token"},
     )
     assert results == [results[0], results[0]]
     assert results[0] == models.Ref.album(
