@@ -1,4 +1,5 @@
 import logging
+import time
 
 from mopidy import backend
 
@@ -34,19 +35,20 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def get_items(self, uri):
         with utils.time_logger(f"playlist.get_items({uri!r})", logging.DEBUG):
-            return self._get_playlist(uri, as_items=True)
+            return self._get_playlist(uri, as_items=True, use_cache=True)
 
     def lookup(self, uri):
         with utils.time_logger(f"playlists.lookup({uri!r})", logging.DEBUG):
             return self._get_playlist(uri)
 
-    def _get_playlist(self, uri, as_items=False):
+    def _get_playlist(self, uri, as_items=False, use_cache=True):
         return playlist_lookup(
             self._backend._session,
             self._backend._web_client,
             uri,
             self._backend._bitrate,
             as_items,
+            use_cache
         )
 
     def refresh(self):
@@ -71,15 +73,28 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         pass  # TODO
 
     def save(self, playlist):
-        pass  # TODO
+        if playlist.uri.split(':')[0] != 'spotify':
+            pass
 
+        for track in playlist.tracks:
+            if track.uri.split(':')[0] != 'spotify':
+                logger.warning('Spotify cannot save playlist containing uri %s',
+                    track.uri)
+                return None
 
-def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
+        logger.info('Saving Playlist')
+        self._backend._web_client.save_playlist(playlist)
+        # We must force the web client to refresh the playlist
+        # or it will return the un-modified version from the cache
+        return self._get_playlist(playlist.uri, False)
+
+def playlist_lookup(session, web_client, uri, bitrate, as_items=False, 
+    use_cache=True):
+
     if web_client is None or not web_client.logged_in:
         return
 
-    logger.debug(f'Fetching Spotify playlist "{uri!r}"')
-    web_playlist = web_client.get_playlist(uri)
+    web_playlist = web_client.get_playlist(uri, use_cache)
 
     if web_playlist == {}:
         logger.error(f"Failed to lookup Spotify playlist URI {uri!r}")
@@ -108,5 +123,5 @@ def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
                 _sp_links[track.uri] = session.get_link(track.uri)
             except ValueError as exc:
                 logger.info(f"Failed to get link {track.uri!r}: {exc}")
-
+    
     return playlist

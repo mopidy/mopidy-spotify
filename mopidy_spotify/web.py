@@ -65,6 +65,10 @@ class OAuthClient:
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
 
+    def put(self, path, params):
+        result = self.get(path, cache=None, params=params, type='PUT')
+        return result
+
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
             logger.debug("Blocking request as previous authorization failed.")
@@ -73,7 +77,8 @@ class OAuthClient:
         params = kwargs.pop("params", None)
         path = self._normalise_query_string(path, params)
 
-        _trace(f"Get '{path}'")
+        request_type = kwargs.pop('type', 'GET')
+        _trace('Request type %s, path %s',request_type, path)
 
         ignore_expiry = kwargs.pop("ignore_expiry", False)
         if cache is not None and path in cache:
@@ -93,7 +98,7 @@ class OAuthClient:
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault("headers", {}).update(self._headers)
-        result = self._request_with_retries("GET", path, *args, **kwargs)
+        result = self._request_with_retries(request_type, path, *args, **kwargs)
 
         if result is None or "error" in result:
             logger.error(
@@ -406,15 +411,20 @@ class SpotifyOAuthClient(OAuthClient):
         self._cache = {}
         self._extra_expiry = self.DEFAULT_EXTRA_EXPIRY
 
-    def get_one(self, path, *args, **kwargs):
+    def get_one(self, path, use_cache, *args, **kwargs):
         _trace(f"Fetching page {path!r}")
-        result = self.get(path, cache=self._cache, *args, **kwargs)
+        if use_cache:
+            our_cache = self._cache
+        else:
+            our_cache = None
+
+        result = self.get(path, cache=our_cache, *args, **kwargs)
         result.increase_expiry(self._extra_expiry)
         return result
 
     def get_all(self, path, *args, **kwargs):
         while path is not None:
-            result = self.get_one(path, *args, **kwargs)
+            result = self.get_one(path, True, *args, **kwargs)
             path = result.get("next")
             yield result
 
@@ -436,7 +446,20 @@ class SpotifyOAuthClient(OAuthClient):
         for page in pages:
             yield from page.get("items", [])
 
-    def get_playlist(self, uri):
+    def save_playlist(self, playlist):
+        playlistid = playlist.uri.split(':')[2]
+        logger.info('Saving Playlist %s',playlist.uri)
+        url = 'playlists/%s/tracks' % playlistid
+        tracks = []
+        for track in playlist.tracks:
+            tracks.append(track.uri)
+
+        params = {'uris': ','.join(tracks)}
+        web_result = self.put(url, params)
+        self.clear_cache()
+        return web_result
+
+    def get_playlist(self, uri, use_cache):
         try:
             parsed = WebLink.from_uri(uri)
             if parsed.type != LinkType.PLAYLIST:
@@ -449,6 +472,7 @@ class SpotifyOAuthClient(OAuthClient):
 
         playlist = self.get_one(
             f"playlists/{parsed.id}",
+            use_cache,
             params={"fields": self.PLAYLIST_FIELDS, "market": "from_token"},
         )
 
