@@ -234,7 +234,7 @@ def test_browse_personal_top_tracks_empty(web_client_mock, provider):
 
     results = provider.browse("spotify:top:tracks:user")
 
-    web_client_mock.get_one.assert_called_once_with("me/top/tracks")
+    web_client_mock.get_one.assert_called_once_with("me/top/tracks", True)
     assert len(results) == 0
 
 
@@ -247,7 +247,7 @@ def test_browse_personal_top_tracks(web_client_mock, web_track_mock, provider):
 
     results = provider.browse("spotify:top:tracks:user")
 
-    web_client_mock.get_one.assert_called_once_with("me/top/tracks")
+    web_client_mock.get_one.assert_called_once_with("me/top/tracks", True)
     assert len(results) == 2
     assert results[0] == models.Ref.track(
         uri="spotify:track:abc", name="ABC 123"
@@ -398,7 +398,7 @@ def test_browse_personal_top_artists(
 
     results = provider.browse("spotify:top:artists:user")
 
-    web_client_mock.get_one.assert_called_once_with("me/top/artists")
+    web_client_mock.get_one.assert_called_once_with("me/top/artists", True)
     assert len(results) == 2
     assert results[0] == models.Ref.artist(
         uri="spotify:artist:abba", name="ABBA"
@@ -446,7 +446,8 @@ def test_browse_your_music_tracks(web_client_mock, web_track_mock, provider):
     results = provider.browse("spotify:your:tracks")
 
     web_client_mock.get_one.assert_called_once_with(
-        "me/tracks", params={"market": "from_token"}
+        "me/tracks", params={"market": "from_token"},
+        True
     )
     assert results == [results[0], results[0]]
     assert results[0] == models.Ref.track(
@@ -463,7 +464,8 @@ def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
     results = provider.browse("spotify:your:albums")
 
     web_client_mock.get_one.assert_called_once_with(
-        "me/albums", params={"market": "from_token"}
+        "me/albums", params={"market": "from_token"},
+        True
     )
     assert results == [results[0], results[0]]
     assert results[0] == models.Ref.album(

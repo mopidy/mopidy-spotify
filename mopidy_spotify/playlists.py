@@ -78,7 +78,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         for track in playlist.tracks:
             if track.uri.split(':')[0] != 'spotify':
                 logger.warning('Spotify cannot save playlist containing uri %s',
-                                track.uri)
+                               track.uri)
                 return None
 
         self._backend._web_client.save_playlist(playlist)
