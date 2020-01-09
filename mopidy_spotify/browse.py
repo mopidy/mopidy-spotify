@@ -230,7 +230,7 @@ def _browse_playlists(web_client, variant):
 
     if variant == "featured":
         items = (
-            web_client.get_one(f"browse/{variant}")
+            web_client.get_one(f"browse/featured-playlists")
             .get("playlists", {})
             .get("items", [])
         )

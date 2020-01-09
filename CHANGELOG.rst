@@ -2,6 +2,12 @@
 Changelog
 *********
 
+v4.0.1 (UNRELEASED)
+===================
+
+- Fix API endpoint for browsing featured playlists. (#252, PR: #253)
+
+
 v4.0.0 (2019-12-22)
 ===================
 
@@ -11,7 +17,7 @@ v4.0.0 (2019-12-22)
 
 - Use the Spotify Web API to support browsing Your Music. (#16, PR: #238)
 
-- Use the Spotify Web API to support browsing features playlists. (#240, PR: #247)
+- Use the Spotify Web API to support browsing featured playlists. (#240, PR: #247)
 
 - Use the Spotify web API to fetch playlist images. (#100, PR: #243)
 
