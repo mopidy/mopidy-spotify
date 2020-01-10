@@ -479,6 +479,8 @@ def test_browse_playlists_featured(
 
     results = provider.browse("spotify:playlists:featured")
 
+    web_client_mock.get_one.assert_called_once_with("browse/featured-playlists")
+
     assert len(results) == 1
     assert results[0].name == "Foo"
     assert results[0].uri == "spotify:user:alice:playlist:foo"
