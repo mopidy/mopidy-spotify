@@ -2,7 +2,8 @@
 Changelog
 *********
 
-v4.0.1 (UNRELEASED)
+
+v4.0.1 (2020-01-11)
 ===================
 
 - Fix API endpoint for browsing featured playlists. (#252, PR: #253)
