@@ -39,7 +39,15 @@ def search(
     logger.info(f"Searching Spotify for: {sp_query}")
 
     if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
-        logger.info("Spotify search aborted: Spotify is offline")
+        logger.warning("Spotify is offline, reattempting login")
+        session.login(
+            config["username"],
+            config["password"]
+        )
+        if web_client.login():
+            return search(
+                config, session, web_client, query, uris, exact, types
+            )
         return models.SearchResult(uri=uri)
 
     search_count = max(
