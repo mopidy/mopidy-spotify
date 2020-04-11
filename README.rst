@@ -79,7 +79,7 @@ Dependencies
   `apt.mopidy.com <http://apt.mopidy.com/>`__.
 
 - ``pyspotify`` >= 2.0.5. The ``libspotify`` Python wrapper. The package is
-  available as ``python-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
+  available as ``python3-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
   See https://pyspotify.mopidy.com/en/latest/installation/ for how to install
   it and its dependencies on most platforms.
 
