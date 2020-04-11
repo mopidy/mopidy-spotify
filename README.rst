@@ -14,7 +14,7 @@ Mopidy-Spotify
     :target: https://codecov.io/gh/mopidy/mopidy-spotify
     :alt: Test coverage
 
-`Mopidy <https://www.mopidy.com/>`_ extension for playing music from
+`Mopidy <https://mopidy.com/>`_ extension for playing music from
 `Spotify <https://www.spotify.com/>`_.
 
 
@@ -80,7 +80,7 @@ Dependencies
 
 - ``pyspotify`` >= 2.0.5. The ``libspotify`` Python wrapper. The package is
   available as ``python3-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
-  See https://pyspotify.mopidy.com/en/latest/installation/ for how to install
+  See https://pyspotify.readthedocs.io/en/latest/installation/ for how to install
   it and its dependencies on most platforms.
 
 - ``Mopidy`` >= 3.0. The music server that Mopidy-Spotify extends.
@@ -104,8 +104,8 @@ Configuration
 
 Before starting Mopidy, you must add your Spotify Premium username and password
 to your Mopidy configuration file and also visit
-https://www.mopidy.com/authenticate/#spotify to authorize this extension against
-your Spotify account::
+https://mopidy.com/ext/spotify/#authentication
+to authorize this extension against your Spotify account::
 
     [spotify]
     username = alice
