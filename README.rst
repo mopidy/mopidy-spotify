@@ -73,7 +73,7 @@ Dependencies
   Settings > Security > App passwords > Generate app passwords, and generate one
   to use with Mopidy-Spotify.
 
-- ``libspotify`` >= 12, < 13. The official C library from our `Unofficial
+- ``libspotify`` 12. The official C library from our `Unofficial
   libspotify archive <https://mopidy.github.io/libspotify-archive/>`_.
   The package is available as ``libspotify12`` from
   `apt.mopidy.com <http://apt.mopidy.com/>`__.
