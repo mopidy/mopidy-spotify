@@ -208,6 +208,9 @@ def end_of_track_callback(session, end_of_track_event, audio_actor):
     end_of_track_event.set()
     audio_actor.emit_data(None)
 
+    # unload the player to stop receiving data
+    session.player.unload()
+
 
 class BufferTimestamp:
     """Wrapper around an int to serialize access by multiple threads.
