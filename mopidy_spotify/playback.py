@@ -15,6 +15,11 @@ GST_CAPS = "audio/x-raw,format=S16LE,rate=44100,channels=2,layout=interleaved"
 # Extra log level with lower importance than DEBUG=10 for noisy debug logging
 TRACE_LOG_LEVEL = 5
 
+# Last audio data sent to the buffer, currently on hold.
+# This data is held because libspotify sends a single empty buffer before ending the track. It is discarded
+# the moment a new track starts so a smooth transition between songs can be made.
+_held_buffer = None
+
 
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def __init__(self, *args, **kwargs):
@@ -50,6 +55,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def change_track(self, track):
         self._connect_events()
 
+        global _held_buffer
+
         if track.uri is None:
             return False
 
@@ -78,6 +85,9 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             sp_track.load(self._timeout)
             self.backend._session.player.load(sp_track)
             self.backend._session.player.play()
+
+            # Discard held buffer
+            _held_buffer = None
 
             future = self.audio.set_appsrc(
                 GST_CAPS,
@@ -162,6 +172,8 @@ def music_delivery_callback(
     # This is called from an internal libspotify thread.
     # Ideally, nothing here should block.
 
+    global _held_buffer
+
     if seeking_event.is_set():
         # A seek has happened, but libspotify hasn't confirmed yet, so
         # we're dropping all audio data from libspotify.
@@ -187,8 +199,15 @@ def music_delivery_callback(
         bytes(frames), timestamp=buffer_timestamp.get(), duration=duration
     )
 
-    # We must block here to know if the buffer was consumed successfully.
-    consumed = audio_actor.emit_data(buffer_).get()
+    # If there is any held buffer, send it
+    if _held_buffer:
+        consumed = audio_actor.emit_data(_held_buffer).get()
+    else:
+        # No buffer, we assume successful consumption
+        consumed = True
+
+    # Hold the buffer for a while, so we can filter out the single empty buffer after the track
+    _held_buffer = buffer_
 
     if consumed:
         buffer_timestamp.increase(duration)
@@ -208,7 +227,7 @@ def end_of_track_callback(session, end_of_track_event, audio_actor):
     end_of_track_event.set()
     audio_actor.emit_data(None)
 
-    # unload the player to stop receiving data
+    # Stop the track to prevent receiving empty audio data
     session.player.unload()
 
 
