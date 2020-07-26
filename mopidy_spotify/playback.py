@@ -195,16 +195,14 @@ def music_delivery_callback(
         bytes(frames), timestamp=buffer_timestamp.get(), duration=duration
     )
 
+    # If there is any held buffer, send it
     if _held_buffer:
-
-        # Send any queued buffer first.
-        future = audio_actor.emit_data(_held_buffer)
+        consumed = audio_actor.emit_data(_held_buffer).get()
+    else:
+        consumed = True
 
     # libspotify sends an empty buffer before calling end_of_track_callback, so we need to hold it.
     _held_buffer = buffer_
-
-    # We must block here to know if the buffer was consumed successfully.
-    consumed = future.get()
 
     if consumed:
         buffer_timestamp.increase(duration)
