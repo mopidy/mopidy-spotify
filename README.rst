@@ -85,6 +85,10 @@ Dependencies
 
 - ``Mopidy`` >= 3.0. The music server that Mopidy-Spotify extends.
 
+- ``libffi-dev`` >= 3.3-4
+
+- ``libspotify-dev`` >= 12.1.103
+
 If you install Mopidy-Spotify from apt.mopidy.com, AUR, or Homebrew, these
 dependencies are installed automatically.
 
