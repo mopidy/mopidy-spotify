@@ -80,14 +80,14 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._first_seek = True
         self._end_of_track_event.clear()
 
+        # Discard held buffer
+        _held_buffer = None
+
         try:
             sp_track = self.backend._session.get_track(track.uri)
             sp_track.load(self._timeout)
             self.backend._session.player.load(sp_track)
             self.backend._session.player.play()
-
-            # Discard held buffer
-            _held_buffer = None
 
             future = self.audio.set_appsrc(
                 GST_CAPS,
