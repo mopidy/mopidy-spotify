@@ -21,7 +21,7 @@ def oauth_client(config):
     )
 
 
-@pytest.yield_fixture()
+@pytest.fixture
 def mock_time():
     patcher = mock.patch.object(web.time, "time")
     mock_time = patcher.start()
@@ -685,7 +685,7 @@ def spotify_client(config):
     )
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.fixture(scope="class")
 def skip_refresh_token():
     patcher = mock.patch.object(web.OAuthClient, "_should_refresh_token")
     mock_refresh = patcher.start()

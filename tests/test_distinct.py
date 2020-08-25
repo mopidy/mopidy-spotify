@@ -24,7 +24,7 @@ def session_mock_with_playlists(
     return session_mock
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def search_mock(mopidy_album_mock, mopidy_artist_mock):
     patcher = mock.patch.object(distinct, "search", spec=search)
     search_mock = patcher.start()

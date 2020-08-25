@@ -8,7 +8,7 @@ import spotify
 from mopidy_spotify import backend, library, utils, playlists, web
 
 
-@pytest.yield_fixture()
+@pytest.fixture
 def caplog(caplog):
     caplog.set_level(utils.TRACE)
     return caplog
@@ -42,14 +42,14 @@ def config(tmp_path):
     }
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def web_mock():
     patcher = mock.patch.object(backend, "web", spec=web)
     yield patcher.start()
     patcher.stop()
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def spotify_mock(web_mock):
     patcher = mock.patch.object(backend, "spotify", spec=spotify)
     yield patcher.start()
@@ -417,7 +417,7 @@ def backend_mock(session_mock, config, web_client_mock):
     return backend_mock
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def backend_listener_mock():
     patcher = mock.patch.object(
         backend_api, "BackendListener", spec=backend_api.BackendListener
