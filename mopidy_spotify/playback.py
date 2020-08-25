@@ -15,7 +15,9 @@ GST_CAPS = "audio/x-raw,format=S16LE,rate=44100,channels=2,layout=interleaved"
 # Extra log level with lower importance than DEBUG=10 for noisy debug logging
 TRACE_LOG_LEVEL = 5
 
-# Last audio data sent to the buffer, currently on hold
+# Last audio data sent to the buffer, currently on hold.
+# This data is held because libspotify sends a single empty buffer before ending the track. It is discarded
+# the moment a new track starts so a smooth transition between songs can be made.
 _held_buffer = None
 
 
@@ -83,6 +85,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             sp_track.load(self._timeout)
             self.backend._session.player.load(sp_track)
             self.backend._session.player.play()
+
+            # Discard held buffer
             _held_buffer = None
 
             future = self.audio.set_appsrc(
@@ -199,9 +203,10 @@ def music_delivery_callback(
     if _held_buffer:
         consumed = audio_actor.emit_data(_held_buffer).get()
     else:
+        # No buffer, we assume successful consumption
         consumed = True
 
-    # libspotify sends an empty buffer before calling end_of_track_callback, so we need to hold it.
+    # Hold the buffer for a while, so we can filter out the single empty buffer after the track
     _held_buffer = buffer_
 
     if consumed:
@@ -222,7 +227,7 @@ def end_of_track_callback(session, end_of_track_event, audio_actor):
     end_of_track_event.set()
     audio_actor.emit_data(None)
 
-    # Unload the player to stop receiving data
+    # Stop the track to prevent receiving empty audio data
     session.player.unload()
 
 
