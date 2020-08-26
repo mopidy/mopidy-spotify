@@ -16,7 +16,7 @@ def audio_mock():
     return audio_mock
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def audio_lib_mock():
     patcher = mock.patch.object(playback, "audio", spec=audio)
     yield patcher.start()
