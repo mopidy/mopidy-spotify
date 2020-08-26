@@ -214,7 +214,8 @@ def _browse_your_music(web_client, variant):
 
     if variant in ("tracks", "albums"):
         items = web_client.get_one(
-            f"me/{variant}", params={"market": "from_token"},
+            f"me/{variant}",
+            params={"market": "from_token"},
         ).get("items", [])
         if variant == "tracks":
             return list(translator.web_to_track_refs(items))

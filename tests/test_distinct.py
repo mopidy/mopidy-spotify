@@ -71,10 +71,30 @@ def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
 @pytest.mark.parametrize(
     "field,query,expected,types",
     [
-        ("artist", {"album": ["Foo"]}, {"ABBA"}, ["artist"],),
-        ("albumartist", {"album": ["Foo"]}, {"ABBA"}, ["album"],),
-        ("album", {"artist": ["Bar"]}, {"DEF 456"}, ["album"],),
-        ("date", {"artist": ["Bar"]}, {"2001"}, ["album"],),
+        (
+            "artist",
+            {"album": ["Foo"]},
+            {"ABBA"},
+            ["artist"],
+        ),
+        (
+            "albumartist",
+            {"album": ["Foo"]},
+            {"ABBA"},
+            ["album"],
+        ),
+        (
+            "album",
+            {"artist": ["Bar"]},
+            {"DEF 456"},
+            ["album"],
+        ),
+        (
+            "date",
+            {"artist": ["Bar"]},
+            {"2001"},
+            ["album"],
+        ),
     ],
 )
 def test_get_distinct_with_query(

@@ -130,7 +130,9 @@ def test_on_start_configures_web_client(spotify_mock, web_mock, config):
     backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        client_id="1234567", client_secret="AbCdEfG", proxy_config=mock.ANY,
+        client_id="1234567",
+        client_secret="AbCdEfG",
+        proxy_config=mock.ANY,
     )
 
 

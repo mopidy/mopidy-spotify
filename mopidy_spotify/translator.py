@@ -209,7 +209,11 @@ def web_to_track_refs(web_tracks, *, check_playable=True):
 
 
 def to_playlist(
-    web_playlist, username=None, bitrate=None, as_ref=False, as_items=False,
+    web_playlist,
+    username=None,
+    bitrate=None,
+    as_ref=False,
+    as_items=False,
 ):
     ref = to_playlist_ref(web_playlist, username)
     if ref is None or as_ref:

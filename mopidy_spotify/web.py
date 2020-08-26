@@ -142,7 +142,9 @@ class OAuthClient:
         self._expires = time.time() + result.get("expires_in", float("Inf"))
 
         if result.get("expires_in"):
-            logger.debug(f"Token expires in {result['expires_in']} seconds.",)
+            logger.debug(
+                f"Token expires in {result['expires_in']} seconds.",
+            )
         if result.get("scope"):
             logger.debug(f"Token scopes: {result['scope']}")
 

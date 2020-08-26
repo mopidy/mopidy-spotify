@@ -771,7 +771,9 @@ class TestSpotifyOAuthClient:
     @responses.activate
     def test_get_one_error(self, spotify_client, caplog):
         responses.add(
-            responses.GET, self.url("foo"), json={"error": "bar"},
+            responses.GET,
+            self.url("foo"),
+            json={"error": "bar"},
         )
 
         result = spotify_client.get_one("foo", json={})
@@ -908,7 +910,9 @@ class TestSpotifyOAuthClient:
     @responses.activate
     def test_get_playlist_error(self, spotify_client, caplog):
         responses.add(
-            responses.GET, self.url("playlists/foo"), json={"error": "bar"},
+            responses.GET,
+            self.url("playlists/foo"),
+            json={"error": "bar"},
         )
 
         result = spotify_client.get_playlist("spotify:playlist:foo")
