@@ -15,10 +15,10 @@ GST_CAPS = "audio/x-raw,format=S16LE,rate=44100,channels=2,layout=interleaved"
 # Extra log level with lower importance than DEBUG=10 for noisy debug logging
 TRACE_LOG_LEVEL = 5
 
-# Last audio data sent to the buffer, currently on hold.
-# This data is held because libspotify sends a single empty buffer before ending the track. It is discarded
-# the moment a new track starts so a smooth transition between songs can be made.
-_held_buffer = None
+# Last audio data sent to the buffer, currently on hold. This data is held
+# because libspotify sends a single empty buffer before ending the track. It is
+# discarded the moment a new track starts so a smooth transition between songs
+# can be made.
 
 
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
@@ -33,6 +33,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._push_audio_data_event.set()
         self._end_of_track_event = threading.Event()
         self._events_connected = False
+        self._held_buffer = BufferData()
 
     def _connect_events(self):
         if not self._events_connected:
@@ -44,6 +45,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
                 self._seeking_event,
                 self._push_audio_data_event,
                 self._buffer_timestamp,
+                self._held_buffer,
             )
             self.backend._session.on(
                 spotify.SessionEvent.END_OF_TRACK,
@@ -54,8 +56,6 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
 
     def change_track(self, track):
         self._connect_events()
-
-        global _held_buffer
 
         if track.uri is None:
             return False
@@ -81,7 +81,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._end_of_track_event.clear()
 
         # Discard held buffer
-        _held_buffer = None
+        self._held_buffer.data = None
 
         try:
             sp_track = self.backend._session.get_track(track.uri)
@@ -168,11 +168,10 @@ def music_delivery_callback(
     seeking_event,
     push_audio_data_event,
     buffer_timestamp,
+    held_buffer,
 ):
     # This is called from an internal libspotify thread.
     # Ideally, nothing here should block.
-
-    global _held_buffer
 
     if seeking_event.is_set():
         # A seek has happened, but libspotify hasn't confirmed yet, so
@@ -200,14 +199,16 @@ def music_delivery_callback(
     )
 
     # If there is any held buffer, send it
-    if _held_buffer:
-        consumed = audio_actor.emit_data(_held_buffer).get()
+    # change_track() in other thread could clobber before we emit_data. OK?
+    if held_buffer.data is not None:
+        consumed = audio_actor.emit_data(held_buffer.data).get()
     else:
         # No buffer, we assume successful consumption
         consumed = True
 
-    # Hold the buffer for a while, so we can filter out the single empty buffer after the track
-    _held_buffer = buffer_
+    # Hold the buffer for a while, so we can filter out the single empty buffer
+    # after the track
+    held_buffer.data = buffer_
 
     if consumed:
         buffer_timestamp.increase(duration)
@@ -253,3 +254,10 @@ class BufferTimestamp:
     def increase(self, value):
         with self._lock:
             self._value += value
+
+
+class BufferData:
+    """Wrapper around an Gst.Buffer to pass around."""
+
+    def __init__(self, buf=None):
+        self.data = buf
