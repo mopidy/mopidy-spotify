@@ -98,10 +98,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def create(self, name):
         logger.info(f'Creating playlist {name}')
-        url = f'users/{web_client.user_id}/playlists'
-        response = self._backend._web_client.post(url, json={'name': name})
+        url = f'users/{self._backend._web_client.user_id}/playlists'
+        response = self._backend._web_client.post(url, json={'name': name, 'public': False})
         self.refresh()
-        return self.lookup(response['uri'])
+        return self.lookup(response['uri'])if response.status_ok else None
 
     def delete(self, uri):
         playlist_id = uri.split(':')[-1]
