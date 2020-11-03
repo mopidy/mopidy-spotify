@@ -59,7 +59,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         return user_id, playlist_id
 
     @staticmethod
-    def partitions(lst, n):
+    def partitions(lst, n=_chunk_size):
         for i in range(0, len(lst), n):
             yield lst[i:i+n]
 
@@ -121,14 +121,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         new_tracks = {track.uri: track for track in playlist.tracks}
         cur_tracks = {track.uri: track for track in saved_playlist.tracks}
-        removed_uris = set(cur_tracks.keys()).difference(set(new_tracks.keys()))
+        removed_uris = set(cur_tracks.keys()) - set(new_tracks.keys())
 
         # Remove tracks logic
         if removed_uris:
             logger.info(f'Removing {len(removed_uris)} tracks from playlist ' +
                     f'{saved_playlist.name}: {removed_uris}')
 
-            for chunk in self.partitions(removed_uris, self._chunk_size):
+            for chunk in self.partitions(list(removed_uris)):
                 saved_playlist = self._playlist_edit(saved_playlist, method='delete',
                         tracks=[{'uri': uri for uri in removed_uris}])
                 cur_tracks = {track.uri: track for track in saved_playlist.tracks}
