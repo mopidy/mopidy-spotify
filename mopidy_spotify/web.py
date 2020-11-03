@@ -110,16 +110,16 @@ class OAuthClient:
         return result
 
     def get(self, path, cache=None, *args, **kwargs):
-        return self.request('GET', path, cache=cache, *args, **kwargs)
+        return self.request('GET', path, *args, cache=cache, **kwargs)
 
     def post(self, path, *args, **kwargs):
-        return self.request('POST', path, cache=None, *args, **kwargs)
+        return self.request('POST', path, *args, cache=None, **kwargs)
 
     def put(self, path, *args, **kwargs):
-        return self.request('PUT', path, cache=None, *args, **kwargs)
+        return self.request('PUT', path, *args, cache=None, **kwargs)
 
     def delete(self, path, *args, **kwargs):
-        return self.request('DELETE', path, cache=None, *args, **kwargs)
+        return self.request('DELETE', path, *args, cache=None, **kwargs)
 
     def _should_cache_response(self, cache, response):
         return cache is not None and response.status_ok
@@ -487,6 +487,10 @@ class SpotifyOAuthClient(OAuthClient):
 
     def clear_cache(self, extra_expiry=None):
         self._cache.clear()
+
+    def remove_from_cache(self, path, params=None):
+        key = self._normalise_query_string(path, params)
+        self._cache.pop(key, None)
 
 
 @unique

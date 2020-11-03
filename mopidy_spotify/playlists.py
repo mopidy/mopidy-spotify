@@ -75,10 +75,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         logger.debug(f'API response: {response}')
 
-        # TODO invalidating the whole cache is probably a bit much if we have
-        # updated only one playlist - maybe we should expose an API to clear
-        # cache items by key?
-        self._backend._web_client.clear_cache()
+        self._backend._web_client.remove_from_cache(url)
         return self.lookup(playlist.uri)
 
     def refresh(self):
@@ -87,7 +84,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         with utils.time_logger("playlists.refresh()", logging.DEBUG):
             _sp_links.clear()
-            self._backend._web_client.clear_cache()
+            self._backend._web_client.remove_from_cache("me/playlists")
             count = 0
             for playlist_ref in self._get_flattened_playlist_refs():
                 self._get_playlist(playlist_ref.uri)
@@ -187,8 +184,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             user_id, playlist_id = self._get_user_and_playlist_id_from_uri(saved_playlist.uri)
             self._backend._web_client.put(f'users/{user_id}/playlists/{playlist_id}',
                     json={'name': playlist.name})
+            self._backend._web_client.remove_from_cache("me/playlists")
 
-        self._backend._web_client.clear_cache()
+        self._backend._web_client.remove_from_cache(saved_playlist.uri)
         return self.lookup(saved_playlist.uri)
 
 

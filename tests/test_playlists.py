@@ -188,7 +188,7 @@ def test_refresh_clears_caches(provider, web_client_mock):
     provider.refresh()
 
     assert "bar" not in playlists._sp_links
-    web_client_mock.clear_cache.assert_called_once()
+    web_client_mock.remove_from_cache.assert_called_once()
 
 
 def test_lookup(provider):
