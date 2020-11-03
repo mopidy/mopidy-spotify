@@ -104,9 +104,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         return self.lookup(response['uri'])
 
     def delete(self, uri):
-        # Playlist deletion is not implemented in the web API, see
-        # https://github.com/spotify/web-api/issues/555
-        pass
+        playlist_id = uri.split(':')[-1]
+        logger.info(f'Deleting playlist {playlist_id}')
+        url = f'playlists/{playlist_id}/followers'
+        response = self._backend._web_client.delete(url)
+        self.refresh()
+        return response.status_ok
 
     def save(self, playlist):
         # Note that for sake of simplicity the diff calculation between the
