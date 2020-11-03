@@ -4,6 +4,7 @@ from mopidy import models
 
 import spotify
 from mopidy_spotify import countries, playlists, translator
+from mopidy_spotify.utils import flatten
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +149,16 @@ def _browse_toplist_user(web_client, variant):
         return []
 
     if variant in ("tracks", "artists"):
-        items = web_client.get_one(f"me/top/{variant}").get("items", [])
+        items = flatten(
+            [
+                page.get("items", [])
+                for page in web_client.get_all(
+                    f"me/top/{variant}",
+                    params={"limit": 50},
+                )
+                if page
+            ]
+        )
         if variant == "tracks":
             return list(
                 translator.web_to_track_refs(items, check_playable=False)
@@ -213,10 +223,16 @@ def _browse_your_music(web_client, variant):
         return []
 
     if variant in ("tracks", "albums"):
-        items = web_client.get_one(
-            f"me/{variant}",
-            params={"market": "from_token"},
-        ).get("items", [])
+        items = flatten(
+            [
+                page.get("items", [])
+                for page in web_client.get_all(
+                    f"me/{variant}",
+                    params={"market": "from_token", "limit": 50},
+                )
+                if page
+            ]
+        )
         if variant == "tracks":
             return list(translator.web_to_track_refs(items))
         else:
@@ -230,10 +246,15 @@ def _browse_playlists(web_client, variant):
         return []
 
     if variant == "featured":
-        items = (
-            web_client.get_one("browse/featured-playlists")
-            .get("playlists", {})
-            .get("items", [])
+        items = flatten(
+            [
+                page.get("playlists", {}).get("items", [])
+                for page in web_client.get_all(
+                    "browse/featured-playlists",
+                    params={"limit": 50},
+                )
+                if page
+            ]
         )
         return list(translator.to_playlist_refs(items))
     else:

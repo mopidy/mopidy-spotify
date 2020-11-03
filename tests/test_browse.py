@@ -229,25 +229,30 @@ def test_browse_unsupported_top_tracks(web_client_mock, provider):
 
 
 def test_browse_personal_top_tracks_empty(web_client_mock, provider):
-    web_client_mock.get_one.return_value = {}
+    web_client_mock.get_all.return_value = [{}]
 
     results = provider.browse("spotify:top:tracks:user")
 
-    web_client_mock.get_one.assert_called_once_with("me/top/tracks")
+    web_client_mock.get_all.assert_called_once_with(
+        "me/top/tracks", params={"limit": 50}
+    )
     assert len(results) == 0
 
 
 def test_browse_personal_top_tracks(web_client_mock, web_track_mock, provider):
     # The tracks from this endpoint are erroneously missing some fields:
     del web_track_mock["is_playable"]
-    web_client_mock.get_one.return_value = {
-        "items": [web_track_mock, web_track_mock],
-    }
+    web_client_mock.get_all.return_value = [
+        {"items": [web_track_mock, web_track_mock]},
+        {"items": [web_track_mock, web_track_mock]},
+    ]
 
     results = provider.browse("spotify:top:tracks:user")
 
-    web_client_mock.get_one.assert_called_once_with("me/top/tracks")
-    assert len(results) == 2
+    web_client_mock.get_all.assert_called_once_with(
+        "me/top/tracks", params={"limit": 50}
+    )
+    assert len(results) == 4
     assert results[0] == models.Ref.track(
         uri="spotify:track:abc", name="ABC 123"
     )
@@ -391,14 +396,17 @@ def test_browse_top_albums_countries_list(
 def test_browse_personal_top_artists(
     web_client_mock, web_artist_mock, provider
 ):
-    web_client_mock.get_one.return_value = {
-        "items": [web_artist_mock, web_artist_mock],
-    }
+    web_client_mock.get_all.return_value = [
+        {"items": [web_artist_mock, web_artist_mock]},
+        {"items": [web_artist_mock, web_artist_mock]},
+    ]
 
     results = provider.browse("spotify:top:artists:user")
 
-    web_client_mock.get_one.assert_called_once_with("me/top/artists")
-    assert len(results) == 2
+    web_client_mock.get_all.assert_called_once_with(
+        "me/top/artists", params={"limit": 50}
+    )
+    assert len(results) == 4
     assert results[0] == models.Ref.artist(
         uri="spotify:artist:abba", name="ABBA"
     )
@@ -438,16 +446,17 @@ def test_browse_your_music_empty(web_client_mock, provider):
 
 def test_browse_your_music_tracks(web_client_mock, web_track_mock, provider):
     web_saved_track_mock = {"track": web_track_mock}
-    web_client_mock.get_one.return_value = {
-        "items": [web_saved_track_mock, web_saved_track_mock],
-    }
+    web_client_mock.get_all.return_value = [
+        {"items": [web_saved_track_mock, web_saved_track_mock]},
+        {"items": [web_saved_track_mock, web_saved_track_mock]},
+    ]
 
     results = provider.browse("spotify:your:tracks")
 
-    web_client_mock.get_one.assert_called_once_with(
-        "me/tracks", params={"market": "from_token"}
+    web_client_mock.get_all.assert_called_once_with(
+        "me/tracks", params={"market": "from_token", "limit": 50}
     )
-    assert results == [results[0], results[0]]
+    assert results == [results[0]] * 4
     assert results[0] == models.Ref.track(
         uri="spotify:track:abc", name="ABC 123"
     )
@@ -455,16 +464,17 @@ def test_browse_your_music_tracks(web_client_mock, web_track_mock, provider):
 
 def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
     web_saved_album_mock = {"album": web_album_mock}
-    web_client_mock.get_one.return_value = {
-        "items": [web_saved_album_mock, web_saved_album_mock],
-    }
+    web_client_mock.get_all.return_value = [
+        {"items": [web_saved_album_mock, web_saved_album_mock]},
+        {"items": [web_saved_album_mock, web_saved_album_mock]},
+    ]
 
     results = provider.browse("spotify:your:albums")
 
-    web_client_mock.get_one.assert_called_once_with(
-        "me/albums", params={"market": "from_token"}
+    web_client_mock.get_all.assert_called_once_with(
+        "me/albums", params={"market": "from_token", "limit": 50}
     )
-    assert results == [results[0], results[0]]
+    assert results == [results[0]] * 4
     assert results[0] == models.Ref.album(
         uri="spotify:album:def", name="DEF 456"
     )
@@ -473,14 +483,17 @@ def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
 def test_browse_playlists_featured(
     web_client_mock, web_playlist_mock, provider
 ):
-    web_client_mock.get_one.return_value = {
-        "playlists": {"items": [web_playlist_mock]}
-    }
+    web_client_mock.get_all.return_value = [
+        {"playlists": {"items": [web_playlist_mock]}},
+        {"playlists": {"items": [web_playlist_mock]}},
+    ]
 
     results = provider.browse("spotify:playlists:featured")
 
-    web_client_mock.get_one.assert_called_once_with("browse/featured-playlists")
+    web_client_mock.get_all.assert_called_once_with(
+        "browse/featured-playlists", params={"limit": 50}
+    )
 
-    assert len(results) == 1
+    assert len(results) == 2
     assert results[0].name == "Foo"
     assert results[0].uri == "spotify:user:alice:playlist:foo"

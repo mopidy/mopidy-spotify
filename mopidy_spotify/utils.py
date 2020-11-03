@@ -29,3 +29,7 @@ def time_logger(name, level=TRACE):
     yield
     end = time.time() - start
     logger.log(level, f"{name} took {int(end * 1000)}ms")
+
+
+def flatten(list_of_lists):
+    return [item for sublist in list_of_lists for item in sublist]
