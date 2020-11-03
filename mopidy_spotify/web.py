@@ -97,7 +97,7 @@ class OAuthClient:
         if result is None or "error" in result:
             logger.error(
                 "Spotify Web API request failed: "
-                f"{result.get('error','Unknown')}"
+                f"{(result or {}).get('error','Unknown')}"
             )
             return WebResponse(None, None)
 
@@ -110,7 +110,7 @@ class OAuthClient:
         return result
 
     def get(self, path, cache=None, *args, **kwargs):
-        return self.request('GET', path, cache, *args, **kwargs)
+        return self.request('GET', path, cache=cache, *args, **kwargs)
 
     def post(self, path, *args, **kwargs):
         return self.request('POST', path, cache=None, *args, **kwargs)
