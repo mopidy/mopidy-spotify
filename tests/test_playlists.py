@@ -178,6 +178,325 @@ def provider(backend_mock, web_client_mock):
     return provider
 
 
+def test_create_playlist(provider):
+    n_before = len(provider.as_list())
+    new_playlist = provider.create("baz")
+    playlists = provider.as_list()
+    n_after = len(playlists)
+    assert new_playlist.name == "baz"
+    assert n_before+1 == n_after
+
+def test_rename_playlist(provider):
+    new_name = "Foobar"
+    playlist = provider.lookup("spotify:user:alice:playlist:foo")
+    new_pl = playlist.replace(name=new_name)
+    retval = provider.save(new_pl)
+    assert retval.name == new_name
+
+def test_delete_playlist(provider):
+    n_before = len(provider.as_list())
+    playlist_id = "spotify:user:alice:playlist:foo"
+    rv = provider.delete(playlist_id)
+    n_after = len(provider.as_list())
+    assert rv == True
+    assert n_before-1 == n_after
+
+def test_delete_nonexisting_playlist(provider):
+    n_before = len(provider.as_list())
+    playlist_id = "spotify:user:alice:playlist:nonexisting"
+    rv = provider.delete(playlist_id)
+    n_after = len(provider.as_list())
+    assert rv == False
+    assert n_before == n_after
+
+def test_edit_deleted_playlist(provider):
+    # this might happen if we edit a (cached) playlist
+    # that has been deleted in the mean time.
+    playlist_id = "spotify:user:alice:playlist:foo"
+    playlist = provider.lookup(playlist_id)
+    provider.delete(playlist_id)
+    retval = provider.save(playlist)
+    assert retval is None
+
+
+def test_replace_playlist_short(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    tracks = [mopidy_track_factory("x")]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']
+
+
+def test_replace_playlist_long(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    tracks = [mopidy_track_factory("x")]*300
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put'] + ['post']*2
+
+
+def test_delete_from_playlist_patch(provider):
+    # this test has more operations in patch mode than in replace mode, but we
+    # force patch mode anyways to test complex changes without having to create
+    # an even larger playlist.
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks[3:10] + old_tracks[11:100] + old_tracks[250:399]
+    new_pl = playlist.replace(tracks=tracks)
+    provider._len_replace = lambda x: 99999999  # force patch mode
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['delete']*6
+
+
+def test_delete_from_playlist_replace(provider):
+    # same test as before, but without forcing patch mode. hence, this should
+    # auto-choose replace mode.
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks[3:10] + old_tracks[11:100] + old_tracks[250:399]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put'] + ['post']*2
+
+
+def test_append_to_playlist(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks[:10] + [mopidy_track_factory("y")]*150 + old_tracks[10:] + [mopidy_track_factory("x")]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['post']*3
+
+
+def test_move_back_in_playlist(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [.mmmmmmmmm....................] => [....................mmmmmmmmm.]
+    tracks = old_tracks[:1] + old_tracks[10:-1] + old_tracks[1:10] + old_tracks[-1:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*1
+
+
+def test_move_front_in_playlist(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [....................mmmmmmmmm.] => [.mmmmmmmmm....................]
+    tracks = old_tracks[:1] + old_tracks[-10:-1] + old_tracks[1:-10] + old_tracks[-1:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*1
+
+
+def test_swap_ranges_in_playlist(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [...aaaaa..............bbbbb...] => [...bbbbb..............aaaaa...]
+    tracks = old_tracks[:4] + old_tracks[-8:-3] + old_tracks[9:-8] + old_tracks[4:9] + old_tracks[-3:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+
+def test_add_and_remove_tracks(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks[3:10] + old_tracks[11:40] + [mopidy_track_factory("x")]*10 + old_tracks[40:100] + old_tracks[250:] + [mopidy_track_factory("y")]*5
+    new_pl = playlist.replace(tracks=tracks)
+    provider._len_replace = lambda x: 99999999  # force patch mode
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['delete', 'delete', 'post', 'delete', 'delete', 'post']
+
+def test_add_and_remove_tracks2(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks[3:10] + old_tracks[11:40] + [mopidy_track_factory("x")]*150 + old_tracks[40:100] + old_tracks[250:] + [mopidy_track_factory("y")]*200
+    new_pl = playlist.replace(tracks=tracks)
+    provider._len_replace = lambda x: 99999999  # force patch mode
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['delete']*2 + ['post']*2 + ['delete']*2 + ['post']*2
+
+def test_insert_at_start(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = [mopidy_track_factory("x")]*101 + old_tracks
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['post']*2
+
+def test_insert_at_end(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks + [mopidy_track_factory("x")]*101
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['post']*2
+
+def test_delete_at_start(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks[101:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['delete']*2
+
+def test_delete_at_end(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks[:-101]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['delete']*2
+
+def test_move_two_back1(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [....aaaa......bbbb............] => [.........aaaa.............bbbb] (x10)
+    tracks = old_tracks[:-101]
+    tracks = old_tracks[:40] + old_tracks[80:130] + old_tracks[40:80] + old_tracks[130:140] + old_tracks[180:300] + old_tracks[140:180] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_move_two_back2(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [....aaaa......bbbb............] => [...................aaaa.bbbb..] (x10)
+    tracks = old_tracks[:40] + old_tracks[80:140] + old_tracks[180:270] + old_tracks[40:80] + old_tracks[270:280] + old_tracks[140:180] + old_tracks[280:300] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_move_two_back3(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [.aaaa...bbbb..................] => [..............bbbb.....aaaa...] (x10)
+    tracks = old_tracks[:10] + old_tracks[50:80] + old_tracks[120:220] + old_tracks[80:120] + old_tracks[220:270] + old_tracks[10:50] + old_tracks[270:300] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_move_two_front1(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [.........aaaa.............bbbb] => [....aaaa......bbbb............] (x10)
+    tracks = old_tracks[:-101]
+    tracks = old_tracks[:40] + old_tracks[90:130] + old_tracks[40:90] + old_tracks[130:140] + old_tracks[260:300] + old_tracks[140:260] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_move_two_front2(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [...................aaaa.bbbb..] => [....aaaa......bbbb............] (x10)
+    tracks = old_tracks[:40] + old_tracks[190:230] + old_tracks[40:100] + old_tracks[240:280] + old_tracks[100:190] + old_tracks[230:240] + old_tracks[280:300] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_move_two_front3(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [..............bbbb.....aaaa...] => [.aaaa...bbbb..................] (x10)
+    tracks = old_tracks[:10] + old_tracks[230:270] + old_tracks[10:40] + old_tracks[140:180] + old_tracks[40:140] + old_tracks[180:230] + old_tracks[270:300] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_move_over_100_tracks(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [....aaaa......bbbb............] => [.....................bbaaaabb.] (x10)
+    tracks = old_tracks[:100] + old_tracks[300:] + old_tracks[100:300]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*1
+
+def test_move_sections_into_each_other(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [....aaaa......bbbb............] => [.....................bbaaaabb.] (x10)
+    tracks = old_tracks[:40] + old_tracks[80:140] + old_tracks[180:290] + old_tracks[140:160] + old_tracks[40:80] + old_tracks[160:180] + old_tracks[290:300] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    # note: this is expectedly not recognized as a move, since bb|bb is broken up. but we want to test that a user could do that.
+    assert provider._test_request_history() == ['delete', 'delete', 'post']
+
+def test_move_sections_apart(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [........aaaa..bbbb............] => [....aaaa.............bbbb.....] (x10)
+    tracks = old_tracks[:40] + old_tracks[80:120] + old_tracks[40:80] + old_tracks[120:140] + old_tracks[180:250] + old_tracks[140:180] + old_tracks[250:300] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_move_crisscross(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    # [........aaaa..bbbb............] => [....bbbb.............aaaa.....] (x10)
+    tracks = old_tracks[:40] + old_tracks[140:180] + old_tracks[40:80] + old_tracks[120:140] + old_tracks[180:250] + old_tracks[80:120] + old_tracks[250:300] + old_tracks[300:]
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*2
+
+def test_many_moves(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks
+    for a,b in [(3, 9), (2, 4), (7, 8), (1, 10), (6, 5)]:
+        tracks[50*a:50*a+10], tracks[50*b:50*b+10] = tracks[50*b:50*b+10], tracks[50*a:50*a+10]
+    new_pl = playlist.replace(tracks=tracks)
+    provider._len_replace = lambda x: 99999999  # force patch mode
+    retval = provider.save(new_pl)
+    assert retval.tracks == new_pl.tracks
+    assert provider._test_request_history() == ['put']*9
+
+def test_many_moves_and_many_adds_and_many_dels(provider, mopidy_track_factory):
+    playlist = provider.lookup("spotify:user:alice:playlist:large")
+    old_tracks = list(playlist.tracks)
+    tracks = old_tracks
+    # swap some ranges around:
+    for a,b in [(3, 9), (2, 4), (7, 8), (1, 10), (6, 5)]:
+        tracks[50*a:50*a+10], tracks[50*b:50*b+10] = tracks[50*b:50*b+10], tracks[50*a:50*a+10]
+    # replace some tracks (should cause an add+delete pair):
+    for i in [1, 5, 3, 8, 6, 4, 10, 9, 2, 7]:
+        tracks[50*i+20:50*i+30] = [mopidy_track_factory(f"track{i}")]*10
+    new_pl = playlist.replace(tracks=tracks)
+    provider._len_replace = lambda x: 99999999  # force patch mode
+    retval = provider.save(new_pl)
+    rqs = provider._test_request_history()
+    assert retval.tracks == new_pl.tracks
+    assert len([x for x in rqs if x == 'delete']) == 10
+    assert len([x for x in rqs if x == 'post']) == 10
+    assert len([x for x in rqs if x == 'put']) == 8
+
+
 def test_is_a_playlists_provider(provider):
     assert isinstance(provider, backend_api.PlaylistsProvider)
 
