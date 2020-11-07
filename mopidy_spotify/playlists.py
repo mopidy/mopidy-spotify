@@ -75,7 +75,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         unwind_f = []
         unwind_t = []
         for op in operations:
-            ## todo: should remove 'done' unwind items, to avoid counting them multiple times
+            ##
             ended_ranges_f, unwind_f = self._span(lambda e: e[0] < op.frm, unwind_f)
             ended_ranges_t, unwind_t = self._span(lambda e: e[0] < op.to, unwind_t)
             delta_f -= sum((v for k,v in ended_ranges_f))
@@ -166,6 +166,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         self._get_flattened_playlist_refs()
         return response.status_ok
 
+    @staticmethod
+    def _len_replace(playlist, n=_chunk_size):
+        return math.ceil(len(playlist.tracks) / n)
+
     def save(self, playlist):
         saved_playlist = self.lookup(playlist.uri)
         if not saved_playlist:
@@ -178,7 +182,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         # calculate number of operations required for each strategy:
         ops_patch   = len(operations)
-        ops_replace = math.ceil(len(playlist.tracks) / self._chunk_size)
+        ops_replace = self._len_replace(playlist)
 
         try:
             if ops_replace < ops_patch:
