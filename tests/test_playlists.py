@@ -133,9 +133,9 @@ def web_client_mock(web_client_mock, web_track_mock, web_album_mock, web_artist_
         method = method.lower()
         path_parts = path.split('/')
         web_client_mock._test_requests_history.append(method)
-        if re.fullmatch(r"users/(.*?)/playlists/(.*?)/tracks", path):
-            user_id, playlist_id = path_parts[1], path_parts[3]
-            playlist_uri = f'spotify:user:{user_id}:playlist:{playlist_id}'
+        if re.fullmatch(r"playlists/(.*?)/tracks", path):
+            playlist_id = path_parts[1]
+            playlist_uri = next((k for k in web_playlists_map.keys() if k.endswith(f':playlist:{playlist_id}')))
             rv = _edit_playlist(method, playlist_uri, json)
             return mock.Mock(status_ok=rv)
         elif re.fullmatch(r"users/(.*?)/playlists", path):

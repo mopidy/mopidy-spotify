@@ -54,10 +54,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         )
 
     @staticmethod
-    def _get_user_and_playlist_id_from_uri(uri):
-        user_id = uri.split(':')[-3]
-        playlist_id = uri.split(':')[-1]
-        return user_id, playlist_id
+    def _get_playlist_id_from_uri(uri):
+        return uri.split(':')[-1]
 
     @staticmethod
     def partitions(lst, n=_chunk_size):
@@ -118,8 +116,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             self._playlist_edit(playlist, method=method, uris=uris)
 
     def _playlist_edit(self, playlist, method, **kwargs):
-        user_id, playlist_id = self._get_user_and_playlist_id_from_uri(playlist.uri)
-        url = f'users/{user_id}/playlists/{playlist_id}/tracks'
+        playlist_id = self._get_playlist_id_from_uri(playlist.uri)
+        url = f'playlists/{playlist_id}/tracks'
         method = getattr(self._backend._web_client, method.lower())
         if not method:
             raise AttributeError(f'Invalid HTTP method "{method}"')
@@ -197,8 +195,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # Playlist rename logic
         if playlist.name != saved_playlist.name:
             logger.info(f'Renaming playlist [{saved_playlist.name}] to [{playlist.name}]')
-            user_id, playlist_id = self._get_user_and_playlist_id_from_uri(saved_playlist.uri)
-            self._backend._web_client.put(f'users/{user_id}/playlists/{playlist_id}',
+            playlist_id = self._get_playlist_id_from_uri(saved_playlist.uri)
+            self._backend._web_client.put(f'playlists/{playlist_id}',
                     json={'name': playlist.name})
             self._backend._web_client.remove_from_cache("me/playlists")
             self._backend._web_client.remove_from_cache(f'playlists/{playlist_id}')
