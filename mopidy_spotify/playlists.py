@@ -119,8 +119,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         playlist_id = self._get_playlist_id_from_uri(playlist.uri)
         url = f'playlists/{playlist_id}/tracks'
         method = getattr(self._backend._web_client, method.lower())
-        if not method:
-            raise AttributeError(f'Invalid HTTP method "{method}"')
 
         logger.debug(f'API request: {method} {url}')
         response = method(url, json=kwargs)
