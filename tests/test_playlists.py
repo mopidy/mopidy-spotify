@@ -139,7 +139,6 @@ def web_client_mock(web_client_mock, web_track_mock, web_album_mock, web_artist_
             rv = _edit_playlist(method, playlist_uri, json)
             return mock.Mock(status_ok=rv)
         elif re.fullmatch(r"users/(.*?)/playlists", path):
-            user_id = path_parts[1]
             ok, playlist_id = _create_playlist(method, json)
             rv = mock.MagicMock(status_ok=ok)
             rv.__getitem__.return_value = playlist_id
@@ -198,7 +197,7 @@ def test_delete_playlist(provider):
     playlist_id = "spotify:user:alice:playlist:foo"
     rv = provider.delete(playlist_id)
     n_after = len(provider.as_list())
-    assert rv == True
+    assert rv is True
     assert n_before-1 == n_after
 
 def test_delete_nonexisting_playlist(provider):
@@ -206,7 +205,7 @@ def test_delete_nonexisting_playlist(provider):
     playlist_id = "spotify:user:alice:playlist:nonexisting"
     rv = provider.delete(playlist_id)
     n_after = len(provider.as_list())
-    assert rv == False
+    assert rv is False
     assert n_before == n_after
 
 def test_edit_deleted_playlist(provider):
@@ -442,7 +441,8 @@ def test_move_sections_into_each_other(provider):
     new_pl = playlist.replace(tracks=tracks)
     retval = provider.save(new_pl)
     assert retval.tracks == new_pl.tracks
-    # note: this is expectedly not recognized as a move, since bb|bb is broken up. but we want to test that a user could do that.
+    # note: this is expectedly not recognized as a move, since bb|bb is broken
+    # up. but we want to test that a user could do that.
     assert provider._test_request_history() == ['delete', 'delete', 'post']
 
 def test_move_sections_apart(provider):

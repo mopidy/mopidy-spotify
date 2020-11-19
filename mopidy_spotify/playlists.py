@@ -63,9 +63,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             yield lst[i:i+n]
 
     @staticmethod
-    def _span(p, l):  # like haskell's Data.List.span
-        i = next((i for i,v in enumerate(l) if not p(v)), len(l))
-        return l[:i], l[i:]
+    def _span(p, xs):  # like haskell's Data.List.span
+        i = next((i for i,v in enumerate(xs) if not p(v)), len(xs))
+        return xs[:i], xs[i:]
 
     def _patch_playlist(self, playlist, operations):
         delta_f = 0
@@ -79,7 +79,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             delta_f -= sum((v for k,v in ended_ranges_f))
             delta_t -= sum((v for k,v in ended_ranges_t))
             ##
-            l = len(op.tracks)
+            length = len(op.tracks)
             if op.op == '-':
                 self._playlist_edit(playlist, method='delete',
                     tracks=[
@@ -87,22 +87,23 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                         for i,t in enumerate(op.tracks)
                     ]
                 )
-                delta_f -= l
-                delta_t -= l
+                delta_f -= length
+                delta_t -= length
             elif op.op == '+':
                 self._playlist_edit(playlist, method='post',
                     uris=op.tracks, position=op.frm+delta_f
                 )
-                delta_f += l
-                delta_t += l
+                delta_f += length
+                delta_t += length
             elif op.op == 'm':
                 self._playlist_edit(playlist, method='put',
                     range_start=op.frm+delta_f, insert_before=op.to+delta_t,
-                    range_length=l
+                    range_length=length
                 )
-                # if we move right, the delta is active in the range (op.frm, op.to); if we move left, it's in the range (op.to, op.frm+l)
-                position = op.to if op.frm < op.to else op.frm+l
-                amount = l * (-1 if op.frm < op.to else 1)
+                # if we move right, the delta is active in the range (op.frm, op.to),
+                # when we move left, it's in the range (op.to, op.frm+length)
+                position = op.to if op.frm < op.to else op.frm+length
+                amount = length * (-1 if op.frm < op.to else 1)
                 unwind_f.append((position, amount))
                 unwind_t.append((position, amount))
                 delta_f += amount
@@ -123,7 +124,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         logger.debug(f'API request: {method} {url}')
         response = method(url, json=kwargs)
         if not response.status_ok:
-            raise RuntimeError(response)
+            raise RuntimeError(response.message)
 
         logger.debug(f'API response: {response}')
 
@@ -187,8 +188,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 self._patch_playlist(saved_playlist, operations)
         except RuntimeError as e:
             logger.error(f"Failed to save Spotify playlist {saved_playlist} -> {playlist}")
-            # todo: worst case: we might have started overwriting the playlist, and are now truncated.
-            raise e.message
+            # TODO: worst case: we might have started overwriting the playlist,
+            # and are now truncated.
+            raise e
 
         # Playlist rename logic
         if playlist.name != saved_playlist.name:

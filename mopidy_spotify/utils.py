@@ -1,4 +1,3 @@
-import collections
 import contextlib
 import functools
 import itertools
@@ -45,13 +44,13 @@ class op:
         self.frm = frm
         self.to = to
     def __repr__(self):
-        l = len(self.tracks)
+        length = len(self.tracks)
         first = self.tracks[0].split(":")[-1]
         last = self.tracks[-1].split(":")[-1]
-        tracks = f"{first}...{last}" if l > 1 else first
+        tracks = f"{first}...{last}" if length > 1 else first
         action = {"-":"delete","+":"insert","m":"move"}
         pos = f"{self.frm} to {self.to}" if self.op == 'm' else self.frm
-        return f'<{action.get(self.op)} {l} tracks [{tracks}] at {pos}>'
+        return f'<{action.get(self.op)} {length} tracks [{tracks}] at {pos}>'
 
 
 def myers(old, new):
@@ -103,9 +102,11 @@ def _is_move(op1, op2):
 
 def _op_split(o, chunksize):
     def partition(o, n):
+        def inc(m, i):
+            return m+i if o.op == '-' or o.op == 'm' else m
+
         for i in range(0, len(o.tracks), n):
-            inc = lambda m: m+i if o.op == '-' or o.op == 'm' else m
-            yield op(o.op, o.tracks[i:i+n], inc(o.frm), inc(o.to))
+            yield op(o.op, o.tracks[i:i+n], inc(o.frm, i), inc(o.to, i))
 
     return list(partition(o, chunksize)) if o.op != 'm' else [o]
 
@@ -117,22 +118,22 @@ def diff(old, new, chunksize=100):
     # then, remove unmodified ranges and transform groupby-iterators to lists:
     ops = [(k,list(v)) for k,v in ops if k != '=']
 
-    # now, reorder the data structure to ressemble op-tuples again: [ op, [tracks], from, to ]
+    # now, reorder the data structure to ressemble op-objects again:
     ops = [op(k, [v.tracks for v in v], v[0].frm, v[0].to) for k,v in ops]
 
     # then, merge pairs of insertions and deletions into a transposition:
     # for this, we start from the rightmost element,
-    for r in reversed(range(len(ops))):
+    for R in reversed(range(len(ops))):
         # and compare against all elements on its left
-        for l in reversed(range(r)):
+        for L in reversed(range(R)):
             # if we found a pair of ins/del that can be combined,
-            if _is_move(ops[r], ops[l]) or _is_move(ops[l], ops[r]):
+            if _is_move(ops[R], ops[L]) or _is_move(ops[L], ops[R]):
                 # replace the left item with a mov
-                del_at = ops[l].frm if ops[l].op == '-' else ops[r].frm
-                ins_at = ops[l].frm if ops[l].op == '+' else ops[r].frm
-                ops[l] = op('m', ops[l].tracks, del_at, ins_at)
+                del_at = ops[L].frm if ops[L].op == '-' else ops[R].frm
+                ins_at = ops[L].frm if ops[L].op == '+' else ops[R].frm
+                ops[L] = op('m', ops[L].tracks, del_at, ins_at)
                 # and delete the right one (this is why we go right-to-left)
-                del ops[r]
+                del ops[R]
                 break  # check the next outer element
 
     # finally, split add/del ops to work on <= 100 tracks (but not mov ops):
