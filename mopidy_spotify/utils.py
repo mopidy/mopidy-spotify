@@ -45,9 +45,13 @@ class op:
         self.frm = frm
         self.to = to
     def __repr__(self):
-        x = {"-":"delete","+":"insert","m":"move"}
-        first, last = self.tracks[0].split(":")[-1], self.tracks[-1].split(":")[-1]
-        return f'<{x.get(self.op)} {len(self.tracks)} tracks [{first}...{last}] at {self.frm} to {self.to}>'
+        l = len(self.tracks)
+        first = self.tracks[0].split(":")[-1]
+        last = self.tracks[-1].split(":")[-1]
+        tracks = f"{first}...{last}" if l > 1 else first
+        action = {"-":"delete","+":"insert","m":"move"}
+        pos = f"{self.frm} to {self.to}" if self.op == 'm' else self.frm
+        return f'<{action.get(self.op)} {l} tracks [{tracks}] at {pos}>'
 
 
 def myers(old, new):
