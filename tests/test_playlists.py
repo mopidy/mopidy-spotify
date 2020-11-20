@@ -45,7 +45,20 @@ def web_client_mock(
         "uri": "spotify:user:alice:playlist:large",
         "type": "playlist",
     }
-    web_playlists = [web_playlist1, web_playlist2, web_playlist3, web_playlist4]
+    web_playlist5 = {
+        "owner": {"id": "alice"},
+        "name": "ReadOnly",
+        "tracks": {"items": [{"track": web_track_mock}]},
+        "uri": "spotify:user:alice:playlist:readonly",
+        "type": "playlist",
+    }
+    web_playlists = [
+        web_playlist1,
+        web_playlist2,
+        web_playlist3,
+        web_playlist4,
+        web_playlist5,
+    ]
     web_playlists_map = {x["uri"]: x for x in web_playlists}
 
     def get_user_playlists(*args, **kwargs):
@@ -57,6 +70,9 @@ def web_client_mock(
     def _edit_playlist(method, playlist_uri, json):
         if not playlist_uri.startswith("spotify:user:alice:"):
             # we aren't allowed to modify the playlist
+            return False
+        if playlist_uri.endswith(":readonly"):
+            # pretend the playlist couldn't be saved
             return False
 
         if method == "put":
@@ -282,8 +298,18 @@ def test_edit_deleted_playlist(provider):
     assert retval is None
 
 
-def test_playlist_save_failed(provider, mopidy_track_factory, caplog):
+def test_playlist_save_failed1(provider, mopidy_track_factory, caplog):
     playlist = provider.lookup("spotify:user:bob:playlist:baz")
+    tracks = [mopidy_track_factory("x")]
+    new_pl = playlist.replace(tracks=tracks)
+    provider._len_replace = lambda x: 0  # force replace mode
+    retval = provider.save(new_pl)
+    assert retval is None
+    assert "Refusing to modify someone else's playlist" in caplog.text
+
+
+def test_playlist_save_failed2(provider, mopidy_track_factory, caplog):
+    playlist = provider.lookup("spotify:user:alice:playlist:readonly")
     tracks = [mopidy_track_factory("x")]
     new_pl = playlist.replace(tracks=tracks)
     provider._len_replace = lambda x: 0  # force replace mode
@@ -761,7 +787,7 @@ def test_as_list_when_not_loaded(provider):
 def test_as_list_when_playlist_wont_translate(provider):
     result = provider.as_list()
 
-    assert len(result) == 3
+    assert len(result) == 4
 
     assert result[0] == Ref.playlist(
         uri="spotify:user:alice:playlist:foo", name="Foo"
@@ -827,7 +853,7 @@ def test_refresh_loads_all_playlists(provider, web_client_mock):
     provider.refresh()
 
     web_client_mock.get_user_playlists.assert_called_once()
-    assert web_client_mock.get_playlist.call_count == 3
+    assert web_client_mock.get_playlist.call_count == 4
     expected_calls = [
         mock.call("spotify:user:alice:playlist:foo"),
         mock.call("spotify:user:bob:playlist:baz"),
@@ -859,7 +885,7 @@ def test_refresh_sets_loaded(provider, web_client_mock):
 def test_refresh_counts_playlists(provider, caplog):
     provider.refresh()
 
-    assert "Refreshed 3 Spotify playlists" in caplog.text
+    assert "Refreshed 4 Spotify playlists" in caplog.text
 
 
 def test_refresh_clears_caches(provider, web_client_mock):

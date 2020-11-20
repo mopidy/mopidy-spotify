@@ -45,13 +45,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         with utils.time_logger(f"playlists.lookup({uri!r})", logging.DEBUG):
             return self._get_playlist(uri)
 
-    def _get_playlist(self, uri, as_items=False):
+    def _get_playlist(self, uri, as_items=False, with_owner=False):
         return playlist_lookup(
             self._backend._session,
             self._backend._web_client,
             uri,
             self._backend._bitrate,
             as_items,
+            with_owner,
         )
 
     @staticmethod
@@ -185,8 +186,17 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         return math.ceil(len(playlist.tracks) / n)
 
     def save(self, playlist):
-        saved_playlist = self.lookup(playlist.uri)
+        saved_playlist = self._get_playlist(playlist.uri, with_owner=True)
         if not saved_playlist:
+            return
+
+        saved_playlist, owner = saved_playlist
+        # We limit playlist editing to the user's own playlists, since mopidy
+        # mangles the names of other people's playlists.
+        if owner and owner != self._backend._web_client.user_id:
+            logger.error(
+                f"Refusing to modify someone else's playlist ({playlist.uri})"
+            )
             return
 
         new_tracks = [track.uri for track in playlist.tracks]
@@ -247,7 +257,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         return self.lookup(saved_playlist.uri)
 
 
-def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
+def playlist_lookup(
+    session, web_client, uri, bitrate, as_items=False, with_owner=False
+):
     if web_client is None or not web_client.logged_in:
         return
 
@@ -282,4 +294,7 @@ def playlist_lookup(session, web_client, uri, bitrate, as_items=False):
             except ValueError as exc:
                 logger.info(f"Failed to get link {track.uri!r}: {exc}")
 
+    if with_owner:
+        owner = web_playlist.get("owner", {}).get("id")
+        return playlist, owner
     return playlist
