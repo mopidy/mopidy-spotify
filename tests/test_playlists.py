@@ -50,6 +50,10 @@ def web_client_mock(web_client_mock, web_track_mock, web_album_mock, web_artist_
         return web_playlists_map.get(args[0], {})
 
     def _edit_playlist(method, playlist_uri, json):
+        if not playlist_uri.startswith("spotify:user:alice:"):
+            # we aren't allowed to modify the playlist
+            return False
+
         if method == 'put':
             if 'uris' in json:
                 # replace all tracks with provided ones
@@ -216,6 +220,20 @@ def test_edit_deleted_playlist(provider):
     provider.delete(playlist_id)
     retval = provider.save(playlist)
     assert retval is None
+
+
+def test_playlist_save_failed(provider, mopidy_track_factory, caplog):
+    playlist = provider.lookup("spotify:user:bob:playlist:baz")
+    tracks = [mopidy_track_factory("x")]
+    new_pl = playlist.replace(tracks=tracks)
+    provider._len_replace = lambda x: 0  # force replace mode
+    retval = provider.save(new_pl)
+    assert retval is None
+    assert "Failed to save Spotify playlist:" in caplog.text
+    assert "Created backup in" in caplog.text
+    filename = next((line.split('"')[1] for line in caplog.text.split("\n") if "Created backup in" in line))
+    m3ucontents = open(filename).read()
+    assert m3ucontents == "#EXTM3U\n#EXTENC: UTF-8\n\n#EXTINF:174,ABBA - x\nspotify:track:x\n\n"
 
 
 def test_replace_playlist_short(provider, mopidy_track_factory):

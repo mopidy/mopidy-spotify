@@ -1,10 +1,11 @@
 import logging
 import math
+import time
 
 from mopidy import backend
 
 import spotify
-from mopidy_spotify import translator, utils
+from mopidy_spotify import translator, utils, Extension
 
 _sp_links = {}
 
@@ -187,10 +188,27 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             else:
                 self._patch_playlist(saved_playlist, operations)
         except RuntimeError as e:
-            logger.error(f"Failed to save Spotify playlist {saved_playlist} -> {playlist}")
-            # TODO: worst case: we might have started overwriting the playlist,
-            # and are now truncated.
-            raise e
+            logger.error(f"Failed to save Spotify playlist: {e}")
+            # In the unlikely event that we used the replace strategy, and the
+            # first PUT went through but the following POSTs didn't, we have
+            # truncated the playlist. At this point, we still have the playlist
+            # data available, so we write it to an m3u file as a last resort
+            # effort for the user to recover from.
+            if ops_replace < ops_patch:
+                safe_name = playlist.name.translate(str.maketrans(" @`!\"#$%&'()*+;[{<\\|]}>^~/?", "_"*27))
+                filename = (
+                    Extension.get_data_dir(self._backend._config)
+                    / f"{safe_name}-{playlist.uri}-{time.time()}.m3u"
+                )
+                with open(filename, "wb") as f:
+                    f.write(b"#EXTM3U\n#EXTENC: UTF-8\n\n")
+                    for track in playlist.tracks:
+                        length = int(track.length/1000)
+                        artists = ", ".join(a.name for a in track.artists)
+                        f.write(f"#EXTINF:{length},{artists} - {track.name}\n"
+                            f"{track.uri}\n\n".encode("utf-8"))
+                logger.error(f'Created backup in "{filename}"')
+            return None
 
         # Playlist rename logic
         if playlist.name != saved_playlist.name:
