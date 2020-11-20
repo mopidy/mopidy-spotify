@@ -316,7 +316,7 @@ def web_to_album(web_album):
     artists = [a for a in artists if a]
 
     # Note: date can by YYYY-MM-DD, YYYY-MM or YYYY.
-    date = web_album.get('release_date', '').split('-')[0] or None
+    date = web_album.get("release_date", "").split("-")[0] or None
 
     return models.Album(uri=ref.uri, name=ref.name, artists=artists, date=date)
 

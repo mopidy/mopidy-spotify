@@ -43,14 +43,15 @@ class op:
         self.tracks = tracks
         self.frm = frm
         self.to = to
+
     def __repr__(self):
         length = len(self.tracks)
         first = self.tracks[0].split(":")[-1]
         last = self.tracks[-1].split(":")[-1]
         tracks = f"{first}...{last}" if length > 1 else first
-        action = {"-":"delete","+":"insert","m":"move"}
-        pos = f"{self.frm} to {self.to}" if self.op == 'm' else self.frm
-        return f'<{action.get(self.op)} {length} tracks [{tracks}] at {pos}>'
+        action = {"-": "delete", "+": "insert", "m": "move"}
+        pos = f"{self.frm} to {self.to}" if self.op == "m" else self.frm
+        return f"<{action.get(self.op)} {length} tracks [{tracks}] at {pos}>"
 
 
 def myers(old, new):
@@ -64,18 +65,22 @@ def myers(old, new):
     M = len(new)
     MAX = N + M
 
-    V_SIZE = 2*min(N,M) + 2
+    V_SIZE = 2 * min(N, M) + 2
     V = [None] * V_SIZE
     V[1] = (0, [])  # x, history
     for D in range(0, MAX + 1):
-        for k in range(-(D - 2*max(0, D-M)), D - 2*max(0, D-N) + 1, 2):
-            down = k == -D or k != D and V[(k - 1) % V_SIZE][0] < V[(k + 1) % V_SIZE][0]
+        for k in range(-(D - 2 * max(0, D - M)), D - 2 * max(0, D - N) + 1, 2):
+            down = (
+                k == -D
+                or k != D
+                and V[(k - 1) % V_SIZE][0] < V[(k + 1) % V_SIZE][0]
+            )
             if down:
                 x, hist = V[(k + 1) % V_SIZE]
             else:
                 x, hist = V[(k - 1) % V_SIZE]
                 x += 1
-            hist = hist[:] # copy
+            hist = hist[:]  # copy
             y = x - k
 
             # Note: Myers' algorithm is one-indexed, but our lists are
@@ -83,32 +88,32 @@ def myers(old, new):
             # actually want. Except in the case for '+', as when inserting the
             # "old" index (x) is lagging behind by 1.
             if down and y <= M and 1 <= y:
-                hist.append(op('+', new[y-1], x))
+                hist.append(op("+", new[y - 1], x))
             elif x <= N and 1 <= x:
-                hist.append(op('-', old[x-1], x-1))
+                hist.append(op("-", old[x - 1], x - 1))
 
             while x < N and y < M and old[x] == new[y]:
                 x = x + 1
                 y = y + 1
-                hist.append(op('=', old[x-1], x-1))
+                hist.append(op("=", old[x - 1], x - 1))
             V[k % V_SIZE] = (x, hist)
             if x == N and y == M:
                 return hist
 
 
 def _is_move(op1, op2):
-    return op1.op == '-' and op2.op == '+' and op1.tracks == op2.tracks
+    return op1.op == "-" and op2.op == "+" and op1.tracks == op2.tracks
 
 
 def _op_split(o, chunksize):
     def partition(o, n):
         def inc(m, i):
-            return m+i if o.op == '-' or o.op == 'm' else m
+            return m + i if o.op == "-" or o.op == "m" else m
 
         for i in range(0, len(o.tracks), n):
-            yield op(o.op, o.tracks[i:i+n], inc(o.frm, i), inc(o.to, i))
+            yield op(o.op, o.tracks[i : i + n], inc(o.frm, i), inc(o.to, i))
 
-    return list(partition(o, chunksize)) if o.op != 'm' else [o]
+    return list(partition(o, chunksize)) if o.op != "m" else [o]
 
 
 def diff(old, new, chunksize=100):
@@ -116,10 +121,10 @@ def diff(old, new, chunksize=100):
     ops = itertools.groupby(myers(old, new), lambda x: x.op)
 
     # then, remove unmodified ranges and transform groupby-iterators to lists:
-    ops = [(k,list(v)) for k,v in ops if k != '=']
+    ops = [(k, list(v)) for k, v in ops if k != "="]
 
     # now, reorder the data structure to ressemble op-objects again:
-    ops = [op(k, [v.tracks for v in v], v[0].frm, v[0].to) for k,v in ops]
+    ops = [op(k, [v.tracks for v in v], v[0].frm, v[0].to) for k, v in ops]
 
     # then, merge pairs of insertions and deletions into a transposition:
     # for this, we start from the rightmost element,
@@ -129,9 +134,9 @@ def diff(old, new, chunksize=100):
             # if we found a pair of ins/del that can be combined,
             if _is_move(ops[R], ops[L]) or _is_move(ops[L], ops[R]):
                 # replace the left item with a mov
-                del_at = ops[L].frm if ops[L].op == '-' else ops[R].frm
-                ins_at = ops[L].frm if ops[L].op == '+' else ops[R].frm
-                ops[L] = op('m', ops[L].tracks, del_at, ins_at)
+                del_at = ops[L].frm if ops[L].op == "-" else ops[R].frm
+                ins_at = ops[L].frm if ops[L].op == "+" else ops[R].frm
+                ops[L] = op("m", ops[L].tracks, del_at, ins_at)
                 # and delete the right one (this is why we go right-to-left)
                 del ops[R]
                 break  # check the next outer element

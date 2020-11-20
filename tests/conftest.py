@@ -323,18 +323,20 @@ def web_album_mock(web_artist_mock):
 @pytest.fixture
 def web_track_factory(web_album_mock, web_artist_mock):
     # keep in sync with mopidy_track_factory!
-    return lambda ident: {"track": {
-        "album": web_album_mock,
-        "artists": [web_artist_mock],
-        "release_date": "2001",
-        "disc_number": 1,
-        "duration_ms": 174300,
-        "name": ident,
-        "track_number": 7,
-        "uri": "spotify:track:"+ident,
-        "type": "track",
-        "is_playable": True,
-    }}
+    return lambda ident: {
+        "track": {
+            "album": web_album_mock,
+            "artists": [web_artist_mock],
+            "release_date": "2001",
+            "disc_number": 1,
+            "duration_ms": 174300,
+            "name": ident,
+            "track_number": 7,
+            "uri": "spotify:track:" + ident,
+            "type": "track",
+            "is_playable": True,
+        }
+    }
 
 
 @pytest.fixture
@@ -421,7 +423,7 @@ def mopidy_track_factory(mopidy_album_mock, mopidy_artist_mock):
         length=174300,
         name=ident,
         track_no=7,
-        uri='spotify:track:'+ident
+        uri="spotify:track:" + ident,
     )
 
 

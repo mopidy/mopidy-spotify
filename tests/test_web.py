@@ -664,7 +664,9 @@ def test_cached_response_unchanged(web_response_mock, oauth_client, mock_time):
 
 
 @responses.activate
-def test_non_idempotent_request_methods(web_response_mock, oauth_client, mock_time):
+def test_non_idempotent_request_methods(
+    web_response_mock, oauth_client, mock_time
+):
     responses.add(responses.POST, "https://api.spotify.com/v1/foo", json={})
     responses.add(responses.PUT, "https://api.spotify.com/v1/foo", json={})
     responses.add(responses.DELETE, "https://api.spotify.com/v1/foo", json={})
@@ -1112,6 +1114,7 @@ def test_weblink_from_uri_raises(uri):
         assert result is None
 
     assert f"Could not parse {uri!r} as a Spotify URI" in str(excinfo.value)
+
 
 def test_remove_from_cache(spotify_client):
     spotify_client._cache = {

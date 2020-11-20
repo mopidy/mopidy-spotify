@@ -9,6 +9,7 @@ def test_time_logger(caplog):
 
     assert re.match(r".*task took \d+ms.*", caplog.text)
 
+
 def test_diff_op_repr():
     o0 = utils.op("+", ["1"], 1, 2)
     o1 = utils.op("+", ["1", "2", "3"], 1, 2)

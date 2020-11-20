@@ -745,7 +745,10 @@ class TestWebToTrack:
         assert track.name == "ABC 123"
         assert list(track.artists) == artists
         assert track.album == models.Album(
-            uri="spotify:album:def", name="DEF 456", artists=artists, date="2001"
+            uri="spotify:album:def",
+            name="DEF 456",
+            artists=artists,
+            date="2001",
         )
         assert track.track_no == 7
         assert track.disc_no == 1

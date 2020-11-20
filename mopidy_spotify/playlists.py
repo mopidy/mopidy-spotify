@@ -56,16 +56,16 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     @staticmethod
     def _get_playlist_id_from_uri(uri):
-        return uri.split(':')[-1]
+        return uri.split(":")[-1]
 
     @staticmethod
     def partitions(lst, n=_chunk_size):
         for i in range(0, len(lst), n):
-            yield lst[i:i+n]
+            yield lst[i : i + n]
 
     @staticmethod
     def _span(p, xs):  # like haskell's Data.List.span
-        i = next((i for i,v in enumerate(xs) if not p(v)), len(xs))
+        i = next((i for i, v in enumerate(xs) if not p(v)), len(xs))
         return xs[:i], xs[i:]
 
     def _patch_playlist(self, playlist, operations):
@@ -75,35 +75,47 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         unwind_t = []
         for op in operations:
             ##
-            ended_ranges_f, unwind_f = self._span(lambda e: e[0] < op.frm, unwind_f)
-            ended_ranges_t, unwind_t = self._span(lambda e: e[0] < op.to, unwind_t)
-            delta_f -= sum((v for k,v in ended_ranges_f))
-            delta_t -= sum((v for k,v in ended_ranges_t))
+            ended_ranges_f, unwind_f = self._span(
+                lambda e: e[0] < op.frm, unwind_f
+            )
+            ended_ranges_t, unwind_t = self._span(
+                lambda e: e[0] < op.to, unwind_t
+            )
+            delta_f -= sum((v for k, v in ended_ranges_f))
+            delta_t -= sum((v for k, v in ended_ranges_t))
             ##
             length = len(op.tracks)
-            if op.op == '-':
-                self._playlist_edit(playlist, method='delete',
+            if op.op == "-":
+                self._playlist_edit(
+                    playlist,
+                    method="delete",
                     tracks=[
-                        {'uri': t, 'positions': [op.frm+i+delta_f]}
-                        for i,t in enumerate(op.tracks)
-                    ]
+                        {"uri": t, "positions": [op.frm + i + delta_f]}
+                        for i, t in enumerate(op.tracks)
+                    ],
                 )
                 delta_f -= length
                 delta_t -= length
-            elif op.op == '+':
-                self._playlist_edit(playlist, method='post',
-                    uris=op.tracks, position=op.frm+delta_f
+            elif op.op == "+":
+                self._playlist_edit(
+                    playlist,
+                    method="post",
+                    uris=op.tracks,
+                    position=op.frm + delta_f,
                 )
                 delta_f += length
                 delta_t += length
-            elif op.op == 'm':
-                self._playlist_edit(playlist, method='put',
-                    range_start=op.frm+delta_f, insert_before=op.to+delta_t,
-                    range_length=length
+            elif op.op == "m":
+                self._playlist_edit(
+                    playlist,
+                    method="put",
+                    range_start=op.frm + delta_f,
+                    insert_before=op.to + delta_t,
+                    range_length=length,
                 )
                 # if we move right, the delta is active in the range (op.frm, op.to),
                 # when we move left, it's in the range (op.to, op.frm+length)
-                position = op.to if op.frm < op.to else op.frm+length
+                position = op.to if op.frm < op.to else op.frm + length
                 amount = length * (-1 if op.frm < op.to else 1)
                 unwind_f.append((position, amount))
                 unwind_t.append((position, amount))
@@ -114,23 +126,25 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         for i, uris in enumerate(self.partitions(tracks)):
             # on the first chunk (i.e. when i == 0), we use PUT to replace the
             # playlist, on the following chunks we use POST to append to it.
-            method = 'post' if i else 'put'
+            method = "post" if i else "put"
             self._playlist_edit(playlist, method=method, uris=uris)
 
     def _playlist_edit(self, playlist, method, **kwargs):
         playlist_id = self._get_playlist_id_from_uri(playlist.uri)
-        url = f'playlists/{playlist_id}/tracks'
+        url = f"playlists/{playlist_id}/tracks"
         method = getattr(self._backend._web_client, method.lower())
 
-        logger.debug(f'API request: {method} {url}')
+        logger.debug(f"API request: {method} {url}")
         response = method(url, json=kwargs)
         if not response.status_ok:
             raise RuntimeError(response.message)
 
-        logger.debug(f'API response: {response}')
+        logger.debug(f"API response: {response}")
 
         self._backend._web_client.remove_from_cache(url)
-        self._backend._web_client.remove_from_cache(f'playlists/{playlist_id}') # this also fetches the first 100 tracks
+        self._backend._web_client.remove_from_cache(
+            f"playlists/{playlist_id}"
+        )  # this also fetches the first 100 tracks
 
     def refresh(self):
         if not self._backend._web_client.logged_in:
@@ -148,17 +162,19 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         self._loaded = True
 
     def create(self, name):
-        logger.info(f'Creating playlist {name}')
-        url = f'users/{self._backend._web_client.user_id}/playlists'
-        response = self._backend._web_client.post(url, json={'name': name, 'public': False})
+        logger.info(f"Creating playlist {name}")
+        url = f"users/{self._backend._web_client.user_id}/playlists"
+        response = self._backend._web_client.post(
+            url, json={"name": name, "public": False}
+        )
         self._backend._web_client.remove_from_cache("me/playlists")
         self._get_flattened_playlist_refs()
-        return self.lookup(response['uri'])if response.status_ok else None
+        return self.lookup(response["uri"]) if response.status_ok else None
 
     def delete(self, uri):
-        playlist_id = uri.split(':')[-1]
-        logger.info(f'Deleting playlist {playlist_id}')
-        url = f'playlists/{playlist_id}/followers'
+        playlist_id = uri.split(":")[-1]
+        logger.info(f"Deleting playlist {playlist_id}")
+        url = f"playlists/{playlist_id}/followers"
         response = self._backend._web_client.delete(url)
         self._backend._web_client.remove_from_cache("me/playlists")
         self._get_flattened_playlist_refs()
@@ -179,7 +195,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         operations = utils.diff(cur_tracks, new_tracks, self._chunk_size)
 
         # calculate number of operations required for each strategy:
-        ops_patch   = len(operations)
+        ops_patch = len(operations)
         ops_replace = self._len_replace(playlist)
 
         try:
@@ -195,7 +211,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             # data available, so we write it to an m3u file as a last resort
             # effort for the user to recover from.
             if ops_replace < ops_patch:
-                safe_name = playlist.name.translate(str.maketrans(" @`!\"#$%&'()*+;[{<\\|]}>^~/?", "_"*27))
+                safe_name = playlist.name.translate(
+                    str.maketrans(" @`!\"#$%&'()*+;[{<\\|]}>^~/?", "_" * 27)
+                )
                 filename = (
                     Extension.get_data_dir(self._backend._config)
                     / f"{safe_name}-{playlist.uri}-{time.time()}.m3u"
@@ -203,21 +221,28 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 with open(filename, "wb") as f:
                     f.write(b"#EXTM3U\n#EXTENC: UTF-8\n\n")
                     for track in playlist.tracks:
-                        length = int(track.length/1000)
+                        length = int(track.length / 1000)
                         artists = ", ".join(a.name for a in track.artists)
-                        f.write(f"#EXTINF:{length},{artists} - {track.name}\n"
-                            f"{track.uri}\n\n".encode("utf-8"))
+                        f.write(
+                            f"#EXTINF:{length},{artists} - {track.name}\n"
+                            f"{track.uri}\n\n".encode("utf-8")
+                        )
                 logger.error(f'Created backup in "{filename}"')
             return None
 
         # Playlist rename logic
         if playlist.name != saved_playlist.name:
-            logger.info(f'Renaming playlist [{saved_playlist.name}] to [{playlist.name}]')
+            logger.info(
+                f"Renaming playlist [{saved_playlist.name}] to [{playlist.name}]"
+            )
             playlist_id = self._get_playlist_id_from_uri(saved_playlist.uri)
-            self._backend._web_client.put(f'playlists/{playlist_id}',
-                    json={'name': playlist.name})
+            self._backend._web_client.put(
+                f"playlists/{playlist_id}", json={"name": playlist.name}
+            )
             self._backend._web_client.remove_from_cache("me/playlists")
-            self._backend._web_client.remove_from_cache(f'playlists/{playlist_id}')
+            self._backend._web_client.remove_from_cache(
+                f"playlists/{playlist_id}"
+            )
 
         return self.lookup(saved_playlist.uri)
 
