@@ -4,7 +4,7 @@ import functools
 import pytest
 import re
 from mopidy import backend as backend_api
-from mopidy.models import Ref
+from mopidy.models import Ref, Track
 
 import spotify
 from mopidy_spotify import playlists
@@ -329,6 +329,21 @@ def test_playlist_save_failed2(provider, mopidy_track_factory, caplog):
         m3ucontents
         == "#EXTM3U\n#EXTENC: UTF-8\n\n#EXTINF:174,ABBA - x\nspotify:track:x\n\n"
     )
+
+
+def test_playlist_save_failed3(provider, caplog):
+    playlist = provider.lookup("spotify:user:alice:playlist:foo")
+    tracks = list(playlist.tracks)
+    tracks.append(
+        Track(
+            name="non-spotify track",
+            uri="some:other:uri",
+        )
+    )
+    new_pl = playlist.replace(tracks=tracks)
+    retval = provider.save(new_pl)
+    assert retval is playlist
+    assert "Cannot add non-spotify tracks to spotify playlist" in caplog.text
 
 
 def test_replace_playlist_short(provider, mopidy_track_factory):

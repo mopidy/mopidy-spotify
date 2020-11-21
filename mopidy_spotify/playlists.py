@@ -185,6 +185,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def _len_replace(playlist, n=_chunk_size):
         return math.ceil(len(playlist.tracks) / n)
 
+    @staticmethod
+    def _is_spotify_track(track_uri):
+        return track_uri.startswith("spotify:track:")
+
     def save(self, playlist):
         saved_playlist = self._get_playlist(playlist.uri, with_owner=True)
         if not saved_playlist:
@@ -201,6 +205,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
         new_tracks = [track.uri for track in playlist.tracks]
         cur_tracks = [track.uri for track in saved_playlist.tracks]
+
+        if any((not self._is_spotify_track(t) for t in new_tracks)):
+            new_tracks = list(filter(self._is_spotify_track, new_tracks))
+            logger.warning(
+                "Cannot add non-spotify tracks to spotify playlist; skipping those."
+            )
 
         operations = utils.diff(cur_tracks, new_tracks, self._chunk_size)
 
