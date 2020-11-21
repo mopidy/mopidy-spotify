@@ -537,6 +537,12 @@ def test_delete_at_end(provider):
     assert provider._test_request_history() == ["delete"] * 2
 
 
+# Note: it may look like many of the [..a..b..] => [...] tests are redundant,
+# but each one checks a specific edge case with counting delta_f/delta_t. Line
+# up the two boxes below each other to see where sections move (e.g.
+# before/between/after the old positions).
+
+
 def test_move_two_back1(provider):
     playlist = provider.lookup("spotify:user:alice:playlist:large")
     old_tracks = list(playlist.tracks)
@@ -658,9 +664,9 @@ def test_move_two_front3(provider):
 
 
 def test_move_over_100_tracks(provider):
+    # make sure large move operations are not split into 100-sized chunks unnecessarily.
     playlist = provider.lookup("spotify:user:alice:playlist:large")
     old_tracks = list(playlist.tracks)
-    # [....aaaa......bbbb............] => [.....................bbaaaabb.] (x10)
     tracks = old_tracks[:100] + old_tracks[300:] + old_tracks[100:300]
     new_pl = playlist.replace(tracks=tracks)
     retval = provider.save(new_pl)

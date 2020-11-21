@@ -70,12 +70,18 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         return xs[:i], xs[i:]
 
     def _patch_playlist(self, playlist, operations):
+        # Note: We need two distinct delta_f/t to be able to keep track of move
+        # operations.  This is because when moving multiple (distinct) sections
+        # so their old and new positions overlap, one bound can be inside the
+        # range and the other outide. Then, only the inside bound must add
+        # delta_f/t, while the outside one must not.
         delta_f = 0
         delta_t = 0
         unwind_f = []
         unwind_t = []
         for op in operations:
-            ##
+            # from the list of "active" mov-deltas, split off the ones newly
+            # outside the range and neutralize them:
             ended_ranges_f, unwind_f = self._span(
                 lambda e: e[0] < op.frm, unwind_f
             )
@@ -84,7 +90,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             )
             delta_f -= sum((v for k, v in ended_ranges_f))
             delta_t -= sum((v for k, v in ended_ranges_t))
-            ##
+
             length = len(op.tracks)
             if op.op == "-":
                 self._playlist_edit(
@@ -118,6 +124,11 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 # when we move left, it's in the range (op.to, op.frm+length)
                 position = op.to if op.frm < op.to else op.frm + length
                 amount = length * (-1 if op.frm < op.to else 1)
+                # While add/del deltas will be active for the rest of the
+                # playlist, mov deltas only affect the range of tracks between
+                # their old end new positions. We must undo them once we get
+                # outside this range, so we store the position at which point
+                # to subtract the amount again.
                 unwind_f.append((position, amount))
                 unwind_t.append((position, amount))
                 delta_f += amount
