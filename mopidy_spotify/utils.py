@@ -1,6 +1,6 @@
 import contextlib
+import difflib
 import functools
-import itertools
 import logging
 import time
 
@@ -56,53 +56,6 @@ class op:
         return f"<{action.get(self.op)} {length} tracks [{tracks}] at {pos}>"
 
 
-def myers(old, new):
-    """
-    Myers diff implementation adapted from Robert Elder (ASL-2.0)
-    https://blog.robertelder.org/diff-algorithm/
-    Instead of returning the number of edit operations, this returns an edit
-    history with each element tagged as '='(same), '+'(inserted), '-'(removed).
-    """
-    N = len(old)
-    M = len(new)
-    MAX = N + M
-
-    V_SIZE = 2 * min(N, M) + 2
-    V = [None] * V_SIZE
-    V[1] = (0, [])  # x, history
-    for D in range(0, MAX + 1):
-        for k in range(-(D - 2 * max(0, D - M)), D - 2 * max(0, D - N) + 1, 2):
-            down = (
-                k == -D
-                or k != D
-                and V[(k - 1) % V_SIZE][0] < V[(k + 1) % V_SIZE][0]
-            )
-            if down:
-                x, hist = V[(k + 1) % V_SIZE]
-            else:
-                x, hist = V[(k - 1) % V_SIZE]
-                x += 1
-            hist = hist[:]  # copy
-            y = x - k
-
-            # Note: Myers' algorithm is one-indexed, but our lists are
-            # zero-indexed. Hence, we have to use x-1 to get the index we
-            # actually want. Except in the case for '+', as when inserting the
-            # "old" index (x) is lagging behind by 1.
-            if down and y <= M and 1 <= y:
-                hist.append(op("+", new[y - 1], x))
-            elif x <= N and 1 <= x:
-                hist.append(op("-", old[x - 1], x - 1))
-
-            while x < N and y < M and old[x] == new[y]:
-                x = x + 1
-                y = y + 1
-                hist.append(op("=", old[x - 1], x - 1))
-            V[k % V_SIZE] = (x, hist)
-            if x == N and y == M:
-                return hist
-
-
 def _is_move(op1, op2):
     return op1.op == "-" and op2.op == "+" and op1.tracks == op2.tracks
 
@@ -119,14 +72,17 @@ def _op_split(o, chunksize):
 
 
 def diff(old, new, chunksize=100):
-    # first, apply myers diff and group consecutive operations into ranges:
-    ops = itertools.groupby(myers(old, new), lambda x: x.op)
-
-    # then, remove unmodified ranges and transform groupby-iterators to lists:
-    ops = [(k, list(v)) for k, v in ops if k != "="]
-
-    # now, reorder the data structure to ressemble op-objects again:
-    ops = [op(k, [v.tracks for v in v], v[0].frm, v[0].to) for k, v in ops]
+    # first, apply python's built-in diff algorithm, remove unmodified ranges,
+    # split replacements into seperate insertions and deletions and transform
+    # the data structure into op-objects:
+    ops = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+        a=old, b=new
+    ).get_opcodes():
+        if tag in ("insert", "replace"):
+            ops.append(op("+", new[j1:j2], i1))
+        if tag in ("delete", "replace"):
+            ops.append(op("-", old[i1:i2], i1))
 
     # then, merge pairs of insertions and deletions into a transposition:
     # for this, we start from the rightmost element,
