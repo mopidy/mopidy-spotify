@@ -46,6 +46,8 @@ class op:
 
     def __repr__(self):
         length = len(self.tracks)
+        if length < 1:
+            return "<invalid op()>"
         first = self.tracks[0].split(":")[-1]
         last = self.tracks[-1].split(":")[-1]
         tracks = f"{first}...{last}" if length > 1 else first

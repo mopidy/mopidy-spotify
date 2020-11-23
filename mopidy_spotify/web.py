@@ -492,11 +492,11 @@ class SpotifyOAuthClient(OAuthClient):
 
     def remove_from_cache(self, path):
         # remove a URL path from the cache, including any variants with a query string.
-        keys = [
+        keys = {
             k
             for k in self._cache.keys()
             if k == path or k.startswith(path + "?")
-        ]
+        }
         for key in keys:
             self._cache.pop(key, None)
 

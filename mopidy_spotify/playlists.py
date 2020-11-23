@@ -5,7 +5,7 @@ import time
 from mopidy import backend
 
 import spotify
-from mopidy_spotify import translator, utils, Extension
+from mopidy_spotify import translator, utils, web, Extension
 
 _sp_links = {}
 
@@ -54,10 +54,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             as_items,
             with_owner,
         )
-
-    @staticmethod
-    def _get_playlist_id_from_uri(uri):
-        return uri.split(":")[-1]
 
     @staticmethod
     def partitions(lst, n=_chunk_size):
@@ -142,7 +138,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             self._playlist_edit(playlist, method=method, uris=uris)
 
     def _playlist_edit(self, playlist, method, **kwargs):
-        playlist_id = self._get_playlist_id_from_uri(playlist.uri)
+        playlist_id = web.WebLink.from_uri(playlist.uri).id
         url = f"playlists/{playlist_id}/tracks"
         method = getattr(self._backend._web_client, method.lower())
 
@@ -266,7 +262,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.info(
                 f"Renaming playlist [{saved_playlist.name}] to [{playlist.name}]"
             )
-            playlist_id = self._get_playlist_id_from_uri(saved_playlist.uri)
+            playlist_id = web.WebLink.from_uri(saved_playlist.uri).id
             self._backend._web_client.put(
                 f"playlists/{playlist_id}", json={"name": playlist.name}
             )
