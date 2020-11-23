@@ -77,7 +77,7 @@ def diff(old, new, chunksize=100):
     # the data structure into op-objects:
     ops = []
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
-        a=old, b=new
+        a=old, b=new, autojunk=False
     ).get_opcodes():
         if tag in ("insert", "replace"):
             ops.append(op("+", new[j1:j2], i1))
