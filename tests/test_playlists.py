@@ -52,12 +52,22 @@ def web_client_mock(
         "uri": "spotify:user:alice:playlist:readonly",
         "type": "playlist",
     }
+    web_playlist6 = {
+        "owner": {"id": "alice"},
+        "name": "contains unplayable",
+        "tracks": {
+            "items": [web_track_factory(f"id{i}", i % 2) for i in range(10)]
+        },
+        "uri": "spotify:user:alice:playlist:unplayable",
+        "type": "playlist",
+    }
     web_playlists = [
         web_playlist1,
         web_playlist2,
         web_playlist3,
         web_playlist4,
         web_playlist5,
+        web_playlist6,
     ]
     web_playlists_map = {x["uri"]: x for x in web_playlists}
 
@@ -808,7 +818,7 @@ def test_as_list_when_not_loaded(provider):
 def test_as_list_when_playlist_wont_translate(provider):
     result = provider.as_list()
 
-    assert len(result) == 4
+    assert len(result) == 5
 
     assert result[0] == Ref.playlist(
         uri="spotify:user:alice:playlist:foo", name="Foo"
@@ -874,7 +884,7 @@ def test_refresh_loads_all_playlists(provider, web_client_mock):
     provider.refresh()
 
     web_client_mock.get_user_playlists.assert_called_once()
-    assert web_client_mock.get_playlist.call_count == 4
+    assert web_client_mock.get_playlist.call_count == 5
     expected_calls = [
         mock.call("spotify:user:alice:playlist:foo"),
         mock.call("spotify:user:bob:playlist:baz"),
@@ -906,7 +916,7 @@ def test_refresh_sets_loaded(provider, web_client_mock):
 def test_refresh_counts_playlists(provider, caplog):
     provider.refresh()
 
-    assert "Refreshed 4 Spotify playlists" in caplog.text
+    assert "Refreshed 5 Spotify playlists" in caplog.text
 
 
 def test_refresh_clears_caches(provider, web_client_mock):
@@ -1033,3 +1043,10 @@ def test_playlist_lookup_when_link_invalid(
 
     assert len(playlist.tracks) == 1
     assert "Failed to get link 'spotify:track:abc'" in caplog.text
+
+
+def test_keep_unplayable_tracks(provider):
+    playlist = provider.lookup("spotify:user:alice:playlist:unplayable")
+    retval = provider.save(playlist)
+    assert retval == playlist
+    assert len(retval.tracks) == 10

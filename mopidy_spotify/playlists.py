@@ -254,6 +254,9 @@ def playlist_lookup(
         username=web_client.user_id,
         bitrate=bitrate,
         as_items=as_items,
+        # Note: we are not filtering out (currently) unplayable tracks;
+        # otherwise they would be removed when editing the playlist.
+        check_playable=False,
     )
     if playlist is None:
         return

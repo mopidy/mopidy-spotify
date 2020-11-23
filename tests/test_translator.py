@@ -727,7 +727,9 @@ class TestWebToTrack:
             translator, "web_to_track_ref", return_value=ref_mock
         ) as ref_func_mock:
             track = translator.web_to_track(web_track_mock)
-            ref_func_mock.assert_called_once_with(web_track_mock)
+            ref_func_mock.assert_called_once_with(
+                web_track_mock, check_playable=True
+            )
 
         assert track.uri == str(sentinel.uri)
         assert track.name == str(sentinel.name)

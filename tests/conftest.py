@@ -323,7 +323,7 @@ def web_album_mock(web_artist_mock):
 @pytest.fixture
 def web_track_factory(web_album_mock, web_artist_mock):
     # keep in sync with mopidy_track_factory!
-    return lambda ident: {
+    return lambda ident, playable=True: {
         "track": {
             "album": web_album_mock,
             "artists": [web_artist_mock],
@@ -334,7 +334,7 @@ def web_track_factory(web_album_mock, web_artist_mock):
             "track_number": 7,
             "uri": "spotify:track:" + ident,
             "type": "track",
-            "is_playable": True,
+            "is_playable": playable,
         }
     }
 
