@@ -56,11 +56,6 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         )
 
     @staticmethod
-    def partitions(lst, n=_chunk_size):
-        for i in range(0, len(lst), n):
-            yield lst[i : i + n]
-
-    @staticmethod
     def _span(p, xs):  # like haskell's Data.List.span
         i = next((i for i, v in enumerate(xs) if not p(v)), len(xs))
         return xs[:i], xs[i:]
@@ -89,29 +84,27 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
             length = len(op.tracks)
             if op.op == "-":
-                self._playlist_edit(
+                web.remove_tracks_from_playlist(
+                    self._backend._web_client,
                     playlist,
-                    method="delete",
-                    tracks=[
-                        {"uri": t, "positions": [op.frm + i + delta_f]}
-                        for i, t in enumerate(op.tracks)
-                    ],
+                    op.tracks,
+                    op.frm + delta_f,
                 )
                 delta_f -= length
                 delta_t -= length
             elif op.op == "+":
-                self._playlist_edit(
+                web.add_tracks_to_playlist(
+                    self._backend._web_client,
                     playlist,
-                    method="post",
-                    uris=op.tracks,
-                    position=op.frm + delta_f,
+                    op.tracks,
+                    op.frm + delta_f,
                 )
                 delta_f += length
                 delta_t += length
             elif op.op == "m":
-                self._playlist_edit(
+                web.move_tracks_in_playlist(
+                    self._backend._web_client,
                     playlist,
-                    method="put",
                     range_start=op.frm + delta_f,
                     insert_before=op.to + delta_t,
                     range_length=length,
@@ -131,28 +124,9 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 delta_t += amount
 
     def _replace_playlist(self, playlist, tracks):
-        for i, uris in enumerate(self.partitions(tracks)):
-            # on the first chunk (i.e. when i == 0), we use PUT to replace the
-            # playlist, on the following chunks we use POST to append to it.
-            method = "post" if i else "put"
-            self._playlist_edit(playlist, method=method, uris=uris)
-
-    def _playlist_edit(self, playlist, method, **kwargs):
-        playlist_id = web.WebLink.from_uri(playlist.uri).id
-        url = f"playlists/{playlist_id}/tracks"
-        method = getattr(self._backend._web_client, method.lower())
-
-        logger.debug(f"API request: {method} {url}")
-        response = method(url, json=kwargs)
-        if not response.status_ok:
-            raise RuntimeError(response.message)
-
-        logger.debug(f"API response: {response}")
-
-        self._backend._web_client.remove_from_cache(url)
-        self._backend._web_client.remove_from_cache(
-            f"playlists/{playlist_id}"
-        )  # this also fetches the first 100 tracks
+        web.replace_playlist(
+            self._backend._web_client, playlist, tracks, self._chunk_size
+        )
 
     def refresh(self):
         if not self._backend._web_client.logged_in:
@@ -171,22 +145,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     def create(self, name):
         logger.info(f"Creating playlist {name}")
-        url = f"users/{self._backend._web_client.user_id}/playlists"
-        response = self._backend._web_client.post(
-            url, json={"name": name, "public": False}
-        )
-        self._backend._web_client.remove_from_cache("me/playlists")
+        uri = web.create_playlist(self._backend._web_client, name)
         self._get_flattened_playlist_refs()
-        return self.lookup(response["uri"]) if response.status_ok else None
+        return self.lookup(uri) if uri else None
 
     def delete(self, uri):
-        playlist_id = uri.split(":")[-1]
-        logger.info(f"Deleting playlist {playlist_id}")
-        url = f"playlists/{playlist_id}/followers"
-        response = self._backend._web_client.delete(url)
-        self._backend._web_client.remove_from_cache("me/playlists")
+        logger.info(f"Deleting playlist {uri}")
+        ok = web.delete_playlist(self._backend._web_client, uri)
         self._get_flattened_playlist_refs()
-        return response.status_ok
+        return ok
 
     @staticmethod
     def _len_replace(playlist, n=_chunk_size):
@@ -262,13 +229,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.info(
                 f"Renaming playlist [{saved_playlist.name}] to [{playlist.name}]"
             )
-            playlist_id = web.WebLink.from_uri(saved_playlist.uri).id
-            self._backend._web_client.put(
-                f"playlists/{playlist_id}", json={"name": playlist.name}
-            )
-            self._backend._web_client.remove_from_cache("me/playlists")
-            self._backend._web_client.remove_from_cache(
-                f"playlists/{playlist_id}"
+            web.rename_playlist(
+                self._backend._web_client, playlist.uri, playlist.name
             )
 
         return self.lookup(saved_playlist.uri)

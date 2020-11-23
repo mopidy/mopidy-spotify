@@ -549,3 +549,91 @@ class WebLink:
             return cls(uri, LinkType.PLAYLIST, parts[3], parts[1])
 
         raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
+
+
+def _playlist_edit(web_client, playlist, method, **kwargs):
+    playlist_id = WebLink.from_uri(playlist.uri).id
+    url = f"playlists/{playlist_id}/tracks"
+    method = getattr(web_client, method.lower())
+
+    logger.debug(f"API request: {method} {url}")
+    response = method(url, json=kwargs)
+    if not response.status_ok:
+        raise RuntimeError(response.message)
+
+    logger.debug(f"API response: {response}")
+
+    web_client.remove_from_cache(url)
+    web_client.remove_from_cache(
+        f"playlists/{playlist_id}"
+    )  # this also fetches the first 100 tracks
+
+
+def create_playlist(web_client, name, public=False):
+    url = f"users/{web_client.user_id}/playlists"
+    response = web_client.post(url, json={"name": name, "public": public})
+    web_client.remove_from_cache("me/playlists")
+    return response["uri"] if response.status_ok else None
+
+
+def delete_playlist(web_client, uri):
+    playlist_id = WebLink.from_uri(uri).id
+    url = f"playlists/{playlist_id}/followers"
+    response = web_client.delete(url)
+    web_client.remove_from_cache("me/playlists")
+    return response.status_ok
+
+
+def rename_playlist(web_client, uri, name):
+    playlist_id = WebLink.from_uri(uri).id
+    response = web_client.put(f"playlists/{playlist_id}", json={"name": name})
+    web_client.remove_from_cache("me/playlists")
+    web_client.remove_from_cache(f"playlists/{playlist_id}")
+    return response.status_ok
+
+
+def replace_playlist(web_client, playlist, track_uris, chunk_size):
+    def partitions(lst, n=chunk_size):
+        for i in range(0, len(lst), n):
+            yield lst[i : i + n]
+
+    for i, uris in enumerate(partitions(track_uris)):
+        # on the first chunk (i.e. when i == 0), we use PUT to replace the
+        # playlist, on the following chunks we use POST to append to it.
+        method = "post" if i else "put"
+        _playlist_edit(web_client, playlist, method=method, uris=uris)
+
+
+def add_tracks_to_playlist(web_client, playlist, track_uris, range_start):
+    _playlist_edit(
+        web_client,
+        playlist,
+        method="post",
+        uris=track_uris,
+        position=range_start,
+    )
+
+
+def remove_tracks_from_playlist(web_client, playlist, track_uris, range_start):
+    _playlist_edit(
+        web_client,
+        playlist,
+        method="delete",
+        tracks=[
+            {"uri": t, "positions": [range_start + i]}
+            for i, t in enumerate(track_uris)
+        ],
+    )
+
+
+def move_tracks_in_playlist(
+    web_client, playlist, range_start, insert_before, range_length
+):
+    _playlist_edit(
+        web_client,
+        playlist,
+        method="put",
+        range_start=range_start,
+        insert_before=insert_before,
+        range_length=range_length,
+    )
