@@ -1,4 +1,5 @@
 import functools
+import collections
 import logging
 import threading
 
@@ -28,6 +29,11 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._push_audio_data_event.set()
         self._end_of_track_event = threading.Event()
         self._events_connected = False
+        # libspotify sends a single empty buffer at the end of each track which
+        # must be discarded to ensure a gapless track transition. We delay using
+        # each buffer until we receieve the next one, up until we change track
+        # and clear everything, therefore dropping the unwanted last buffer.
+        self._held_buffers = collections.deque()
 
     def _connect_events(self):
         if not self._events_connected:
@@ -39,6 +45,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
                 self._seeking_event,
                 self._push_audio_data_event,
                 self._buffer_timestamp,
+                self._held_buffers,
             )
             self.backend._session.on(
                 spotify.SessionEvent.END_OF_TRACK,
@@ -72,6 +79,9 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._buffer_timestamp.set(0)
         self._first_seek = True
         self._end_of_track_event.clear()
+
+        # Discard held buffers
+        self._held_buffers.clear()
 
         try:
             sp_track = self.backend._session.get_track(track.uri)
@@ -158,6 +168,7 @@ def music_delivery_callback(
     seeking_event,
     push_audio_data_event,
     buffer_timestamp,
+    held_buffers,
 ):
     # This is called from an internal libspotify thread.
     # Ideally, nothing here should block.
@@ -187,13 +198,25 @@ def music_delivery_callback(
         bytes(frames), timestamp=buffer_timestamp.get(), duration=duration
     )
 
-    # We must block here to know if the buffer was consumed successfully.
-    consumed = audio_actor.emit_data(buffer_).get()
+    # Try to consume any held buffers.
+    if held_buffers:
+        while held_buffers:
+            buf = held_buffers.popleft()
+            consumed = audio_actor.emit_data(buf).get()
+            if not consumed:
+                held_buffers.appendleft(buf)
+                break
+    else:
+        # No held buffer, don't apply back-pressure
+        consumed = True
 
     if consumed:
+        # Consumed all held buffers so take the new one libspotify delivered us.
+        held_buffers.append(buffer_)
         buffer_timestamp.increase(duration)
         return num_frames
     else:
+        # Pass back-pressure on to libspotify, next buffer will be redelivered.
         return 0
 
 
@@ -207,6 +230,9 @@ def end_of_track_callback(session, end_of_track_event, audio_actor):
     logger.debug("End of track reached")
     end_of_track_event.set()
     audio_actor.emit_data(None)
+
+    # Stop the track to prevent receiving empty audio data
+    session.player.unload()
 
 
 class BufferTimestamp:
