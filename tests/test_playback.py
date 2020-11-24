@@ -1,3 +1,4 @@
+import collections
 import threading
 from unittest import mock
 
@@ -64,7 +65,7 @@ def test_connect_events_adds_music_delivery_handler_to_session(
             playback_provider._seeking_event,
             playback_provider._push_audio_data_event,
             playback_provider._buffer_timestamp,
-            playback_provider._held_buffer,
+            playback_provider._held_buffers,
         )
         in session_mock.on.call_args_list
     )
@@ -137,14 +138,14 @@ def test_change_track_clears_state(audio_mock, provider):
     provider._first_seek = False
     provider._buffer_timestamp.set(99)
     provider._end_of_track_event.set()
-    provider._held_buffer.data = mock.sentinel.gst_buffer
+    provider._held_buffers = collections.deque([mock.sentinel.gst_buffer])
 
     assert provider.change_track(track) is True
 
     assert provider._first_seek
     assert provider._buffer_timestamp.get() == 0
     assert not provider._end_of_track_event.is_set()
-    assert provider._held_buffer.data is None
+    assert len(provider._held_buffers) == 0
 
 
 def test_resume_starts_spotify_playback(session_mock, provider):
@@ -225,7 +226,7 @@ def test_music_delivery_rejects_data_when_seeking(session_mock, audio_mock):
     push_audio_data_event = threading.Event()
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()
-    held_buffer = playback.BufferData(mock.sentinel.gst_buffer)
+    held_buffer = collections.deque([mock.sentinel.gst_buffer])
     assert seeking_event.is_set()
 
     result = playback.music_delivery_callback(
@@ -257,7 +258,7 @@ def test_music_delivery_when_seeking_accepts_data_after_empty_delivery(
     push_audio_data_event = threading.Event()
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()
-    held_buffer = playback.BufferData(mock.sentinel.gst_buffer)
+    held_buffer = collections.deque([mock.sentinel.gst_buffer])
     assert seeking_event.is_set()
 
     result = playback.music_delivery_callback(
@@ -287,7 +288,7 @@ def test_music_delivery_rejects_data_depending_on_push_audio_data_event(
     seeking_event = threading.Event()
     push_audio_data_event = threading.Event()
     buffer_timestamp = mock.Mock()
-    held_buffer = playback.BufferData(mock.sentinel.gst_buffer)
+    held_buffer = collections.deque([mock.sentinel.gst_buffer])
     assert not push_audio_data_event.is_set()
 
     result = playback.music_delivery_callback(
@@ -317,7 +318,7 @@ def test_music_delivery_shortcuts_if_no_data_in_frames(
     push_audio_data_event = threading.Event()
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()
-    held_buffer = playback.BufferData(mock.sentinel.gst_buffer)
+    held_buffer = collections.deque([mock.sentinel.gst_buffer])
 
     result = playback.music_delivery_callback(
         session_mock,
@@ -345,7 +346,7 @@ def test_music_delivery_rejects_unknown_audio_formats(session_mock, audio_mock):
     push_audio_data_event = threading.Event()
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()
-    held_buffer = playback.BufferData(mock.sentinel.gst_buffer)
+    held_buffer = collections.deque([mock.sentinel.gst_buffer])
 
     with pytest.raises(AssertionError) as excinfo:
         playback.music_delivery_callback(
@@ -378,7 +379,7 @@ def test_music_delivery_creates_gstreamer_buffer_and_holds_it(
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()
     buffer_timestamp.get.return_value = mock.sentinel.timestamp
-    held_buffer = playback.BufferData(None)
+    held_buffer = collections.deque()
 
     result = playback.music_delivery_callback(
         session_mock,
@@ -401,7 +402,7 @@ def test_music_delivery_creates_gstreamer_buffer_and_holds_it(
     buffer_timestamp.increase.assert_called_once_with(mock.sentinel.duration)
     audio_mock.emit_data.assert_not_called()
     assert result == num_frames
-    assert held_buffer.data == mock.sentinel.gst_buffer
+    assert list(held_buffer) == [mock.sentinel.gst_buffer]
 
 
 def test_music_delivery_gives_held_buffer_to_audio_and_holds_created(
@@ -416,7 +417,7 @@ def test_music_delivery_gives_held_buffer_to_audio_and_holds_created(
     push_audio_data_event = threading.Event()
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()
-    held_buffer = playback.BufferData(mock.sentinel.gst_buffer1)
+    held_buffer = collections.deque([mock.sentinel.gst_buffer1])
 
     result = playback.music_delivery_callback(
         session_mock,
@@ -431,7 +432,7 @@ def test_music_delivery_gives_held_buffer_to_audio_and_holds_created(
     )
     assert result == num_frames
     audio_mock.emit_data.assert_called_once_with(mock.sentinel.gst_buffer1)
-    assert held_buffer.data == mock.sentinel.gst_buffer2
+    assert list(held_buffer) == [mock.sentinel.gst_buffer2]
 
 
 def test_music_delivery_consumes_zero_frames_if_audio_fails(
@@ -449,7 +450,7 @@ def test_music_delivery_consumes_zero_frames_if_audio_fails(
     push_audio_data_event.set()
     buffer_timestamp = mock.Mock()
     buffer_timestamp.get.return_value = mock.sentinel.timestamp
-    held_buffer = playback.BufferData(mock.sentinel.gst_buffer)
+    held_buffer = collections.deque([mock.sentinel.gst_buffer1])
 
     result = playback.music_delivery_callback(
         session_mock,
@@ -465,7 +466,7 @@ def test_music_delivery_consumes_zero_frames_if_audio_fails(
 
     assert buffer_timestamp.increase.call_count == 0
     assert result == 0
-    assert held_buffer.data == mock.sentinel.gst_buffer2  # SPONG
+    assert list(held_buffer) == [mock.sentinel.gst_buffer1]
 
 
 def test_end_of_track_callback(session_mock, audio_mock):
