@@ -177,6 +177,19 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             )
             return
 
+        # We cannot add or (easily) remove spotify:local: tracks, so refuse
+        # editing if the current playlist contains such tracks.
+        if any(
+            (t.uri.startswith("spotify:local:") for t in saved_playlist.tracks)
+        ):
+            logger.error(
+                "Cannot modify playlist containing 'Spotify Local Files'."
+            )
+            for t in saved_playlist.tracks:
+                if t.uri.startswith("spotify:local:"):
+                    logger.error(f"{t.name} ({t.uri})")
+            return
+
         new_tracks = [track.uri for track in playlist.tracks]
         cur_tracks = [track.uri for track in saved_playlist.tracks]
 
