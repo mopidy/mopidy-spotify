@@ -169,7 +169,7 @@ Project resources
 
 - `Source code <https://github.com/mopidy/mopidy-spotify>`_
 - `Issue tracker <https://github.com/mopidy/mopidy-spotify/issues>`_
-- `Changelog <https://github.com/mopidy/mopidy-spotify/blob/master/CHANGELOG.rst>`_
+- `Changelog <https://github.com/mopidy/mopidy-spotify/releases>`_
 
 
 Credits
