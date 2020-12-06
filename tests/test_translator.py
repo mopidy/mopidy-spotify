@@ -300,6 +300,10 @@ class TestValidWebData(object):
         del web_track_mock["uri"]
         assert translator.valid_web_data(web_track_mock, "track") is False
 
+    def test_return_false_if_uri_none(self, web_track_mock):
+        web_track_mock["uri"] = None
+        assert translator.valid_web_data(web_track_mock, "track") is False
+
     def test_returns_success(self, web_track_mock):
         assert translator.valid_web_data(web_track_mock, "track") is True
 
@@ -716,6 +720,22 @@ class TestWebToAlbum:
         assert album.name == "DEF 456"
         assert list(album.artists) == artists
 
+    def test_ignores_invalid_artists(self, web_album_mock, web_artist_mock):
+        invalid_artist1 = {"name": "FOO", "uri": None, "type": "artist"}
+        invalid_artist2 = {"name": "BAR", "type": "football"}
+        web_album_mock["artists"] = [
+            invalid_artist1,
+            web_artist_mock,
+            invalid_artist2,
+        ]
+        album = translator.web_to_album(web_album_mock)
+
+        artists = [models.Artist(uri="spotify:artist:abba", name="ABBA")]
+
+        assert album.uri == "spotify:album:def"
+        assert album.name == "DEF 456"
+        assert list(album.artists) == artists
+
 
 class TestWebToTrack:
     def test_calls_web_to_track_ref(self, web_track_mock):
@@ -777,4 +797,12 @@ class TestWebToTrack:
 
         assert track.name == "ABC 123"
         assert track.length == 174300
+        assert track.album is None
+
+    def test_ignores_invalid_album(self, web_track_mock):
+        web_track_mock["album"]["uri"] = None
+
+        track = translator.web_to_track(web_track_mock)
+
+        assert track.name == "ABC 123"
         assert track.album is None
