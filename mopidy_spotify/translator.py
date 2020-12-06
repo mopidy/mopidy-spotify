@@ -172,7 +172,7 @@ def valid_web_data(data, object_type):
     return (
         isinstance(data, dict)
         and data.get("type") == object_type
-        and "uri" in data
+        and data.get("uri") is not None
     )
 
 
