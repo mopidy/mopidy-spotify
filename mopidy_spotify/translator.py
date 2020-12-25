@@ -123,6 +123,25 @@ def web_to_album_refs(web_albums):
             yield ref
 
 
+FEATURES = ("feat.", "ft.", "(with", "(feat", "(featuring", "(&")
+
+
+def clean_track_info(title, artists):
+    if (
+        any(feat.name.lower() in title.lower() for feat in artists)
+        and len(artists) > 1
+    ):
+        artists = [artists[0]]
+    elif (
+        not any(feat in title.lower() for feat in FEATURES) and len(artists) > 1
+    ):
+        feat = ", ".join([artist.name for artist in artists[1:]])
+        title = f"{title} (feat. {feat})"
+        artists = [artists[0]]
+
+    return title, artists
+
+
 @memoized
 def to_track(sp_track, bitrate=None):
     if not sp_track.is_loaded:
@@ -137,12 +156,12 @@ def to_track(sp_track, bitrate=None):
 
     artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
     artists = [a for a in artists if a]
-
+    title, artists = clean_track_info(sp_track.name, artists)
     album = to_album(sp_track.album)
 
     return models.Track(
         uri=sp_track.link.uri,
-        name=sp_track.name,
+        name=title,
         artists=artists,
         album=album,
         date=album.date,
@@ -327,12 +346,12 @@ def web_to_track(web_track, bitrate=None):
         web_to_artist(web_artist) for web_artist in web_track.get("artists", [])
     ]
     artists = [a for a in artists if a]
-
+    title, artists = clean_track_info(ref.name, artists)
     album = web_to_album(web_track.get("album", {}))
 
     return models.Track(
         uri=ref.uri,
-        name=ref.name,
+        name=title,
         artists=artists,
         album=album,
         length=web_track.get("duration_ms"),
