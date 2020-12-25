@@ -131,13 +131,13 @@ def clean_track_info(title, artists):
         any(feat.name.lower() in title.lower() for feat in artists)
         and len(artists) > 1
     ):
-        artists = [artists[0]]
+        artists = artists[:1]
     elif (
         not any(feat in title.lower() for feat in FEATURES) and len(artists) > 1
     ):
         feat = ", ".join([artist.name for artist in artists[1:]])
         title = f"{title} (feat. {feat})"
-        artists = [artists[0]]
+        artists = artists[:1]
 
     return title, artists
 
