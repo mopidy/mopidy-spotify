@@ -29,6 +29,15 @@ def mock_time():
     patcher.stop()
 
 
+@pytest.fixture
+def skip_refresh_token():
+    patcher = mock.patch.object(
+        web.OAuthClient, "_should_refresh_token", return_value=False
+    )
+    yield patcher.start()
+    patcher.stop()
+
+
 def test_initial_refresh_token(oauth_client):
     assert oauth_client._should_refresh_token()
 
@@ -175,11 +184,10 @@ def test_auth_returns_invalid_json(oauth_client, caplog):
 
 
 @responses.activate
-def test_spotify_returns_invalid_json(mock_time, oauth_client, caplog):
+def test_spotify_returns_invalid_json(skip_refresh_token, oauth_client, caplog):
     responses.add(
         responses.GET, "https://api.spotify.com/v1/tracks/abc", body="abc"
     )
-    mock_time.return_value = -1000
 
     result = oauth_client.get("tracks/abc")
 
@@ -413,7 +421,9 @@ def test_normalise_query_string(oauth_client, path, params, expected):
 
 
 @responses.activate
-def test_web_response(web_track_mock, mock_time, oauth_client):
+def test_web_response(
+    web_track_mock, mock_time, skip_refresh_token, oauth_client
+):
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
@@ -421,14 +431,14 @@ def test_web_response(web_track_mock, mock_time, oauth_client):
         adding_headers={"Cache-Control": "max-age=2001", "ETag": '"12345"'},
         status=301,
     )
-    mock_time.return_value = -1000
+    mock_time.return_value = 53
 
     result = oauth_client.get("https://api.spotify.com/v1/tracks/abc")
 
     assert isinstance(result, web.WebResponse)
     assert result.url == "https://api.spotify.com/v1/tracks/abc"
     assert result._status_code == 301
-    assert result._expires == 1001
+    assert result._expires == 2054
     assert result._etag == '"12345"'
     assert result.still_valid()
     assert result.status_ok
@@ -436,14 +446,13 @@ def test_web_response(web_track_mock, mock_time, oauth_client):
 
 
 @responses.activate
-def test_cache_miss(web_track_mock, mock_time, oauth_client):
+def test_cache_miss(web_track_mock, skip_refresh_token, oauth_client):
     cache = {}
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
         json=web_track_mock,
     )
-    mock_time.return_value = -1000
 
     result = oauth_client.get("https://api.spotify.com/v1/tracks/abc", cache)
     assert len(responses.calls) == 1
@@ -454,11 +463,10 @@ def test_cache_miss(web_track_mock, mock_time, oauth_client):
 
 @responses.activate
 def test_cache_response_still_valid(
-    web_response_mock, mock_time, oauth_client, caplog
+    web_response_mock, mock_time, skip_refresh_token, oauth_client, caplog
 ):
     cache = {"https://api.spotify.com/v1/tracks/abc": web_response_mock}
-    oauth_client._expires = 2000
-    mock_time.return_value = 999
+    mock_time.return_value = 0
 
     assert web_response_mock.still_valid()
     assert "Cached data fresh for" in caplog.text
@@ -470,7 +478,7 @@ def test_cache_response_still_valid(
 
 @responses.activate
 def test_cache_response_expired(
-    web_response_mock, oauth_client, mock_time, caplog
+    web_response_mock, skip_refresh_token, oauth_client, caplog
 ):
     cache = {"https://api.spotify.com/v1/tracks/abc": web_response_mock}
     responses.add(
@@ -478,8 +486,6 @@ def test_cache_response_expired(
         "https://api.spotify.com/v1/tracks/abc",
         json={"uri": "new"},
     )
-    oauth_client._expires = 2000
-    mock_time.return_value = 1001
 
     assert not web_response_mock.still_valid()
     assert "Cached data expired for" in caplog.text
@@ -491,7 +497,7 @@ def test_cache_response_expired(
 
 @responses.activate
 def test_cache_response_ignore_expiry(
-    web_response_mock, oauth_client, mock_time, caplog
+    web_response_mock, skip_refresh_token, oauth_client, mock_time, caplog
 ):
     cache = {"https://api.spotify.com/v1/tracks/abc": web_response_mock}
     responses.add(
@@ -499,9 +505,9 @@ def test_cache_response_ignore_expiry(
         "https://api.spotify.com/v1/tracks/abc",
         json={"uri": "new"},
     )
-    oauth_client._expires = 2000
-    mock_time.return_value = 1001
+    mock_time.return_value = 9999
 
+    assert not web_response_mock.still_valid()
     assert web_response_mock.still_valid(True)
     assert "Cached data forced for" in caplog.text
 
@@ -513,7 +519,9 @@ def test_cache_response_ignore_expiry(
 
 
 @responses.activate
-def test_dont_cache_bad_status(web_track_mock, mock_time, oauth_client):
+def test_dont_cache_bad_status(
+    web_track_mock, skip_refresh_token, oauth_client
+):
     cache = {}
     responses.add(
         responses.GET,
@@ -521,7 +529,6 @@ def test_dont_cache_bad_status(web_track_mock, mock_time, oauth_client):
         json=web_track_mock,
         status=404,
     )
-    mock_time.return_value = -1000
 
     result = oauth_client.get("https://api.spotify.com/v1/tracks/abc", cache)
     assert result._status_code == 404
@@ -530,14 +537,13 @@ def test_dont_cache_bad_status(web_track_mock, mock_time, oauth_client):
 
 
 @responses.activate
-def test_cache_key_uses_path(web_track_mock, mock_time, oauth_client):
+def test_cache_key_uses_path(web_track_mock, skip_refresh_token, oauth_client):
     cache = {}
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
         json=web_track_mock,
     )
-    mock_time.return_value = -1000
 
     result = oauth_client.get("tracks/abc", cache)
     assert len(responses.calls) == 1
@@ -546,7 +552,9 @@ def test_cache_key_uses_path(web_track_mock, mock_time, oauth_client):
 
 
 @responses.activate
-def test_cache_normalised_query_string(mock_time, oauth_client):
+def test_cache_normalised_query_string(
+    mock_time, skip_refresh_token, oauth_client
+):
     cache = {}
     responses.add(
         responses.GET,
@@ -560,7 +568,7 @@ def test_cache_normalised_query_string(mock_time, oauth_client):
         json={"uri": "cat"},
         match_querystring=True,
     )
-    mock_time.return_value = -1000
+    mock_time.return_value = 0
 
     r1 = oauth_client.get("tracks/abc?f=foo&b=bar", cache)
     r2 = oauth_client.get("tracks/abc?b=bar&f=foo", cache)
@@ -578,7 +586,12 @@ def test_cache_normalised_query_string(mock_time, oauth_client):
 )
 @responses.activate
 def test_cache_expired_with_etag(
-    web_response_mock_etag, oauth_client, mock_time, status, expected
+    web_response_mock_etag,
+    mock_time,
+    skip_refresh_token,
+    oauth_client,
+    status,
+    expected,
 ):
     cache = {"tracks/abc": web_response_mock_etag}
     responses.add(
@@ -587,8 +600,8 @@ def test_cache_expired_with_etag(
         json={"uri": "spotify:track:xyz"},
         status=status,
     )
-    oauth_client._expires = 2000
     mock_time.return_value = 1001
+    assert not cache["tracks/abc"].still_valid()
 
     result = oauth_client.get("tracks/abc", cache)
     assert len(responses.calls) == 1
@@ -598,15 +611,15 @@ def test_cache_expired_with_etag(
 
 
 @responses.activate
-def test_cache_miss_no_etag(web_response_mock_etag, oauth_client, mock_time):
+def test_cache_miss_no_etag(
+    web_response_mock_etag, skip_refresh_token, oauth_client
+):
     cache = {"tracks/abc": web_response_mock_etag}
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/xyz",
         json={"uri": "spotify:track:xyz"},
     )
-    oauth_client._expires = 2000
-    mock_time.return_value = 1001
 
     result = oauth_client.get("tracks/xyz", cache)
     assert len(responses.calls) == 1
@@ -638,11 +651,9 @@ def test_increase_expiry_skipped_for_cached_response(web_response_mock):
 
 
 @responses.activate
-def test_fresh_response_changed(oauth_client, mock_time):
+def test_fresh_response_changed(skip_refresh_token, oauth_client):
     cache = {}
     responses.add(responses.GET, "https://api.spotify.com/v1/foo", json={})
-    oauth_client._expires = 2000
-    mock_time.return_value = 1
 
     result = oauth_client.get("foo", cache)
 
@@ -651,11 +662,12 @@ def test_fresh_response_changed(oauth_client, mock_time):
 
 
 @responses.activate
-def test_cached_response_unchanged(web_response_mock, oauth_client, mock_time):
+def test_cached_response_unchanged(
+    web_response_mock, skip_refresh_token, oauth_client, mock_time
+):
     cache = {"foo": web_response_mock}
     responses.add(responses.GET, "https://api.spotify.com/v1/foo", json={})
-    oauth_client._expires = 2000
-    mock_time.return_value = 1
+    mock_time.return_value = 0
 
     result = oauth_client.get("foo", cache)
 
@@ -683,15 +695,6 @@ def spotify_client(config):
         client_secret=config["spotify"]["client_secret"],
         proxy_config=None,
     )
-
-
-@pytest.fixture(scope="class")
-def skip_refresh_token():
-    patcher = mock.patch.object(web.OAuthClient, "_should_refresh_token")
-    mock_refresh = patcher.start()
-    mock_refresh.return_value = False
-    yield mock_refresh
-    patcher.stop()
 
 
 @pytest.mark.usefixtures("skip_refresh_token")
