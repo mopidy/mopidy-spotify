@@ -6,7 +6,6 @@ include MANIFEST.in
 include pyproject.toml
 include tox.ini
 
-recursive-include .circleci *
 recursive-include .github *
 
 include mopidy_*/ext.conf
