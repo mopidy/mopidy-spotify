@@ -73,7 +73,7 @@ class OAuthClient:
         params = kwargs.pop("params", None)
         path = self._normalise_query_string(path, params)
 
-        _trace(f"Get '{path}'")
+        _trace(f"{method} '{path}'")
 
         ignore_expiry = kwargs.pop("ignore_expiry", False)
         if cache is not None and path in cache:
@@ -559,7 +559,7 @@ def _playlist_edit(web_client, playlist, method, **kwargs):
     logger.debug(f"API request: {method} {url}")
     response = method(url, json=kwargs)
     if not response.status_ok:
-        raise RuntimeError(response.message)
+        raise OAuthClientError(response.message)
 
     logger.debug(f"API response: {response}")
 
@@ -581,6 +581,7 @@ def delete_playlist(web_client, uri):
     url = f"playlists/{playlist_id}/followers"
     response = web_client.delete(url)
     web_client.remove_from_cache("me/playlists")
+    web_client.remove_from_cache(f"playlists/{playlist_id}")
     return response.status_ok
 
 

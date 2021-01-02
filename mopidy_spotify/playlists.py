@@ -56,9 +56,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         )
 
     @staticmethod
-    def _span(p, xs):  # like haskell's Data.List.span
-        i = next((i for i, v in enumerate(xs) if not p(v)), len(xs))
-        return xs[:i], xs[i:]
+    def _split_ended_movs(value, movs):
+        def _span(p, xs):
+            # Returns a tuple where first element is the longest prefix
+            # (possibly empty) of list xs of elements that satisfy predicate p
+            # and second element is the remainder of the list.
+            i = next((i for i, v in enumerate(xs) if not p(v)), len(xs))
+            return xs[:i], xs[i:]
+
+        return _span(lambda e: e[0] < value, movs)
 
     def _patch_playlist(self, playlist, operations):
         # Note: We need two distinct delta_f/t to be able to keep track of move
@@ -73,14 +79,10 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         for op in operations:
             # from the list of "active" mov-deltas, split off the ones newly
             # outside the range and neutralize them:
-            ended_ranges_f, unwind_f = self._span(
-                lambda e: e[0] < op.frm, unwind_f
-            )
-            ended_ranges_t, unwind_t = self._span(
-                lambda e: e[0] < op.to, unwind_t
-            )
-            delta_f -= sum((v for k, v in ended_ranges_f))
-            delta_t -= sum((v for k, v in ended_ranges_t))
+            ended_ranges_f, unwind_f = self._split_ended_movs(op.frm, unwind_f)
+            ended_ranges_t, unwind_t = self._split_ended_movs(op.to, unwind_t)
+            delta_f -= sum((amount for _, amount in ended_ranges_f))
+            delta_t -= sum((amount for _, amount in ended_ranges_t))
 
             length = len(op.tracks)
             if op.op == "-":
@@ -144,24 +146,29 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         self._loaded = True
 
     def create(self, name):
-        logger.info(f"Creating playlist {name}")
+        logger.info(f"Creating Spotify playlist '{name}'")
         uri = web.create_playlist(self._backend._web_client, name)
-        self._get_flattened_playlist_refs()
         return self.lookup(uri) if uri else None
 
     def delete(self, uri):
-        logger.info(f"Deleting playlist {uri}")
+        logger.info(f"Deleting Spotify playlist {uri!r}")
         ok = web.delete_playlist(self._backend._web_client, uri)
-        self._get_flattened_playlist_refs()
         return ok
 
     @staticmethod
-    def _len_replace(playlist, n=_chunk_size):
-        return math.ceil(len(playlist.tracks) / n)
+    def _len_replace(playlist_tracks, n=_chunk_size):
+        return math.ceil(len(playlist_tracks) / n)
 
     @staticmethod
     def _is_spotify_track(track_uri):
-        return track_uri.startswith("spotify:track:")
+        try:
+            return web.WebLink.from_uri(track_uri).type == web.LinkType.TRACK
+        except ValueError:
+            return False  # not a valid spotify URI
+
+    @staticmethod
+    def _is_spotify_local(track_uri):
+        return track_uri.startswith("spotify:local:")
 
     def save(self, playlist):
         saved_playlist = self._get_playlist(playlist.uri, with_owner=True)
@@ -173,21 +180,22 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         # mangles the names of other people's playlists.
         if owner and owner != self._backend._web_client.user_id:
             logger.error(
-                f"Refusing to modify someone else's playlist ({playlist.uri})"
+                f"Cannot modify Spotify playlist {playlist.uri!r} owned by "
+                f"other user {owner}"
             )
             return
 
         # We cannot add or (easily) remove spotify:local: tracks, so refuse
         # editing if the current playlist contains such tracks.
-        if any(
-            (t.uri.startswith("spotify:local:") for t in saved_playlist.tracks)
-        ):
+        if any((self._is_spotify_local(t.uri) for t in saved_playlist.tracks)):
             logger.error(
-                "Cannot modify playlist containing 'Spotify Local Files'."
+                "Cannot modify Spotify playlist containing Spotify 'local files'."
             )
             for t in saved_playlist.tracks:
                 if t.uri.startswith("spotify:local:"):
-                    logger.error(f"{t.name} ({t.uri})")
+                    logger.debug(
+                        f"Unsupported Spotify local file: '{t.name}' ({t.uri!r})"
+                    )
             return
 
         new_tracks = [track.uri for track in playlist.tracks]
@@ -196,21 +204,22 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if any((not self._is_spotify_track(t) for t in new_tracks)):
             new_tracks = list(filter(self._is_spotify_track, new_tracks))
             logger.warning(
-                "Cannot add non-spotify tracks to spotify playlist; skipping those."
+                f"Skipping adding non-Spotify tracks to Spotify playlist "
+                f"{playlist.uri!r}"
             )
 
         operations = utils.diff(cur_tracks, new_tracks, self._chunk_size)
 
         # calculate number of operations required for each strategy:
         ops_patch = len(operations)
-        ops_replace = self._len_replace(playlist)
+        ops_replace = self._len_replace(new_tracks)
 
         try:
             if ops_replace < ops_patch:
                 self._replace_playlist(saved_playlist, new_tracks)
             else:
                 self._patch_playlist(saved_playlist, operations)
-        except RuntimeError as e:
+        except web.OAuthClientError as e:
             logger.error(f"Failed to save Spotify playlist: {e}")
             # In the unlikely event that we used the replace strategy, and the
             # first PUT went through but the following POSTs didn't, we have
@@ -237,14 +246,20 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 logger.error(f'Created backup in "{filename}"')
             return None
 
-        # Playlist rename logic
-        if playlist.name != saved_playlist.name:
-            logger.info(
-                f"Renaming playlist [{saved_playlist.name}] to [{playlist.name}]"
-            )
-            web.rename_playlist(
-                self._backend._web_client, playlist.uri, playlist.name
-            )
+        if playlist.name and playlist.name != saved_playlist.name:
+            try:
+                web.rename_playlist(
+                    self._backend._web_client, playlist.uri, playlist.name
+                )
+                logger.info(
+                    f"Renamed Spotify playlist '{saved_playlist.name}' to "
+                    f"'{playlist.name}'"
+                )
+            except web.OAuthClientError as e:
+                logger.error(
+                    f"Renaming Spotify playlist '{saved_playlist.name}'"
+                    f"to '{playlist.name}' failed with error {e}"
+                )
 
         return self.lookup(saved_playlist.uri)
 

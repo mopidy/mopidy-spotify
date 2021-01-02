@@ -667,18 +667,22 @@ def test_cached_response_unchanged(web_response_mock, oauth_client, mock_time):
 def test_non_idempotent_request_methods(
     web_response_mock, oauth_client, mock_time
 ):
+    # Make sure non-idempotent HTTP methods ignore the cache
+    cache = {"foo": web_response_mock}
     responses.add(responses.POST, "https://api.spotify.com/v1/foo", json={})
     responses.add(responses.PUT, "https://api.spotify.com/v1/foo", json={})
     responses.add(responses.DELETE, "https://api.spotify.com/v1/foo", json={})
     oauth_client._expires = 2000
     mock_time.return_value = 1
 
-    result = oauth_client.post("foo")
-    result = oauth_client.put("foo")
-    result = oauth_client.delete("foo")
+    result1 = oauth_client.post("foo", cache)
+    result2 = oauth_client.put("foo", cache)
+    result3 = oauth_client.delete("foo", cache)
 
     assert len(responses.calls) == 3
-    assert not result.status_unchanged
+    assert not result1.status_unchanged
+    assert not result2.status_unchanged
+    assert not result3.status_unchanged
 
 
 @responses.activate

@@ -736,6 +736,16 @@ class TestWebToAlbum:
         assert album.name == "DEF 456"
         assert list(album.artists) == artists
 
+    def test_release_date_formats(self, web_album_mock):
+        web_album_mock["release_date"] = "2001"
+        album = translator.web_to_album(web_album_mock)
+        assert album.date == "2001"
+
+    def test_release_date_formats_truncating(self, web_album_mock):
+        web_album_mock["release_date"] = "2001-12-01"
+        album = translator.web_to_album(web_album_mock)
+        assert album.date == "2001"
+
 
 class TestWebToTrack:
     def test_calls_web_to_track_ref(self, web_track_mock):

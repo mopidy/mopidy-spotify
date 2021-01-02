@@ -334,7 +334,11 @@ def test_playlist_save_failed1(provider, mopidy_track_factory, caplog):
     provider._len_replace = lambda x: 0  # force replace mode
     retval = provider.save(new_pl)
     assert retval is None
-    assert "Refusing to modify someone else's playlist" in caplog.text
+    assert (
+        "Cannot modify Spotify playlist 'spotify:user:bob:playlist:baz' "
+        "owned by other user bob"
+        in caplog.text
+    )
 
 
 def test_playlist_save_failed2(provider, mopidy_track_factory, caplog):
@@ -372,7 +376,10 @@ def test_playlist_save_failed3(provider, caplog):
     new_pl = playlist.replace(tracks=tracks)
     retval = provider.save(new_pl)
     assert retval is playlist
-    assert "Cannot add non-spotify tracks to spotify playlist" in caplog.text
+    assert (
+        "Skipping adding non-Spotify tracks to Spotify playlist "
+        "'spotify:user:alice:playlist:foo'" in caplog.text
+    )
 
 
 def test_replace_playlist_short(provider, mopidy_track_factory):
@@ -1076,6 +1083,20 @@ def test_refuse_on_local_files(provider, caplog):
     retval = provider.save(playlist)
     assert retval is None
     assert (
-        "Cannot modify playlist containing 'Spotify Local Files'."
+        "Cannot modify Spotify playlist containing Spotify 'local files'."
         in caplog.text
     )
+
+
+def test_span_1():
+    movs = []
+    a, b = playlists.SpotifyPlaylistsProvider._split_ended_movs(1, movs)
+    assert a == []
+    assert b == []
+
+
+def test_span_2():
+    movs = [(0, 10), (2, 20)]
+    a, b = playlists.SpotifyPlaylistsProvider._split_ended_movs(1, movs)
+    assert a == [(0, 10)]
+    assert b == [(2, 20)]
