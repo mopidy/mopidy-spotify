@@ -146,9 +146,21 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         self._loaded = True
 
     def create(self, name):
-        logger.info(f"Creating Spotify playlist '{name}'")
-        uri = web.create_playlist(self._backend._web_client, name)
-        return self.lookup(uri) if uri else None
+        if not name:
+            return None
+        web_playlist = web.create_playlist(self._backend._web_client, name)
+        if web_playlist is None:
+            logger.error(f"Failed to create Spotify playlist '{name}'")
+            return
+        logger.info(f"Created Spotify playlist '{name}'")
+        return translator.to_playlist(
+            web_playlist,
+            username=self._backend._web_client.user_id,
+            bitrate=self._backend._bitrate,
+            # Note: we are not filtering out (currently) unplayable tracks;
+            # otherwise they would be removed when editing the playlist.
+            check_playable=False,
+        )
 
     def delete(self, uri):
         logger.info(f"Deleting Spotify playlist {uri!r}")

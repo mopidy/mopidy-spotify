@@ -7,7 +7,7 @@ from mopidy import backend as backend_api
 from mopidy.models import Ref, Track
 
 import spotify
-from mopidy_spotify import playlists
+from mopidy_spotify import playlists, web
 
 
 @pytest.fixture
@@ -238,8 +238,11 @@ def web_client_mock(
             return mock.Mock(status_ok=rv)
         elif re.fullmatch(r"users/(.*?)/playlists", path):
             ok, playlist_id = _create_playlist(method, json)
-            rv = mock.MagicMock(status_ok=ok)
-            rv.__getitem__.return_value = playlist_id
+            rv = mock.MagicMock(status_ok=ok, spec=web.WebResponse)
+            rv.__getitem__.side_effect = web_playlists_map[
+                playlist_id
+            ].__getitem__
+            rv.get = web_playlists_map[playlist_id].get
             return rv
         elif re.fullmatch(r"playlists/(.*?)/followers", path):
             playlist_id = path_parts[1]
@@ -336,8 +339,7 @@ def test_playlist_save_failed1(provider, mopidy_track_factory, caplog):
     assert retval is None
     assert (
         "Cannot modify Spotify playlist 'spotify:user:bob:playlist:baz' "
-        "owned by other user bob"
-        in caplog.text
+        "owned by other user bob" in caplog.text
     )
 
 
@@ -367,12 +369,7 @@ def test_playlist_save_failed2(provider, mopidy_track_factory, caplog):
 def test_playlist_save_failed3(provider, caplog):
     playlist = provider.lookup("spotify:user:alice:playlist:foo")
     tracks = list(playlist.tracks)
-    tracks.append(
-        Track(
-            name="non-spotify track",
-            uri="some:other:uri",
-        )
-    )
+    tracks.append(Track(name="non-spotify track", uri="some:other:uri"))
     new_pl = playlist.replace(tracks=tracks)
     retval = provider.save(new_pl)
     assert retval is playlist

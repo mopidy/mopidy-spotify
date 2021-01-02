@@ -573,7 +573,7 @@ def create_playlist(web_client, name, public=False):
     url = f"users/{web_client.user_id}/playlists"
     response = web_client.post(url, json={"name": name, "public": public})
     web_client.remove_from_cache("me/playlists")
-    return response["uri"] if response.status_ok else None
+    return response if response.status_ok else None
 
 
 def delete_playlist(web_client, uri):
