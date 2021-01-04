@@ -492,6 +492,20 @@ class TestToPlaylist:
         assert track in playlist.tracks
         assert playlist.last_modified is None
 
+    def test_do_check_playable(self, web_playlist_mock):
+        del web_playlist_mock["tracks"]["items"][0]["track"]["is_playable"]
+
+        playlist = translator.to_playlist(web_playlist_mock)
+        assert playlist.tracks == ()
+
+    def test_dont_check_playable(self, web_playlist_mock):
+        del web_playlist_mock["tracks"]["items"][0]["track"]["is_playable"]
+
+        playlist = translator.to_playlist(
+            web_playlist_mock, check_playable=False
+        )
+        assert playlist.tracks != ()
+
     def test_no_track_data(self, web_playlist_mock):
         del web_playlist_mock["tracks"]
 
@@ -816,3 +830,10 @@ class TestWebToTrack:
 
         assert track.name == "ABC 123"
         assert track.album is None
+
+    def test_dont_check_playable(self, web_track_mock):
+        del web_track_mock["is_playable"]
+
+        track = translator.web_to_track(web_track_mock, check_playable=False)
+
+        assert track is not None
