@@ -351,12 +351,26 @@ def test_playlist_save_failed2(provider, mopidy_track_factory, caplog):
     retval = provider.save(new_pl)
     assert retval is None
     assert "Failed to save Spotify playlist:" in caplog.text
-    assert "Created backup in" in caplog.text
+    assert "Created backup of old state in" in caplog.text
     filename = next(
         (
             line.split('"')[1]
             for line in caplog.text.split("\n")
-            if "Created backup in" in line
+            if "Created backup of old state in" in line
+        )
+    )
+    m3ucontents = open(filename).read()
+    assert (
+        m3ucontents == "#EXTM3U\n#EXTENC: UTF-8\n\n"
+        "#EXTINF:174,ABBA - ABC 123\nspotify:track:abc\n\n"
+    )
+
+    assert "Created backup of new state in" in caplog.text
+    filename = next(
+        (
+            line.split('"')[1]
+            for line in caplog.text.split("\n")
+            if "Created backup of new state in" in line
         )
     )
     m3ucontents = open(filename).read()

@@ -238,24 +238,12 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             # truncated the playlist. At this point, we still have the playlist
             # data available, so we write it to an m3u file as a last resort
             # effort for the user to recover from.
-            if ops_replace < ops_patch:
-                safe_name = playlist.name.translate(
-                    str.maketrans(" @`!\"#$%&'()*+;[{<\\|]}>^~/?", "_" * 27)
-                )
-                filename = (
-                    Extension.get_data_dir(self._backend._config)
-                    / f"{safe_name}-{playlist.uri}-{time.time()}.m3u"
-                )
-                with open(filename, "wb") as f:
-                    f.write(b"#EXTM3U\n#EXTENC: UTF-8\n\n")
-                    for track in playlist.tracks:
-                        length = int(track.length / 1000)
-                        artists = ", ".join(a.name for a in track.artists)
-                        f.write(
-                            f"#EXTINF:{length},{artists} - {track.name}\n"
-                            f"{track.uri}\n\n".encode("utf-8")
-                        )
-                logger.error(f'Created backup in "{filename}"')
+            # We'll save a backup of both the old and the new state,
+            # independent of which strategy was used, though, just to be safe.
+            filename = self.create_backup(saved_playlist, "old")
+            logger.error(f'Created backup of old state in "{filename}"')
+            filename = self.create_backup(playlist, "new")
+            logger.error(f'Created backup of new state in "{filename}"')
             return None
 
         if playlist.name and playlist.name != saved_playlist.name:
@@ -274,6 +262,26 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 )
 
         return self.lookup(saved_playlist.uri)
+
+    def create_backup(self, playlist, extra):
+        safe_name = playlist.name.translate(
+            str.maketrans(" @`!\"#$%&'()*+;[{<\\|]}>^~/?", "_" * 27)
+        )
+        filename = (
+            Extension.get_data_dir(self._backend._config)
+            / f"{safe_name}-{playlist.uri}-{extra}-{time.time()}.m3u8"
+        )
+        with filename.open("w") as f:
+            f.write("#EXTM3U\n#EXTENC: UTF-8\n\n")
+            for track in playlist.tracks:
+                length = int(track.length / 1000)
+                artists = ", ".join(a.name for a in track.artists)
+                f.write(
+                    f"#EXTINF:{length},{artists} - {track.name}\n"
+                    f"{track.uri}\n\n"
+                )
+
+        return str(filename)
 
 
 def playlist_lookup(
