@@ -85,9 +85,12 @@ def diff(old, new, chunksize=100):
             ops.append(op("-", old[i1:i2], i1))
 
     # then, merge pairs of insertions and deletions into a transposition:
-    # for this, we start from the rightmost element,
+    # for this, we start from the rightmost element and ...
     for R in reversed(range(len(ops))):
-        # and compare against all elements on its left
+        # ..., unless we already worked on this element, ...
+        if ops[R].op == "m":
+            continue
+        # ... compare against all elements on its left
         for L in reversed(range(R)):
             # if we found a pair of ins/del that can be combined,
             if _is_move(ops[R], ops[L]) or _is_move(ops[L], ops[R]):
