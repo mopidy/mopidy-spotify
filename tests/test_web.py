@@ -690,11 +690,13 @@ def test_updated_responses_changed(web_response_mock, oauth_client, mock_time):
 
 @pytest.fixture
 def spotify_client(config):
-    return web.SpotifyOAuthClient(
+    client = web.SpotifyOAuthClient(
         client_id=config["spotify"]["client_id"],
         client_secret=config["spotify"]["client_secret"],
         proxy_config=None,
     )
+    client.user_id = "alice"
+    return client
 
 
 def url(endpoint):
@@ -799,6 +801,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_login_alice(self, spotify_client, caplog):
+        spotify_client.user_id = None
         responses.add(responses.GET, url("me"), json={"id": "alice"})
 
         assert spotify_client.login()
@@ -807,6 +810,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_login_fails(self, spotify_client, caplog):
+        spotify_client.user_id = None
         responses.add(responses.GET, url("me"), json={})
 
         assert not spotify_client.login()
@@ -867,7 +871,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_get_user_playlists_empty(self, spotify_client):
-        responses.add(responses.GET, url("me/playlists"), json={})
+        responses.add(responses.GET, url("users/alice/playlists"), json={})
 
         result = list(spotify_client.get_user_playlists())
 
@@ -876,29 +880,29 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_get_user_playlists_sets_params(self, spotify_client):
-        responses.add(responses.GET, url("me/playlists"), json={})
+        responses.add(responses.GET, url("users/alice/playlists"), json={})
 
         list(spotify_client.get_user_playlists())
 
         assert len(responses.calls) == 1
         encoded_params = urllib.parse.urlencode({"limit": 50})
         assert responses.calls[0].request.url == url(
-            f"me/playlists?{encoded_params}"
+            f"users/alice/playlists?{encoded_params}"
         )
 
     @responses.activate
     def test_get_user_playlists(self, spotify_client):
         responses.add(
             responses.GET,
-            url("me/playlists?limit=50"),
+            url("users/alice/playlists?limit=50"),
             json={
-                "next": url("me/playlists?offset=50"),
+                "next": url("users/alice/playlists?offset=50"),
                 "items": ["playlist0", "playlist1", "playlist2"],
             },
         )
         responses.add(
             responses.GET,
-            url("me/playlists?limit=50&offset=50"),
+            url("users/alice/playlists?limit=50&offset=50"),
             json={
                 "next": None,
                 "items": ["playlist3", "playlist4", "playlist5"],
