@@ -130,6 +130,13 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
             logger.debug("Skipping seek due to issue mopidy/mopidy#300")
             return
 
+        # After seeking any data buffered so far will be stale, so clear it.
+        #
+        # This also seems to fix intermittent soft failures of the player after
+        # seeking (especially backwards), i.e. it pretends to be playing music,
+        # but doesn't.
+        self._held_buffers.clear()
+
         self._buffer_timestamp.set(
             audio.millisecond_to_clocktime(time_position)
         )
