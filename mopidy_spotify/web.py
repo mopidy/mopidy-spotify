@@ -434,7 +434,9 @@ class SpotifyOAuthClient(OAuthClient):
         return self.user_id is not None
 
     def get_user_playlists(self):
-        pages = self.get_all("me/playlists", params={"limit": 50})
+        pages = self.get_all(
+            f"users/{self.user_id}/playlists", params={"limit": 50}
+        )
         for page in pages:
             yield from page.get("items", [])
 
