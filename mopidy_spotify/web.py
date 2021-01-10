@@ -574,7 +574,7 @@ def _playlist_edit(web_client, playlist, method, **kwargs):
 def create_playlist(web_client, name, public=False):
     url = f"users/{web_client.user_id}/playlists"
     response = web_client.post(url, json={"name": name, "public": public})
-    web_client.remove_from_cache("me/playlists")
+    web_client.remove_from_cache(url)
     return response if response.status_ok else None
 
 
@@ -582,7 +582,7 @@ def delete_playlist(web_client, uri):
     playlist_id = WebLink.from_uri(uri).id
     url = f"playlists/{playlist_id}/followers"
     response = web_client.delete(url)
-    web_client.remove_from_cache("me/playlists")
+    web_client.remove_from_cache(f"users/{web_client.user_id}/playlists")
     web_client.remove_from_cache(f"playlists/{playlist_id}")
     return response.status_ok
 
@@ -590,7 +590,7 @@ def delete_playlist(web_client, uri):
 def rename_playlist(web_client, uri, name):
     playlist_id = WebLink.from_uri(uri).id
     response = web_client.put(f"playlists/{playlist_id}", json={"name": name})
-    web_client.remove_from_cache("me/playlists")
+    web_client.remove_from_cache(f"users/{web_client.user_id}/playlists")
     web_client.remove_from_cache(f"playlists/{playlist_id}")
     return response.status_ok
 
