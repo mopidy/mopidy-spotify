@@ -53,6 +53,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if not self._backend._web_client.logged_in:
             return
 
+        logger.info("Refreshing Spotify playlists")
+
         with utils.time_logger("playlists.refresh()", logging.DEBUG):
             _sp_links.clear()
             self._backend._web_client.clear_cache()
