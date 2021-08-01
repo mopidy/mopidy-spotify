@@ -5,6 +5,7 @@ from mopidy import backend as backend_api
 
 import spotify
 from mopidy_spotify import backend, library, playback, playlists
+from tests import ThreadJoiner
 
 
 def get_backend(config, session_mock=None):
@@ -52,7 +53,8 @@ def test_on_start_creates_configured_session(tmp_path, spotify_mock, config):
     type(config_mock).cache_location = cache_location_mock
     type(config_mock).settings_location = settings_location_mock
 
-    get_backend(config).on_start()
+    with ThreadJoiner(timeout=1.0):
+        get_backend(config).on_start()
 
     spotify_mock.Config.assert_called_once_with()
     config_mock.load_application_key_file.assert_called_once_with(mock.ANY)
@@ -71,7 +73,8 @@ def test_on_start_disallows_network_if_config_is_set(spotify_mock, config):
     type(session.connection).allow_network = allow_network_mock
     config["spotify"]["allow_network"] = False
 
-    get_backend(config).on_start()
+    with ThreadJoiner(timeout=1.0):
+        get_backend(config).on_start()
 
     allow_network_mock.assert_called_once_with(False)
 
@@ -82,7 +85,8 @@ def test_on_start_configures_preferred_bitrate(spotify_mock, config):
     type(session).preferred_bitrate = preferred_bitrate_mock
     config["spotify"]["bitrate"] = 320
 
-    get_backend(config).on_start()
+    with ThreadJoiner(timeout=1.0):
+        get_backend(config).on_start()
 
     preferred_bitrate_mock.assert_called_once_with(spotify.Bitrate.BITRATE_320k)
 
@@ -93,7 +97,8 @@ def test_on_start_configures_volume_normalization(spotify_mock, config):
     type(session).volume_normalization = volume_normalization_mock
     config["spotify"]["volume_normalization"] = False
 
-    get_backend(config).on_start()
+    with ThreadJoiner(timeout=1.0):
+        get_backend(config).on_start()
 
     volume_normalization_mock.assert_called_once_with(False)
 
@@ -109,7 +114,8 @@ def test_on_start_configures_proxy(spotify_mock, web_mock, config):
     spotify_config = spotify_mock.Config.return_value
 
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     assert spotify_config.proxy == "https://my-proxy.example.com:8080"
     assert spotify_config.proxy_username == "alice"
@@ -127,7 +133,8 @@ def test_on_start_configures_web_client(spotify_mock, web_mock, config):
     config["spotify"]["client_secret"] = "AbCdEfG"
 
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
         client_id="1234567",
@@ -141,7 +148,8 @@ def test_on_start_adds_connection_state_changed_handler_to_session(
 ):
     session = spotify_mock.Session.return_value
 
-    get_backend(config).on_start()
+    with ThreadJoiner(timeout=1.0):
+        get_backend(config).on_start()
 
     session.on.assert_any_call(
         spotify_mock.SessionEvent.CONNECTION_STATE_UPDATED,
@@ -156,7 +164,8 @@ def test_on_start_adds_play_token_lost_handler_to_session(spotify_mock, config):
     session = spotify_mock.Session.return_value
 
     obj = get_backend(config)
-    obj.on_start()
+    with ThreadJoiner(timeout=1.0):
+        obj.on_start()
 
     session.on.assert_any_call(
         spotify_mock.SessionEvent.PLAY_TOKEN_LOST,
@@ -167,7 +176,8 @@ def test_on_start_adds_play_token_lost_handler_to_session(spotify_mock, config):
 
 def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     spotify_mock.EventLoop.assert_called_once_with(backend._session)
     spotify_mock.EventLoop.return_value.start.assert_called_once_with()
@@ -175,7 +185,8 @@ def test_on_start_starts_the_pyspotify_event_loop(spotify_mock, config):
 
 def test_on_start_logs_in(spotify_mock, web_mock, config):
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     spotify_mock.Session.return_value.login.assert_called_once_with(
         "alice", "password"
@@ -185,7 +196,8 @@ def test_on_start_logs_in(spotify_mock, web_mock, config):
 
 def test_on_start_refreshes_playlists(spotify_mock, web_mock, config, caplog):
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     client_mock = web_mock.SpotifyOAuthClient.return_value
     client_mock.get_user_playlists.assert_called_once()

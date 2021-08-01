@@ -6,6 +6,7 @@ from mopidy.models import Ref
 
 import spotify
 from mopidy_spotify import playlists
+from tests import ThreadJoiner
 
 
 @pytest.fixture
@@ -144,7 +145,8 @@ def test_get_items_when_playlist_is_unknown(provider, caplog):
 
 
 def test_refresh_loads_all_playlists(provider, web_client_mock):
-    provider.refresh()
+    with ThreadJoiner(timeout=1.0):
+        provider.refresh()
 
     web_client_mock.get_user_playlists.assert_called_once()
     assert web_client_mock.get_playlist.call_count == 2
@@ -159,7 +161,8 @@ def test_refresh_when_not_logged_in(provider, web_client_mock):
     provider._loaded = False
     web_client_mock.logged_in = False
 
-    provider.refresh()
+    with ThreadJoiner(timeout=1.0):
+        provider.refresh()
 
     web_client_mock.get_user_playlists.assert_not_called()
     web_client_mock.get_playlist.assert_not_called()
@@ -169,7 +172,8 @@ def test_refresh_when_not_logged_in(provider, web_client_mock):
 def test_refresh_sets_loaded(provider, web_client_mock):
     provider._loaded = False
 
-    provider.refresh()
+    with ThreadJoiner(timeout=1.0):
+        provider.refresh()
 
     web_client_mock.get_user_playlists.assert_called_once()
     web_client_mock.get_playlist.assert_called()
@@ -177,7 +181,8 @@ def test_refresh_sets_loaded(provider, web_client_mock):
 
 
 def test_refresh_counts_playlists(provider, caplog):
-    provider.refresh()
+    with ThreadJoiner(timeout=1.0):
+        provider.refresh()
 
     assert "Refreshed 2 Spotify playlists" in caplog.text
 
@@ -185,7 +190,8 @@ def test_refresh_counts_playlists(provider, caplog):
 def test_refresh_clears_caches(provider, web_client_mock):
     playlists._sp_links = {"bar": "foobar"}
 
-    provider.refresh()
+    with ThreadJoiner(timeout=1.0):
+        provider.refresh()
 
     assert "bar" not in playlists._sp_links
     web_client_mock.clear_cache.assert_called_once()

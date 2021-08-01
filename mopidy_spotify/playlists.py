@@ -1,6 +1,8 @@
 import logging
+import threading
 
 from mopidy import backend
+from mopidy.core import listener
 
 import spotify
 from mopidy_spotify import translator, utils
@@ -15,6 +17,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         self._backend = backend
         self._timeout = self._backend._config["spotify"]["timeout"]
         self._loaded = False
+
+        self._refreshing = False
 
     def as_list(self):
         with utils.time_logger("playlists.as_list()", logging.DEBUG):
@@ -52,19 +56,36 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def refresh(self):
         if not self._backend._web_client.logged_in:
             return
+        elif self._refreshing:
+            return
+
+        self._refreshing = True
 
         logger.info("Refreshing Spotify playlists")
 
-        with utils.time_logger("playlists.refresh()", logging.DEBUG):
-            _sp_links.clear()
-            self._backend._web_client.clear_cache()
-            count = 0
-            for playlist_ref in self._get_flattened_playlist_refs():
-                self._get_playlist(playlist_ref.uri)
-                count = count + 1
-            logger.info(f"Refreshed {count} Spotify playlists")
+        def refresher():
+            try:
+                with utils.time_logger("playlists.refresh()", logging.DEBUG):
+                    _sp_links.clear()
+                    self._backend._web_client.clear_cache()
+                    count = 0
+                    for playlist_ref in self._get_flattened_playlist_refs():
+                        self._get_playlist(playlist_ref.uri)
+                        count += 1
+                    logger.info(f"Refreshed {count} Spotify playlists")
 
-        self._loaded = True
+                listener.CoreListener.send("playlists_loaded")
+                self._loaded = True
+            except Exception as e:
+                logger.exception(
+                    f"An error occurred while refreshing Spotify playlists: {e}"
+                )
+            finally:
+                self._refreshing = False
+
+        thread = threading.Thread(target=refresher)
+        thread.daemon = True
+        thread.start()
 
     def create(self, name):
         pass  # TODO
