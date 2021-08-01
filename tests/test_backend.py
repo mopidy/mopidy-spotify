@@ -4,6 +4,8 @@ from mopidy import backend as backend_api
 from mopidy_spotify import backend, library, playlists
 from mopidy_spotify.backend import SpotifyPlaybackProvider
 
+from tests import ThreadJoiner
+
 
 def get_backend(config):
     obj = backend.SpotifyBackend(config=config, audio=None)
@@ -58,7 +60,8 @@ def test_on_start_configures_proxy(web_mock, config):
         "password": "s3cret",
     }
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     assert True
 
@@ -74,7 +77,8 @@ def test_on_start_configures_web_client(web_mock, config):
     config["spotify"]["client_secret"] = "AbCdEfG"
 
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
         client_id="1234567",
@@ -92,7 +96,8 @@ def test_on_start_logs_in(web_mock, config):
 
 def test_on_start_refreshes_playlists(web_mock, config, caplog):
     backend = get_backend(config)
-    backend.on_start()
+    with ThreadJoiner(timeout=1.0):
+        backend.on_start()
 
     client_mock = web_mock.SpotifyOAuthClient.return_value
     client_mock.get_user_playlists.assert_called_once()
