@@ -29,6 +29,7 @@ _TOP_LIST_DIR_CONTENTS = [
 _YOUR_MUSIC_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:your:tracks", name="Your tracks"),
     models.Ref.directory(uri="spotify:your:albums", name="Your albums"),
+    models.Ref.directory(uri="spotify:your:artists", name="Your artists"),
 ]
 
 _PLAYLISTS_DIR_CONTENTS = [
@@ -237,6 +238,18 @@ def _browse_your_music(web_client, variant):
             return list(translator.web_to_track_refs(items))
         else:
             return list(translator.web_to_album_refs(items))
+    elif variant == "artists":
+        items = flatten(
+            [
+                page.get("items", [])
+                for page in web_client.get_all(
+                    f"me/following",
+                    params={"type": "artist", "limit": 50}
+                )
+                if page
+            ]
+        )
+        return list(translator.web_to_artist_refs(items))
     else:
         return []
 
