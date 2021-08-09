@@ -192,3 +192,87 @@ def test_lookup_of_playlist_uri_when_not_logged_in(
         "Failed to lookup 'spotify:playlist:alice:foo': "
         "Playlist Web API lookup failed" in caplog.text
     )
+
+
+def test_lookup_of_yourtracks_uri(web_client_mock, web_track_mock, provider):
+    web_saved_track_mock = {"track": web_track_mock}
+    web_client_mock.get_all.return_value = [
+        {"items": [web_saved_track_mock, web_saved_track_mock]},
+        {"items": [web_saved_track_mock, web_saved_track_mock]},
+    ]
+
+    results = provider.lookup("spotify:your:tracks")
+
+    assert len(results) == 4
+    for track in results:
+        assert track.uri == "spotify:track:abc"
+        assert track.name == "ABC 123"
+        assert track.bitrate == 160
+
+
+def test_lookup_of_youralbums_uri(
+    session_mock,
+    web_client_mock,
+    web_album_mock,
+    sp_album_browser_mock,
+    provider,
+):
+    web_saved_album_mock = {"album": web_album_mock}
+    web_client_mock.get_all.return_value = [
+        {"items": [web_saved_album_mock, web_saved_album_mock]},
+        {"items": [web_saved_album_mock, web_saved_album_mock]},
+    ]
+
+    sp_album_mock = sp_album_browser_mock.album
+    session_mock.get_link.return_value = sp_album_mock.link
+
+    results = provider.lookup("spotify:your:albums")
+
+    get_link_call = mock.call("spotify:album:def")
+    assert session_mock.get_link.call_args_list == [
+        get_link_call,
+        get_link_call,
+        get_link_call,
+        get_link_call,
+    ]
+    assert sp_album_mock.link.as_album.call_count == 4
+
+    assert sp_album_mock.browse.call_count == 4
+    load_call = mock.call(10)
+    assert sp_album_browser_mock.load.call_args_list == [
+        load_call,
+        load_call,
+        load_call,
+        load_call,
+    ]
+
+    assert len(results) == 8
+    for track in results:
+        assert track.uri == "spotify:track:abc"
+        assert track.name == "ABC 123"
+        assert track.album.uri == "spotify:album:def"
+        assert track.bitrate == 160
+
+
+def test_lookup_of_your_uri_when_not_logged_in(web_client_mock, provider):
+    web_client_mock.user_id = None
+
+    results = provider.lookup("spotify:your:tracks")
+
+    assert len(results) == 0
+
+
+def test_lookup_of_unhandled_your_uri(provider):
+    results = provider.lookup("spotify:your:artists")
+
+    assert len(results) == 0
+
+
+def test_lookup_of_invalid_your_uri(provider, caplog):
+    results = provider.lookup("spotify:your:tracks:invalid")
+
+    assert len(results) == 0
+    assert (
+        "Failed to lookup 'spotify:your:tracks:invalid': Could not parse"
+        in caplog.text
+    )

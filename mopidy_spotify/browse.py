@@ -218,25 +218,31 @@ def _browse_toplist(config, session, variant, region):
         return []
 
 
-def _browse_your_music(web_client, variant):
-    if not web_client.logged_in:
-        return []
+def _load_your_music(web_client, variant):
+    if web_client is None or not web_client.logged_in:
+        return
 
-    if variant in ("tracks", "albums"):
-        items = flatten(
-            [
-                page.get("items", [])
-                for page in web_client.get_all(
-                    f"me/{variant}",
-                    params={"market": "from_token", "limit": 50},
-                )
-                if page
-            ]
-        )
-        if variant == "tracks":
-            return list(translator.web_to_track_refs(items))
-        else:
-            return list(translator.web_to_album_refs(items))
+    if variant not in ("tracks", "albums"):
+        return
+
+    results = web_client.get_all(
+        f"me/{variant}",
+        params={"market": "from_token", "limit": 50},
+    )
+    for page in results:
+        if not page:
+            continue
+        items = page.get("items", [])
+        for item in items:
+            yield item
+
+
+def _browse_your_music(web_client, variant):
+    items = _load_your_music(web_client, variant)
+    if variant == "tracks":
+        return list(translator.web_to_track_refs(items))
+    elif variant == "albums":
+        return list(translator.web_to_album_refs(items))
     else:
         return []
 
