@@ -49,7 +49,7 @@ def search(
     )
 
     if search_count > 50:
-        logger.warn(
+        logger.warning(
             "Spotify currently allows maximum 50 search results of each type. "
             "Please set the config values spotify/search_album_count, "
             "spotify/search_artist_count and spotify/search_track_count "
