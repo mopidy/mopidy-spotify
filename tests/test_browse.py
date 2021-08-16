@@ -323,6 +323,10 @@ def test_browse_top_tracks_countries_unlimited_by_config(
 
     assert len(results) > 50
     assert (
+        models.Ref.directory(uri="spotify:top:tracks:jp", name="Japan")
+        in results
+    )
+    assert (
         models.Ref.directory(uri="spotify:top:tracks:no", name="Norway")
         in results
     )
