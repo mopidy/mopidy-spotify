@@ -80,7 +80,7 @@ def test_search_returns_albums_and_artists_and_tracks(
         },
     )
 
-    assert 'Searching Spotify for: "ABBA"' in caplog.text
+    assert 'Searching Spotify for: ABBA' in caplog.text
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == "spotify:search:ABBA"

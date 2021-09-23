@@ -710,9 +710,9 @@ class TestSpotifySearchQuery:
             exact=True,
         )
 
-        assert "ABC" in query
-        assert "DEF" in query
-        assert "artist:ABBA" in query
+        assert '"ABC"' in query
+        assert '"DEF"' in query
+        assert 'artist:"ABBA"' in query
         assert 'album:"Greatest Hits"' in query
         assert 'track:"Dancing Queen"' in query
         assert "year:1970" in query
