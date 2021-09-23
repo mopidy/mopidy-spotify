@@ -265,7 +265,7 @@ SEARCH_FIELD_MAP = {
 }
 
 
-def sp_search_query(query, exact):
+def sp_search_query(query, exact=False):
     """Translate a Mopidy search query to a Spotify search query"""
 
     result = []
@@ -289,7 +289,9 @@ def sp_search_query(query, exact):
                 if exact:
                     result.append(f'{field}:"{value}"')
                 else:
-                    result.append(' '.join(f'{field}:{word}' for word in value.split()))
+                    result.append(
+                        " ".join(f"{field}:{word}" for word in value.split())
+                    )
 
     return " ".join(result)
 
