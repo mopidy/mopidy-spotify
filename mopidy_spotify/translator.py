@@ -265,7 +265,7 @@ SEARCH_FIELD_MAP = {
 }
 
 
-def sp_search_query(query):
+def sp_search_query(query, exact):
     """Translate a Mopidy search query to a Spotify search query"""
 
     result = []
@@ -281,9 +281,15 @@ def sp_search_query(query):
                 if value is not None:
                     result.append(f"{field}:{value}")
             elif field == "any":
-                result.append(f'"{value}"')
+                if exact:
+                    result.append(f'"{value}"')
+                else:
+                    result.append(value)
             else:
-                result.append(f'{field}:"{value}"')
+                if exact:
+                    result.append(f'{field}:"{value}"')
+                else:
+                    result.append(' '.join(f'{field}:{word}' for word in value.split()))
 
     return " ".join(result)
 
