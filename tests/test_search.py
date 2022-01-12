@@ -236,3 +236,31 @@ def test_handles_empty_response(web_client_mock, provider):
     assert len(result.albums) == 0
     assert len(result.artists) == 0
     assert len(result.tracks) == 0
+
+
+def test_search_filters_bad_results(
+    web_artist_mock, web_client_mock, web_search_mock, provider, caplog
+):
+    good_track = {
+        "uri": "spotify:track:good",
+        "type": "track",
+        "is_playable": True,
+    }
+    bad_track = {
+        "uri": "spotify:track:bad",
+        "type": "track",
+        "is_playable": False,
+    }
+    web_search_mock["albums"]["items"] = [good_track]
+    web_search_mock["artists"]["items"][0]["uri"] = None
+    web_search_mock["tracks"]["items"] = [{}, good_track, bad_track]
+    web_client_mock.get.return_value = web_search_mock
+    result = provider.search({"any": ["ABBA"]})
+
+    assert isinstance(result, models.SearchResult)
+    assert result.uri == "spotify:search:ABBA"
+
+    assert len(result.albums) == 0
+    assert len(result.artists) == 0
+    assert len(result.tracks) == 1
+    assert result.tracks[0].uri == "spotify:track:good"

@@ -76,6 +76,7 @@ def search(
         if "albums" in result
         else []
     )
+    albums = [x for x in albums if x]
 
     artists = (
         [
@@ -87,6 +88,7 @@ def search(
         if "artists" in result
         else []
     )
+    artists = [x for x in artists if x]
 
     tracks = (
         [
@@ -98,6 +100,7 @@ def search(
         if "tracks" in result
         else []
     )
+    tracks = [x for x in tracks if x]
 
     return models.SearchResult(
         uri=uri, albums=albums, artists=artists, tracks=tracks
