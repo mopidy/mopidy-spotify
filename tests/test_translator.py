@@ -597,10 +597,22 @@ class TestSpotifySearchQuery:
     def test_any_maps_to_no_field(self):
         query = translator.sp_search_query({"any": ["ABC", "DEF"]})
 
+        assert query == "ABC DEF"
+
+    def test_any_maps_to_no_field_exact(self):
+        query = translator.sp_search_query({"any": ["ABC", "DEF"]}, exact=True)
+
         assert query == '"ABC" "DEF"'
 
     def test_artist_maps_to_artist(self):
         query = translator.sp_search_query({"artist": ["ABBA", "ACDC"]})
+
+        assert query == "artist:ABBA artist:ACDC"
+
+    def test_artist_maps_to_artist_exact(self):
+        query = translator.sp_search_query(
+            {"artist": ["ABBA", "ACDC"]}, exact=True
+        )
 
         assert query == 'artist:"ABBA" artist:"ACDC"'
 
@@ -609,15 +621,36 @@ class TestSpotifySearchQuery:
 
         query = translator.sp_search_query({"albumartist": ["ABBA", "ACDC"]})
 
+        assert query == "artist:ABBA artist:ACDC"
+
+    def test_albumartist_maps_to_artist_exact(self):
+        # We don't know how to filter by albumartist in Spotify
+
+        query = translator.sp_search_query(
+            {"albumartist": ["ABBA", "ACDC"]}, exact=True
+        )
+
         assert query == 'artist:"ABBA" artist:"ACDC"'
 
     def test_album_maps_to_album(self):
         query = translator.sp_search_query({"album": ["Greatest Hits"]})
 
+        assert query == "album:Greatest album:Hits"
+
+    def test_album_maps_to_album_exact(self):
+        query = translator.sp_search_query(
+            {"album": ["Greatest Hits"]}, exact=True
+        )
+
         assert query == 'album:"Greatest Hits"'
 
     def test_track_name_maps_to_track(self):
         query = translator.sp_search_query({"track_name": ["ABC"]})
+
+        assert query == "track:ABC"
+
+    def test_track_name_maps_to_track_exact(self):
+        query = translator.sp_search_query({"track_name": ["ABC"]}, exact=True)
 
         assert query == 'track:"ABC"'
 
@@ -656,6 +689,25 @@ class TestSpotifySearchQuery:
                 "track_name": ["Dancing Queen"],
                 "year": ["1970-01-02"],
             }
+        )
+
+        assert "ABC" in query
+        assert "DEF" in query
+        assert "artist:ABBA" in query
+        assert "album:Greatest album:Hits" in query
+        assert "track:Dancing track:Queen" in query
+        assert "year:1970" in query
+
+    def test_anything_can_be_combined_exact(self):
+        query = translator.sp_search_query(
+            {
+                "any": ["ABC", "DEF"],
+                "artist": ["ABBA"],
+                "album": ["Greatest Hits"],
+                "track_name": ["Dancing Queen"],
+                "year": ["1970-01-02"],
+            },
+            exact=True,
         )
 
         assert '"ABC"' in query

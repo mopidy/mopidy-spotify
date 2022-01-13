@@ -21,7 +21,6 @@ def search(
     types=_SEARCH_TYPES,
 ):
     # TODO Respect `uris` argument
-    # TODO Support `exact` search
 
     if query is None:
         logger.debug("Ignored search without query")
@@ -30,7 +29,7 @@ def search(
     if "uri" in query:
         return _search_by_uri(config, session, web_client, query)
 
-    sp_query = translator.sp_search_query(query)
+    sp_query = translator.sp_search_query(query, exact)
     if not sp_query:
         logger.debug("Ignored search with empty query")
         return models.SearchResult(uri="spotify:search")
