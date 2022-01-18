@@ -315,7 +315,27 @@ def web_album_mock(web_artist_mock):
         "name": "DEF 456",
         "uri": "spotify:album:def",
         "type": "album",
+        "release_date": "2001",
         "artists": [web_artist_mock],
+    }
+
+
+@pytest.fixture
+def web_track_factory(web_album_mock, web_artist_mock):
+    # keep in sync with mopidy_track_factory!
+    return lambda ident, playable=True: {
+        "track": {
+            "album": web_album_mock,
+            "artists": [web_artist_mock],
+            "release_date": "2001",
+            "disc_number": 1,
+            "duration_ms": 174300,
+            "name": ident,
+            "track_number": 7,
+            "uri": "spotify:track:" + ident,
+            "type": "track",
+            "is_playable": playable,
+        }
     }
 
 
@@ -384,6 +404,21 @@ def mopidy_album_mock(mopidy_artist_mock):
         date="2001",
         name="DEF 456",
         uri="spotify:album:def",
+    )
+
+
+@pytest.fixture
+def mopidy_track_factory(mopidy_album_mock, mopidy_artist_mock):
+    # keep in sync with web_track_factory!
+    return lambda ident: models.Track(
+        album=mopidy_album_mock,
+        artists=[mopidy_artist_mock],
+        bitrate=160,
+        disc_no=1,
+        length=174300,
+        name=ident,
+        track_no=7,
+        uri="spotify:track:" + ident,
     )
 
 

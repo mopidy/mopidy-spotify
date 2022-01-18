@@ -214,6 +214,7 @@ def to_playlist(
     bitrate=None,
     as_ref=False,
     as_items=False,
+    check_playable=True,
 ):
     ref = to_playlist_ref(web_playlist, username)
     if ref is None or as_ref:
@@ -224,12 +225,18 @@ def to_playlist(
         return
 
     if as_items:
-        return list(web_to_track_refs(web_tracks))
+        return list(
+            web_to_track_refs(web_tracks, check_playable=check_playable)
+        )
 
-    tracks = [
-        web_to_track(web_track.get("track", {}), bitrate=bitrate)
+    tracks = (
+        web_to_track(
+            web_track.get("track", {}),
+            bitrate=bitrate,
+            check_playable=check_playable,
+        )
         for web_track in web_tracks
-    ]
+    )
     tracks = [t for t in tracks if t]
 
     return models.Playlist(uri=ref.uri, name=ref.name, tracks=tracks)
@@ -323,11 +330,14 @@ def web_to_album(web_album):
     ]
     artists = [a for a in artists if a]
 
-    return models.Album(uri=ref.uri, name=ref.name, artists=artists)
+    # Note: date can by YYYY-MM-DD, YYYY-MM or YYYY.
+    date = web_album.get("release_date", "").split("-")[0] or None
+
+    return models.Album(uri=ref.uri, name=ref.name, artists=artists, date=date)
 
 
-def web_to_track(web_track, bitrate=None):
-    ref = web_to_track_ref(web_track)
+def web_to_track(web_track, bitrate=None, *, check_playable=True):
+    ref = web_to_track_ref(web_track, check_playable=check_playable)
     if ref is None:
         return
 

@@ -492,6 +492,20 @@ class TestToPlaylist:
         assert track in playlist.tracks
         assert playlist.last_modified is None
 
+    def test_do_check_playable(self, web_playlist_mock):
+        del web_playlist_mock["tracks"]["items"][0]["track"]["is_playable"]
+
+        playlist = translator.to_playlist(web_playlist_mock)
+        assert playlist.tracks == ()
+
+    def test_dont_check_playable(self, web_playlist_mock):
+        del web_playlist_mock["tracks"]["items"][0]["track"]["is_playable"]
+
+        playlist = translator.to_playlist(
+            web_playlist_mock, check_playable=False
+        )
+        assert playlist.tracks != ()
+
     def test_no_track_data(self, web_playlist_mock):
         del web_playlist_mock["tracks"]
 
@@ -788,6 +802,16 @@ class TestWebToAlbum:
         assert album.name == "DEF 456"
         assert list(album.artists) == artists
 
+    def test_release_date_formats(self, web_album_mock):
+        web_album_mock["release_date"] = "2001"
+        album = translator.web_to_album(web_album_mock)
+        assert album.date == "2001"
+
+    def test_release_date_formats_truncating(self, web_album_mock):
+        web_album_mock["release_date"] = "2001-12-01"
+        album = translator.web_to_album(web_album_mock)
+        assert album.date == "2001"
+
 
 class TestWebToTrack:
     def test_calls_web_to_track_ref(self, web_track_mock):
@@ -799,7 +823,9 @@ class TestWebToTrack:
             translator, "web_to_track_ref", return_value=ref_mock
         ) as ref_func_mock:
             track = translator.web_to_track(web_track_mock)
-            ref_func_mock.assert_called_once_with(web_track_mock)
+            ref_func_mock.assert_called_once_with(
+                web_track_mock, check_playable=True
+            )
 
         assert track.uri == str(sentinel.uri)
         assert track.name == str(sentinel.name)
@@ -817,7 +843,10 @@ class TestWebToTrack:
         assert track.name == "ABC 123"
         assert list(track.artists) == artists
         assert track.album == models.Album(
-            uri="spotify:album:def", name="DEF 456", artists=artists
+            uri="spotify:album:def",
+            name="DEF 456",
+            artists=artists,
+            date="2001",
         )
         assert track.track_no == 7
         assert track.disc_no == 1
@@ -853,3 +882,10 @@ class TestWebToTrack:
 
         assert track.name == "ABC 123"
         assert track.album is None
+
+    def test_dont_check_playable(self, web_track_mock):
+        del web_track_mock["is_playable"]
+
+        track = translator.web_to_track(web_track_mock, check_playable=False)
+
+        assert track is not None

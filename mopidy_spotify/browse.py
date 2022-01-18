@@ -234,6 +234,8 @@ def _browse_your_music(web_client, variant):
             ]
         )
         if variant == "tracks":
+            # TODO: without check_playable=False this will hide unplayable
+            # tracks; this will bite us when implementing library editing.
             return list(translator.web_to_track_refs(items))
         else:
             return list(translator.web_to_album_refs(items))

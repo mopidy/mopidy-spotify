@@ -65,7 +65,7 @@ class OAuthClient:
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
 
-    def get(self, path, cache=None, *args, **kwargs):
+    def request(self, method, path, *args, cache=None, **kwargs):
         if self._authorization_failed:
             logger.debug("Blocking request as previous authorization failed.")
             return WebResponse(None, None)
@@ -73,7 +73,7 @@ class OAuthClient:
         params = kwargs.pop("params", None)
         path = self._normalise_query_string(path, params)
 
-        _trace(f"Get '{path}'")
+        _trace(f"{method} '{path}'")
 
         ignore_expiry = kwargs.pop("ignore_expiry", False)
         if cache is not None and path in cache:
@@ -82,7 +82,6 @@ class OAuthClient:
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
-        # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
         try:
             if self._should_refresh_token():
@@ -93,12 +92,14 @@ class OAuthClient:
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault("headers", {}).update(self._headers)
-        result = self._request_with_retries("GET", path, *args, **kwargs)
+        result = self._request_with_retries(
+            method.upper(), path, *args, **kwargs
+        )
 
         if result is None or "error" in result:
             logger.error(
                 "Spotify Web API request failed: "
-                f"{result.get('error','Unknown')}"
+                f"{(result or {}).get('error','Unknown')}"
             )
             return WebResponse(None, None)
 
@@ -109,6 +110,18 @@ class OAuthClient:
             cache[path] = result
 
         return result
+
+    def get(self, path, cache=None, *args, **kwargs):
+        return self.request("GET", path, *args, cache=cache, **kwargs)
+
+    def post(self, path, *args, **kwargs):
+        return self.request("POST", path, *args, cache=None, **kwargs)
+
+    def put(self, path, *args, **kwargs):
+        return self.request("PUT", path, *args, cache=None, **kwargs)
+
+    def delete(self, path, *args, **kwargs):
+        return self.request("DELETE", path, *args, cache=None, **kwargs)
 
     def _should_cache_response(self, cache, response):
         return cache is not None and response.status_ok
@@ -479,6 +492,16 @@ class SpotifyOAuthClient(OAuthClient):
     def clear_cache(self, extra_expiry=None):
         self._cache.clear()
 
+    def remove_from_cache(self, path):
+        # remove a URL path from the cache, including any variants with a query string.
+        keys = {
+            k
+            for k in self._cache.keys()
+            if k == path or k.startswith(path + "?")
+        }
+        for key in keys:
+            self._cache.pop(key, None)
+
 
 @unique
 class LinkType(Enum):
@@ -528,3 +551,92 @@ class WebLink:
             return cls(uri, LinkType.PLAYLIST, parts[3], parts[1])
 
         raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
+
+
+def _playlist_edit(web_client, playlist, method, **kwargs):
+    playlist_id = WebLink.from_uri(playlist.uri).id
+    url = f"playlists/{playlist_id}/tracks"
+    method = getattr(web_client, method.lower())
+
+    logger.debug(f"API request: {method} {url}")
+    response = method(url, json=kwargs)
+    if not response.status_ok:
+        raise OAuthClientError(response.message)
+
+    logger.debug(f"API response: {response}")
+
+    web_client.remove_from_cache(url)
+    web_client.remove_from_cache(
+        f"playlists/{playlist_id}"
+    )  # this also fetches the first 100 tracks
+
+
+def create_playlist(web_client, name, public=False):
+    url = f"users/{web_client.user_id}/playlists"
+    response = web_client.post(url, json={"name": name, "public": public})
+    web_client.remove_from_cache(url)
+    return response if response.status_ok else None
+
+
+def delete_playlist(web_client, uri):
+    playlist_id = WebLink.from_uri(uri).id
+    url = f"playlists/{playlist_id}/followers"
+    response = web_client.delete(url)
+    web_client.remove_from_cache(f"users/{web_client.user_id}/playlists")
+    web_client.remove_from_cache(f"playlists/{playlist_id}")
+    return response.status_ok
+
+
+def rename_playlist(web_client, uri, name):
+    playlist_id = WebLink.from_uri(uri).id
+    response = web_client.put(f"playlists/{playlist_id}", json={"name": name})
+    web_client.remove_from_cache(f"users/{web_client.user_id}/playlists")
+    web_client.remove_from_cache(f"playlists/{playlist_id}")
+    return response.status_ok
+
+
+def replace_playlist(web_client, playlist, track_uris, chunk_size):
+    def partitions(lst, n=chunk_size):
+        for i in range(0, len(lst), n):
+            yield lst[i : i + n]
+
+    for i, uris in enumerate(partitions(track_uris)):
+        # on the first chunk (i.e. when i == 0), we use PUT to replace the
+        # playlist, on the following chunks we use POST to append to it.
+        method = "post" if i else "put"
+        _playlist_edit(web_client, playlist, method=method, uris=uris)
+
+
+def add_tracks_to_playlist(web_client, playlist, track_uris, range_start):
+    _playlist_edit(
+        web_client,
+        playlist,
+        method="post",
+        uris=track_uris,
+        position=range_start,
+    )
+
+
+def remove_tracks_from_playlist(web_client, playlist, track_uris, range_start):
+    _playlist_edit(
+        web_client,
+        playlist,
+        method="delete",
+        tracks=[
+            {"uri": t, "positions": [range_start + i]}
+            for i, t in enumerate(track_uris)
+        ],
+    )
+
+
+def move_tracks_in_playlist(
+    web_client, playlist, range_start, insert_before, range_length
+):
+    _playlist_edit(
+        web_client,
+        playlist,
+        method="put",
+        range_start=range_start,
+        insert_before=insert_before,
+        range_length=range_length,
+    )

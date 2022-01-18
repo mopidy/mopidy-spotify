@@ -676,6 +676,28 @@ def test_cached_response_unchanged(
 
 
 @responses.activate
+def test_non_idempotent_request_methods(
+    web_response_mock, oauth_client, mock_time
+):
+    # Make sure non-idempotent HTTP methods ignore the cache
+    cache = {"foo": web_response_mock}
+    responses.add(responses.POST, "https://api.spotify.com/v1/foo", json={})
+    responses.add(responses.PUT, "https://api.spotify.com/v1/foo", json={})
+    responses.add(responses.DELETE, "https://api.spotify.com/v1/foo", json={})
+    oauth_client._expires = 2000
+    mock_time.return_value = 1
+
+    result1 = oauth_client.post("foo", cache)
+    result2 = oauth_client.put("foo", cache)
+    result3 = oauth_client.delete("foo", cache)
+
+    assert len(responses.calls) == 3
+    assert not result1.status_unchanged
+    assert not result2.status_unchanged
+    assert not result3.status_unchanged
+
+
+@responses.activate
 def test_updated_responses_changed(web_response_mock, oauth_client, mock_time):
     cache = {"foo": web_response_mock}
     responses.add(responses.GET, "https://api.spotify.com/v1/foo", json={})
@@ -1154,3 +1176,19 @@ def test_weblink_from_uri_raises(uri):
         assert result is None
 
     assert f"Could not parse {uri!r} as a Spotify URI" in str(excinfo.value)
+
+
+def test_remove_from_cache(spotify_client):
+    spotify_client._cache = {
+        "foo": 1,  # exact match
+        "foo?qux": 2,  # match with query
+        "bar/foo": 3,  # prefix non-match
+        "foo/baz": 4,  # suffix non-match
+    }
+
+    spotify_client.remove_from_cache("foo")
+
+    assert spotify_client._cache == {
+        "bar/foo": 3,  # prefix non-match
+        "foo/baz": 4,  # suffix non-match
+    }
