@@ -486,6 +486,7 @@ class LinkType(Enum):
     ALBUM = "album"
     ARTIST = "artist"
     PLAYLIST = "playlist"
+    YOUR = "your"
 
 
 @dataclass
@@ -519,6 +520,8 @@ class WebLink:
             "playlist",
         ):
             return cls(uri, LinkType(parts[0]), parts[1], None)
+        elif len(parts) == 2 and parts[0] == "your":
+            return cls(uri, LinkType(parts[0]))
         elif len(parts) == 3 and parts[0] == "user" and parts[2] == "starred":
             if parsed_uri.scheme == "spotify":
                 return cls(uri, LinkType.PLAYLIST, None, parts[1])

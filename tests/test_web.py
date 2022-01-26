@@ -1106,6 +1106,7 @@ class TestSpotifyOAuthClient:
         ("spotify:track:bar", web.LinkType.TRACK, "bar"),
         ("spotify:artist:blah", web.LinkType.ARTIST, "blah"),
         ("spotify:album:stuff", web.LinkType.ALBUM, "stuff"),
+        ("spotify:your:albums", web.LinkType.YOUR, None),
     ],
 )
 def test_weblink_from_uri_spotify_uri(uri, type_, id_):
