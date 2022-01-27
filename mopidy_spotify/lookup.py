@@ -1,7 +1,8 @@
 import logging
 
 import spotify
-from mopidy_spotify import playlists, translator, utils, web
+from mopidy_spotify import browse, playlists, translator, utils
+from mopidy_spotify.web import LinkType, WebLink
 
 logger = logging.getLogger(__name__)
 
@@ -12,16 +13,18 @@ _VARIOUS_ARTISTS_URIS = [
 
 def lookup(config, session, web_client, uri):
     try:
-        web_link = web.WebLink.from_uri(uri)
-        if web_link.type != web.LinkType.PLAYLIST:
+        web_link = WebLink.from_uri(uri)
+        if web_link.type not in (LinkType.PLAYLIST, LinkType.YOUR):
             sp_link = session.get_link(uri)
     except ValueError as exc:
         logger.info(f"Failed to lookup {uri!r}: {exc}")
         return []
 
     try:
-        if web_link.type == web.LinkType.PLAYLIST:
+        if web_link.type == LinkType.PLAYLIST:
             return _lookup_playlist(config, session, web_client, uri)
+        elif web_link.type == LinkType.YOUR:
+            return list(_lookup_your(config, session, web_client, uri))
         elif sp_link.type is spotify.LinkType.TRACK:
             return list(_lookup_track(config, sp_link))
         elif sp_link.type is spotify.LinkType.ALBUM:
@@ -92,3 +95,31 @@ def _lookup_playlist(config, session, web_client, uri):
     if playlist is None:
         raise spotify.Error("Playlist Web API lookup failed")
     return playlist.tracks
+
+
+def _lookup_your(config, session, web_client, uri):
+    parts = uri.replace("spotify:your:", "").split(":")
+    if len(parts) != 1:
+        return
+    variant = parts[0]
+
+    items = browse._load_your_music(web_client, variant)
+    if variant == "tracks":
+        for item in items:
+            # The extra level here is to also support "saved track objects".
+            web_track = item.get("track", item)
+            track = translator.web_to_track(
+                web_track, bitrate=config["bitrate"]
+            )
+            if track is not None:
+                yield track
+    elif variant == "albums":
+        for item in items:
+            # The extra level here is to also support "saved album objects".
+            web_album = item.get("album", item)
+            album_ref = translator.web_to_album_ref(web_album)
+            if album_ref is None:
+                continue
+            sp_link = session.get_link(album_ref.uri)
+            if sp_link.type is spotify.LinkType.ALBUM:
+                yield from _lookup_album(config, sp_link)
