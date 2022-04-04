@@ -196,7 +196,7 @@ class OAuthClient:
             # instead some endpoints return 200 with no content, or true/false.
 
             # Decide how long to sleep in the next iteration.
-            backoff_time = backoff_time or (2 ** i * self._backoff_factor)
+            backoff_time = backoff_time or (2**i * self._backoff_factor)
             logger.debug(
                 f"Retrying {prepared_request.url} in {backoff_time:.3f} "
                 "seconds."
