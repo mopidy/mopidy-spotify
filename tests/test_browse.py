@@ -81,6 +81,20 @@ def test_browse_playlist(web_client_mock, web_playlist_mock, provider):
     )
 
 
+def test_browse_album_when_offline(session_mock, sp_album_mock, provider):
+    session_mock.connection.state = spotify.ConnectionState.OFFLINE
+    session_mock.get_album.return_value = sp_album_mock
+    sp_album_browser_mock = sp_album_mock.browse.return_value
+    sp_album_browser_mock.is_loaded = False
+    type(sp_album_browser_mock).tracks = mock.PropertyMock(
+        side_effect=Exception
+    )
+
+    provider.browse("spotify:album:def")
+
+    assert sp_album_browser_mock.load.call_count == 0
+
+
 def test_browse_album(
     session_mock, sp_album_mock, sp_album_browser_mock, sp_track_mock, provider
 ):
@@ -96,6 +110,23 @@ def test_browse_album(
     assert results[0] == models.Ref.track(
         uri="spotify:track:abc", name="ABC 123"
     )
+
+
+def test_browse_artist_when_offline(session_mock, sp_artist_mock, provider):
+    session_mock.connection.state = spotify.ConnectionState.OFFLINE
+    session_mock.get_artist.return_value = sp_artist_mock
+    sp_artist_browser_mock = sp_artist_mock.browse.return_value
+    sp_artist_browser_mock.is_loaded = False
+    type(sp_artist_browser_mock).tophit_tracks = mock.PropertyMock(
+        side_effect=Exception
+    )
+    type(sp_artist_browser_mock).albums = mock.PropertyMock(
+        side_effect=Exception
+    )
+
+    provider.browse("spotify:artist:abba")
+
+    assert sp_artist_browser_mock.load.call_count == 0
 
 
 def test_browse_artist(
