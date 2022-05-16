@@ -21,6 +21,11 @@ Mopidy-Spotify
 Status
 ======
 
+As `promised last month 
+<https://developer.spotify.com/community/news/2022/04/12/libspotify-sunset>`_,
+**Spotify disabled access to libspotify on 16/05/2022**. As of today, seven years after
+libspotify was deprecated, there is still no official replacement library available.
+
 Mopidy-Spotify is dependent on ``pyspotify``, a wrapper for Spotify's
 ``libspotify`` C library. ``libspotify`` was `deprecated in 2015
 <https://github.com/mopidy/mopidy-spotify/issues/110>`_ with no replacement. It
@@ -33,6 +38,8 @@ way for us to provide some Spotify features.
 
 Limitations and/or bugs in ``libspotify`` currently result in missing/broken
 Mopidy-Spotify support for the following:
+
+- Playback - unavailable as of 16/05/2022
 
 - Saving items to My Music (`#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) -
   possible via web API
