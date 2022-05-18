@@ -21,10 +21,11 @@ Mopidy-Spotify
 Status
 ======
 
-As `promised last month 
+As `promised last month
 <https://developer.spotify.com/community/news/2022/04/12/libspotify-sunset>`_,
-**Spotify disabled access to libspotify on 16/05/2022**. As of today, seven years after
-libspotify was deprecated, there is still no official replacement library available.
+**Spotify disabled access to libspotify on May 16 2022**. As of today, seven
+years after libspotify was deprecated, there is still no official replacement
+library available.
 
 Mopidy-Spotify is dependent on ``pyspotify``, a wrapper for Spotify's
 ``libspotify`` C library. ``libspotify`` was `deprecated in 2015
