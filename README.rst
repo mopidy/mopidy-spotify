@@ -18,8 +18,10 @@ Mopidy-Spotify
 `Spotify <https://www.spotify.com/>`_.
 
 
-Status
-======
+Status  :warning:
+=================
+
+**Playback/streaming does not work for any version of mopidy-spotify https://github.com/mopidy/mopidy-spotify/issues/110** 
 
 As `promised last month
 <https://developer.spotify.com/community/news/2022/04/12/libspotify-sunset>`_,
