@@ -1,5 +1,5 @@
 ---
-name: Streaming is broken, see issue #110
+name: Streaming is broken, see the pinned issue.
 about: Check known issues before submitting new bugs
 title: ''
 labels: ''
