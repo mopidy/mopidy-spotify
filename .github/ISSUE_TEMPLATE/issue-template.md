@@ -1,5 +1,5 @@
 ---
-name: Issue template
+name: Streaming is broken, see issue #110
 about: Check known issues before submitting new bugs
 title: ''
 labels: ''
@@ -7,4 +7,4 @@ assignees: ''
 
 ---
 
-Streaming/playback is broken, please see issue #110 before filing new bugs about this problem.
+If your bug is not related to #110, feel free to file a new bug.
