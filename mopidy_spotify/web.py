@@ -476,6 +476,22 @@ class SpotifyOAuthClient(OAuthClient):
 
         return playlist
 
+    def get_track(self, uri):
+        try:
+            parsed = WebLink.from_uri(uri)
+            if parsed.type != LinkType.TRACK:
+                raise ValueError(
+                    f"Could not parse {uri!r} as a Spotify track URI"
+                )
+        except ValueError as exc:
+            logger.error(exc)
+            return {}
+
+        return self.get_one(
+            f"tracks/{parsed.id}",
+            params={"market": "from_token"}
+        )
+
     def clear_cache(self, extra_expiry=None):
         self._cache.clear()
 

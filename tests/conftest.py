@@ -423,5 +423,4 @@ def backend_listener_mock():
 
 @pytest.fixture
 def provider(backend_mock):
-    playlists._sp_links.clear()
     return library.SpotifyLibraryProvider(backend_mock)

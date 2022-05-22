@@ -12,29 +12,30 @@ _VARIOUS_ARTISTS_URIS = [
 
 
 def lookup(config, session, web_client, uri):
+    if web_client is None or not web_client.logged_in:
+        return []
+
     try:
         web_link = WebLink.from_uri(uri)
-        if web_link.type not in (LinkType.PLAYLIST, LinkType.YOUR):
-            sp_link = session.get_link(uri)
     except ValueError as exc:
         logger.info(f"Failed to lookup {uri!r}: {exc}")
         return []
 
     try:
         if web_link.type == LinkType.PLAYLIST:
-            return _lookup_playlist(config, session, web_client, uri)
+            return _lookup_playlist(config, web_client, uri)
         elif web_link.type == LinkType.YOUR:
             return list(_lookup_your(config, session, web_client, uri))
-        elif sp_link.type is spotify.LinkType.TRACK:
-            return list(_lookup_track(config, sp_link))
-        elif sp_link.type is spotify.LinkType.ALBUM:
+        elif web_link.type == LinkType.TRACK:
+            return list(_lookup_track(config, web_client, uri))
+        elif web_link.type == LinkType.ALBUM:
             return list(_lookup_album(config, sp_link))
-        elif sp_link.type is spotify.LinkType.ARTIST:
+        elif web_link.type == LinkType.ARTIST:
             with utils.time_logger("Artist lookup"):
                 return list(_lookup_artist(config, sp_link))
         else:
             logger.info(
-                f"Failed to lookup {uri!r}: Cannot handle {sp_link.type!r}"
+                f"Failed to lookup {uri!r}: Cannot handle {web_link.type!r}"
             )
             return []
     except spotify.Error as exc:
@@ -42,10 +43,14 @@ def lookup(config, session, web_client, uri):
         return []
 
 
-def _lookup_track(config, sp_link):
-    sp_track = sp_link.as_track()
-    sp_track.load(config["timeout"])
-    track = translator.to_track(sp_track, bitrate=config["bitrate"])
+def _lookup_track(config, web_client, uri):
+    web_track = web_client.get_track(uri)
+
+    if web_track == {}:
+        logger.error(f"Failed to lookup Spotify track URI {uri!r}")
+        return
+
+    track = translator.web_to_track(web_track, bitrate=config["bitrate"])
     if track is not None:
         yield track
 
@@ -88,10 +93,8 @@ def _lookup_artist(config, sp_link):
                 yield track
 
 
-def _lookup_playlist(config, session, web_client, uri):
-    playlist = playlists.playlist_lookup(
-        session, web_client, uri, config["bitrate"]
-    )
+def _lookup_playlist(config, web_client, uri):
+    playlist = playlists.playlist_lookup(web_client, uri, config["bitrate"])
     if playlist is None:
         raise spotify.Error("Playlist Web API lookup failed")
     return playlist.tracks

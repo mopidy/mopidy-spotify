@@ -57,7 +57,7 @@ def browse(*, config, session, web_client, uri):
     elif uri == _PLAYLISTS_DIR.uri:
         return _PLAYLISTS_DIR_CONTENTS
     elif uri.startswith("spotify:user:") or uri.startswith("spotify:playlist:"):
-        return _browse_playlist(session, web_client, uri, config)
+        return _browse_playlist(web_client, uri, config)
     elif uri.startswith("spotify:album:"):
         return _browse_album(session, uri, config)
     elif uri.startswith("spotify:artist:"):
@@ -88,9 +88,9 @@ def browse(*, config, session, web_client, uri):
     return []
 
 
-def _browse_playlist(session, web_client, uri, config):
+def _browse_playlist(web_client, uri, config):
     return playlists.playlist_lookup(
-        session, web_client, uri, config["bitrate"], as_items=True
+        web_client, uri, config["bitrate"], as_items=True
     )
 
 
