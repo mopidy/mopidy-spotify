@@ -1,107 +1,81 @@
 import logging
 
-import spotify
 from mopidy_spotify import browse, playlists, translator, utils
-from mopidy_spotify.web import LinkType, WebLink
+from mopidy_spotify.web import LinkType, WebLink, WebError
 
 logger = logging.getLogger(__name__)
 
-_VARIOUS_ARTISTS_URIS = [
-    "spotify:artist:0LyfQWJT6nXafLPZqxe9Of",
-]
 
-
-def lookup(config, session, web_client, uri):
+def lookup(config, web_client, uri):
     if web_client is None or not web_client.logged_in:
         return []
 
     try:
-        web_link = WebLink.from_uri(uri)
+        link = WebLink.from_uri(uri)
     except ValueError as exc:
         logger.info(f"Failed to lookup {uri!r}: {exc}")
         return []
 
     try:
-        if web_link.type == LinkType.PLAYLIST:
-            return _lookup_playlist(config, web_client, uri)
-        elif web_link.type == LinkType.YOUR:
-            return list(_lookup_your(config, session, web_client, uri))
-        elif web_link.type == LinkType.TRACK:
-            return list(_lookup_track(config, web_client, uri))
-        elif web_link.type == LinkType.ALBUM:
-            return list(_lookup_album(config, sp_link))
-        elif web_link.type == LinkType.ARTIST:
+        if link.type == LinkType.PLAYLIST:
+            return _lookup_playlist(config, web_client, link)
+        elif link.type == LinkType.YOUR:
+            return list(_lookup_your(config, web_client, link))
+        elif link.type == LinkType.TRACK:
+            return list(_lookup_track(config, web_client, link))
+        elif link.type == LinkType.ALBUM:
+            return list(_lookup_album(config, web_client, link))
+        elif link.type == LinkType.ARTIST:
             with utils.time_logger("Artist lookup"):
-                return list(_lookup_artist(config, sp_link))
+                return list(_lookup_artist(config, web_client, link))
         else:
             logger.info(
-                f"Failed to lookup {uri!r}: Cannot handle {web_link.type!r}"
+                f"Failed to lookup {uri!r}: Cannot handle {link.type!r}"
             )
             return []
-    except spotify.Error as exc:
-        logger.info(f"Failed to lookup {uri!r}: {exc}")
+    except WebError as exc:
+        logger.info(f"Failed to lookup Spotify {link.type.value} {link.uri!r}: {exc}")
         return []
 
 
-def _lookup_track(config, web_client, uri):
-    web_track = web_client.get_track(uri)
+def _lookup_track(config, web_client, link):
+    web_track = web_client.get_track(link)
 
     if web_track == {}:
-        logger.error(f"Failed to lookup Spotify track URI {uri!r}")
-        return
+        raise WebError("Invalid track response")
 
     track = translator.web_to_track(web_track, bitrate=config["bitrate"])
     if track is not None:
         yield track
 
 
-def _lookup_album(config, sp_link):
-    sp_album = sp_link.as_album()
-    sp_album_browser = sp_album.browse()
-    sp_album_browser.load(config["timeout"])
-    for sp_track in sp_album_browser.tracks:
-        track = translator.to_track(sp_track, bitrate=config["bitrate"])
-        if track is not None:
+def _lookup_album(config, web_client, link):
+    web_album = web_client.get_album(link)
+    if web_album == {}:
+        raise WebError("Invalid album response")
+
+    tracks = translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
+    for track in tracks:
+        yield track
+
+
+def _lookup_artist(config, web_client, link):
+    web_albums = web_client.get_artist_albums(link)
+    for web_album in web_albums:
+        tracks = translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
+        for track in tracks:
             yield track
 
 
-def _lookup_artist(config, sp_link):
-    sp_artist = sp_link.as_artist()
-    sp_artist_browser = sp_artist.browse(
-        type=spotify.ArtistBrowserType.NO_TRACKS
-    )
-    sp_artist_browser.load(config["timeout"])
-
-    # Get all album browsers we need first, so they can start retrieving
-    # data in the background.
-    sp_album_browsers = []
-    for sp_album in sp_artist_browser.albums:
-        sp_album.load(config["timeout"])
-        if not sp_album.is_available:
-            continue
-        if sp_album.type is spotify.AlbumType.COMPILATION:
-            continue
-        if sp_album.artist.link.uri in _VARIOUS_ARTISTS_URIS:
-            continue
-        sp_album_browsers.append(sp_album.browse())
-
-    for sp_album_browser in sp_album_browsers:
-        sp_album_browser.load(config["timeout"])
-        for sp_track in sp_album_browser.tracks:
-            track = translator.to_track(sp_track, bitrate=config["bitrate"])
-            if track is not None:
-                yield track
-
-
-def _lookup_playlist(config, web_client, uri):
-    playlist = playlists.playlist_lookup(web_client, uri, config["bitrate"])
+def _lookup_playlist(config, web_client, link):
+    playlist = playlists.playlist_lookup(web_client, link.uri, config["bitrate"])
     if playlist is None:
-        raise spotify.Error("Playlist Web API lookup failed")
+        raise WebError("Invalid playlist response")
     return playlist.tracks
 
 
-def _lookup_your(config, session, web_client, uri):
-    parts = uri.replace("spotify:your:", "").split(":")
+def _lookup_your(config, web_client, link):
+    parts = link.uri.replace("spotify:your:", "").split(":")
     if len(parts) != 1:
         return
     variant = parts[0]
@@ -123,6 +97,6 @@ def _lookup_your(config, session, web_client, uri):
             album_ref = translator.web_to_album_ref(web_album)
             if album_ref is None:
                 continue
-            sp_link = session.get_link(album_ref.uri)
-            if sp_link.type is spotify.LinkType.ALBUM:
-                yield from _lookup_album(config, sp_link)
+            web_link = WebLink.from_uri(album_ref.uri)
+            if web_link.type == LinkType.ALBUM:
+                yield from _lookup_album(config, web_client, web_link)

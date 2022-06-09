@@ -287,9 +287,9 @@ def sp_playlist_container_mock():
 
 
 @pytest.fixture
-def web_search_mock(web_album_mock, web_artist_mock, web_track_mock):
+def web_search_mock(web_album_mock_base, web_artist_mock, web_track_mock):
     return {
-        "albums": {"items": [web_album_mock]},
+        "albums": {"items": [web_album_mock_base]},
         "artists": {"items": [web_artist_mock]},
         "tracks": {"items": [web_track_mock, web_track_mock]},
     }
@@ -310,19 +310,8 @@ def web_artist_mock():
 
 
 @pytest.fixture
-def web_album_mock(web_artist_mock):
+def web_track_mock_base(web_artist_mock):
     return {
-        "name": "DEF 456",
-        "uri": "spotify:album:def",
-        "type": "album",
-        "artists": [web_artist_mock],
-    }
-
-
-@pytest.fixture
-def web_track_mock(web_artist_mock, web_album_mock):
-    return {
-        "album": web_album_mock,
         "artists": [web_artist_mock],
         "disc_number": 1,
         "duration_ms": 174300,
@@ -331,6 +320,54 @@ def web_track_mock(web_artist_mock, web_album_mock):
         "uri": "spotify:track:abc",
         "type": "track",
         "is_playable": True,
+    }
+
+
+@pytest.fixture
+def web_album_mock_base(web_artist_mock):
+    return {
+        "name": "DEF 456",
+        "uri": "spotify:album:def",
+        "type": "album",
+        "album_type": "album",
+        "artists": [web_artist_mock],
+    }
+
+
+@pytest.fixture
+def web_album_mock(web_album_mock_base, web_track_mock_base):
+    return {
+        **web_album_mock_base,
+        **{"tracks": {"items": [web_track_mock_base] * 10}},
+        "is_playable": True,
+    }
+
+
+@pytest.fixture
+def web_album_mock_base2(web_artist_mock):
+    return {
+        "name": "XYZ 789",
+        "uri": "spotify:album:xyz",
+        "type": "album",
+        "album_type": "album",
+        "artists": [web_artist_mock],
+    }
+
+
+@pytest.fixture
+def web_album_mock2(web_album_mock_base2, web_track_mock_base):
+    return {
+        **web_album_mock_base2,
+        **{"tracks": {"items": [web_track_mock_base] * 2}},
+        "is_playable": True,
+    }
+
+
+@pytest.fixture
+def web_track_mock(web_track_mock_base, web_album_mock_base):
+    return {
+        **web_track_mock_base,
+        **{"album": web_album_mock_base},
     }
 
 

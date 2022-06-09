@@ -4,6 +4,7 @@ from unittest import mock
 import pytest
 import requests
 import responses
+from responses import matchers
 
 import mopidy_spotify
 from mopidy_spotify import web
@@ -556,17 +557,19 @@ def test_cache_normalised_query_string(
     mock_time, skip_refresh_token, oauth_client
 ):
     cache = {}
+    url = "https://api.spotify.com/v1/tracks/abc"
     responses.add(
         responses.GET,
-        "https://api.spotify.com/v1/tracks/abc?b=bar&f=foo",
+        url,
         json={"uri": "foobar"},
-        match_querystring=True,
+        # match_querystring=True,
+        match=[matchers.query_string_matcher("b=bar&f=foo")],
     )
     responses.add(
         responses.GET,
-        "https://api.spotify.com/v1/tracks/abc?b=bar&f=cat",
+        url,
         json={"uri": "cat"},
-        match_querystring=True,
+        match=[matchers.query_string_matcher("b=bar&f=cat")],
     )
     mock_time.return_value = 0
 
@@ -744,6 +747,44 @@ def foo_playlist(playlist_parms, foo_playlist_tracks):
     }
 
 
+@pytest.fixture
+def foo_album_next_tracks():
+    params = urllib.parse.urlencode({"market": "from_token", "offset": 3})
+    return {
+        "href": url(f"albums/foo/tracks?{params}"),
+        "items": [6, 7, 8],
+        "next": None,
+    }
+
+
+@pytest.fixture
+def foo_album(foo_album_next_tracks):
+    params = urllib.parse.urlencode({"market": "from_token"})
+    return {
+        "href": url(f"albums/foo?{params}"),
+        "tracks": {
+            "href": url(f"albums/foo/tracks?{params}"),
+            "items": [3, 4, 5],
+            "next": foo_album_next_tracks["href"],
+        },
+    }
+
+
+@pytest.fixture
+def foo_album_response(foo_album):
+    return web.WebResponse(foo_album["href"], foo_album)
+
+
+@pytest.fixture
+def artist_albums_mock(web_album_mock_base, web_album_mock_base2):
+    params = urllib.parse.urlencode({"market": "from_token", "include_groups": "single,album"})
+    return {
+        "href": url(f"artists/abba/albums?{params}"),
+        "items": [web_album_mock_base, web_album_mock_base2],
+        "next": None,
+    }
+
+
 @pytest.mark.usefixtures("skip_refresh_token")
 class TestSpotifyOAuthClient:
     @pytest.mark.parametrize(
@@ -916,6 +957,60 @@ class TestSpotifyOAuthClient:
         assert [f"playlist{i}" for i in range(6)] == results
 
     @responses.activate
+    def test_with_all_tracks_error(
+        self, spotify_client, foo_album_response, foo_album_next_tracks, caplog
+    ):
+        responses.add(
+            responses.GET,
+            foo_album_response["tracks"]["next"],
+            json={"error": "baz"},
+        )
+
+        result = spotify_client._with_all_tracks(foo_album_response)
+
+        assert result == {}
+        assert "Spotify Web API request failed: baz" in caplog.text
+
+    @responses.activate
+    def test_with_all_tracks(self, spotify_client, foo_album_response, foo_album_next_tracks):
+        responses.add(
+            responses.GET,
+            foo_album_next_tracks["href"],
+            json=foo_album_next_tracks,
+        )
+
+        result = spotify_client._with_all_tracks(foo_album_response)
+
+        assert len(responses.calls) == 1
+        assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
+
+    @responses.activate
+    def test_with_all_tracks_uses_cached_tracks_when_unchanged(
+        self, mock_time, foo_album_response, foo_album_next_tracks, spotify_client
+    ):
+        responses.add(
+            responses.GET,
+            foo_album_next_tracks["href"],
+            json=foo_album_next_tracks,
+        )
+        mock_time.return_value = -1000
+
+        result1 = spotify_client._with_all_tracks(foo_album_response)
+
+        assert len(responses.calls) == 1
+        cache_keys = list(spotify_client._cache.keys())
+        assert len(cache_keys) == 1
+
+        responses.calls.reset()
+        mock_time.return_value = 1000
+
+        foo_album_response._status_code = 304
+        result2 = spotify_client._with_all_tracks(foo_album_response)
+
+        assert len(responses.calls) == 0
+        assert result1 == result2
+
+    @responses.activate
     @pytest.mark.parametrize(
         "uri,success",
         [
@@ -962,26 +1057,6 @@ class TestSpotifyOAuthClient:
 
         assert result == {}
         assert "Spotify Web API request failed: bar" in caplog.text
-
-    @responses.activate
-    def test_get_playlist_tracks_error(
-        self, foo_playlist, foo_playlist_tracks, spotify_client, caplog
-    ):
-        responses.add(
-            responses.GET,
-            foo_playlist["href"],
-            json=foo_playlist,
-        )
-        responses.add(
-            responses.GET,
-            foo_playlist_tracks["href"],
-            json={"error": "baz"},
-        )
-
-        result = spotify_client.get_playlist("spotify:playlist:foo")
-
-        assert result == {}
-        assert "Spotify Web API request failed: baz" in caplog.text
 
     @responses.activate
     def test_get_playlist_sets_params_for_tracks(
@@ -1032,46 +1107,6 @@ class TestSpotifyOAuthClient:
         assert len(responses.calls) == 2
         assert result["tracks"]["items"] == [1, 2, 3, 4, 5]
 
-    @responses.activate
-    def test_get_playlist_uses_cached_tracks_when_unchanged(
-        self, mock_time, foo_playlist, foo_playlist_tracks, spotify_client
-    ):
-        responses.add(
-            responses.GET,
-            foo_playlist["href"],
-            json=foo_playlist,
-            status=304,
-        )
-        responses.add(
-            responses.GET,
-            foo_playlist_tracks["href"],
-            json=foo_playlist_tracks,
-        )
-        mock_time.return_value = -1000
-
-        result1 = spotify_client.get_playlist("spotify:playlist:foo")
-
-        assert len(responses.calls) == 2
-        assert result1["tracks"]["items"] == [1, 2, 3, 4, 5]
-        cache_keys = list(spotify_client._cache.keys())
-        assert len(cache_keys) == 2
-        assert cache_keys[0].startswith("playlists/foo?")
-        assert cache_keys[1].startswith(url("playlists/foo/tracks?"))
-
-        # The requested and cached URIs differ where we specified a relative URI but
-        # match where we used the full URI in the response:
-        assert cache_keys[0] != responses.calls[1].request.url
-        assert cache_keys[1] == responses.calls[1].request.url
-
-        responses.calls.reset()
-        mock_time.return_value = 1000
-
-        result2 = spotify_client.get_playlist("spotify:playlist:foo")
-
-        assert len(responses.calls) == 1
-        assert responses.calls[0].request.url == foo_playlist["href"]
-        assert result1["tracks"]["items"] == result2["tracks"]["items"]
-
     @pytest.mark.parametrize(
         "uri,msg",
         [
@@ -1097,6 +1132,113 @@ class TestSpotifyOAuthClient:
         spotify_client.user_id = user_id
 
         assert spotify_client.logged_in is expected
+
+    @responses.activate
+    def test_get_album(self, foo_album, foo_album_next_tracks, spotify_client):
+        responses.add(
+            responses.GET,
+            url("albums/foo"),
+            json=foo_album,
+            match=[matchers.query_string_matcher("market=from_token")],
+        )
+        responses.add(
+            responses.GET,
+            url("albums/foo/tracks"),
+            json=foo_album_next_tracks,
+        )
+
+        link = web.WebLink.from_uri("spotify:album:foo")
+        result = spotify_client.get_album(link)
+
+        assert len(responses.calls) == 2
+        assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
+
+    @responses.activate
+    def test_get_artist_albums(self, artist_albums_mock, web_album_mock, web_album_mock2, spotify_client):
+        responses.add(
+            responses.GET,
+            url("artists/abba/albums"),
+            json=artist_albums_mock,
+            match=[matchers.query_string_matcher("market=from_token&include_groups=single%2Calbum")],
+        )
+        responses.add(
+            responses.GET,
+            url(f"albums/def"),
+            json=web_album_mock,
+        )
+        responses.add(
+            responses.GET,
+            url(f"albums/xyz"),
+            json=web_album_mock2,
+        )
+
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        results = list(spotify_client.get_artist_albums(link))
+        
+        assert len(responses.calls) == 3
+
+        assert len(results) == 2
+        assert results[0]["name"] == "DEF 456"
+        assert results[1]["name"] == "XYZ 789"
+
+    @responses.activate
+    def test_get_artist_albums_ignores_unplayable(self, artist_albums_mock, web_album_mock, web_album_mock2, spotify_client):
+        web_album_mock["is_playable"] = False
+        responses.add(
+            responses.GET,
+            url(f"artists/abba/albums"),
+            json=artist_albums_mock,
+        )
+        responses.add(
+            responses.GET,
+            url(f"albums/def"),
+            json=web_album_mock,
+        )
+        responses.add(
+            responses.GET,
+            url(f"albums/xyz"),
+            json=web_album_mock2,
+        )
+
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        results = list(spotify_client.get_artist_albums(link))
+
+        assert len(responses.calls) == 3
+        assert len(results) == 1
+        assert results[0]["name"] == "XYZ 789"
+
+    @responses.activate
+    @pytest.mark.parametrize(
+        "uri,success",
+        [
+            ("spotify:track:abc", True),
+            ("spotify:track:xyz", False),
+            ("spotify:user:alice:playlist:bar", False),
+            ("spotify:playlist:bar", False),
+            ("spotify:artist:baz", False),
+            ("spotify:album:foo", False),
+        ],
+    )
+    def test_get_track(self, web_track_mock, spotify_client, uri, success):
+        responses.add(
+            responses.GET,
+            url(f"tracks/abc"),
+            json=web_track_mock,
+        )
+        responses.add(
+            responses.GET,
+            url(f"tracks/xyz"),
+            json={},
+        )
+
+        link = web.WebLink.from_uri(uri)
+        result = spotify_client.get_track(link)
+
+        if success:
+            assert len(responses.calls) == 1
+            assert result == web_track_mock
+        else:
+            assert result == {}
 
 
 @pytest.mark.parametrize(

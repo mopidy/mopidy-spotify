@@ -313,6 +313,22 @@ def web_to_artist(web_artist):
     return models.Artist(uri=ref.uri, name=ref.name)
 
 
+def web_to_album_tracks(web_album, bitrate=None):
+    album = web_to_album(web_album)
+    if album is None:
+        return []
+
+    web_tracks = web_album.get("tracks", {}).get("items", [])
+    if not isinstance(web_tracks, list):
+        return []
+
+    tracks = [
+        web_to_track(web_track, bitrate, album)
+        for web_track in web_tracks
+    ]
+    return [t for t in tracks if t]
+
+
 def web_to_album(web_album):
     ref = web_to_album_ref(web_album)
     if ref is None:
@@ -326,7 +342,7 @@ def web_to_album(web_album):
     return models.Album(uri=ref.uri, name=ref.name, artists=artists)
 
 
-def web_to_track(web_track, bitrate=None):
+def web_to_track(web_track, bitrate=None, album=None):
     ref = web_to_track_ref(web_track)
     if ref is None:
         return
@@ -336,7 +352,8 @@ def web_to_track(web_track, bitrate=None):
     ]
     artists = [a for a in artists if a]
 
-    album = web_to_album(web_track.get("album", {}))
+    if album is None:
+        album = web_to_album(web_track.get("album", {}))
 
     return models.Track(
         uri=ref.uri,

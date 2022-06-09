@@ -788,6 +788,34 @@ class TestWebToAlbum:
         assert album.name == "DEF 456"
         assert list(album.artists) == artists
 
+    def test_returns_empty_artists_list_if_artist_is_empty(self, web_album_mock):
+        web_album_mock["artists"] = []
+
+        album = translator.web_to_album(web_album_mock)
+
+        assert list(album.artists) == []
+
+    def test_caches_results(self, web_album_mock):
+        album1 = translator.web_to_album(web_album_mock)
+        album2 = translator.web_to_album(web_album_mock)
+
+        assert album1 is album2
+
+    def test_web_to_album_tracks(self, web_album_mock):
+        tracks = translator.web_to_album_tracks(web_album_mock)
+
+        assert len(tracks) == 10
+        track = tracks[0]
+        assert track.album.name == "DEF 456"
+        assert track.album.artists == track.artists
+
+    def test_web_to_album_tracks_empty(self, web_album_mock):
+        web_album_mock["tracks"]["items"] = []
+
+        tracks = translator.web_to_album_tracks(web_album_mock)
+
+        assert len(tracks) == 0
+
 
 class TestWebToTrack:
     def test_calls_web_to_track_ref(self, web_track_mock):
@@ -827,6 +855,14 @@ class TestWebToTrack:
         track = translator.web_to_track(web_track_mock, bitrate=100)
 
         assert track.bitrate == 100
+
+    def test_sets_specified_album(self, web_track_mock):
+        alt_album = models.Album(uri="spotify:album:xyz", name="XYZ 789")
+
+        track = translator.web_to_track(web_track_mock, album=alt_album)
+
+        assert track.album.uri == "spotify:album:xyz"
+        assert track.album.name == "XYZ 789"
 
     def test_filters_out_none_artists(self, web_track_mock):
         web_track_mock["artists"].insert(0, {})
