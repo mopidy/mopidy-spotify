@@ -95,7 +95,7 @@ def _browse_playlist(web_client, uri, config):
 
 
 def _browse_album(session, uri, config):
-    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
+    if session is None or session.connection.state is not spotify.ConnectionState.LOGGED_IN:
         return []
 
     sp_album_browser = session.get_album(uri).browse()
@@ -108,7 +108,7 @@ def _browse_album(session, uri, config):
 
 
 def _browse_artist(session, uri, config):
-    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
+    if session is None or session.connection.state is not spotify.ConnectionState.LOGGED_IN:
         return []
 
     sp_artist_browser = session.get_artist(uri).browse(
@@ -176,6 +176,8 @@ def _browse_toplist_user(web_client, variant):
 
 
 def _browse_toplist(config, session, variant, region):
+    if session is None:
+        return []
     if region == "countries":
         codes = config["toplist_countries"]
         if not codes:
