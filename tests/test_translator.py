@@ -816,6 +816,13 @@ class TestWebToAlbum:
 
         assert len(tracks) == 0
 
+    def test_web_to_album_tracks_unplayable(self, web_album_mock):
+        web_album_mock["is_playable"] = False
+
+        tracks = translator.web_to_album_tracks(web_album_mock)
+
+        assert len(tracks) == 0
+
 
 class TestWebToTrack:
     def test_calls_web_to_track_ref(self, web_track_mock):

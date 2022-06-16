@@ -25,7 +25,7 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def get_distinct(self, field, query=None):
         return distinct.get_distinct(
             self._config,
-            self._backend._session,
+            self._backend.playlists,
             self._backend._web_client,
             field,
             query,

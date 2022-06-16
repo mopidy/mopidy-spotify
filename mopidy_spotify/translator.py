@@ -318,6 +318,9 @@ def web_to_album_tracks(web_album, bitrate=None):
     if album is None:
         return []
 
+    if not web_album.get("is_playable", False):
+        return []
+
     web_tracks = web_album.get("tracks", {}).get("items", [])
     if not isinstance(web_tracks, list):
         return []

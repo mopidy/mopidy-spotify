@@ -103,16 +103,16 @@ def test_lookup_of_artist_uri(web_track_mock, web_album_mock, web_client_mock, p
 
 
 def test_lookup_of_artist_ignores_unavailable_albums(
-    session_mock, sp_artist_browser_mock, sp_album_browser_mock, provider
+    web_client_mock, web_album_mock, web_album_mock2, provider
 ):
-    sp_artist_mock = sp_artist_browser_mock.artist
-    session_mock.get_link.return_value = sp_artist_mock.link
-    sp_album_mock = sp_album_browser_mock.album
-    sp_album_mock.is_available = False
+    web_album_mock["is_playable"] = False
+    web_client_mock.get_artist_albums.return_value = [
+        web_album_mock, web_album_mock2,
+    ]
 
     results = provider.lookup("spotify:artist:abba")
 
-    assert len(results) == 0
+    assert len(results) == 2
 
 
 def test_lookup_of_artist_uri_ignores_compilations(

@@ -1182,8 +1182,7 @@ class TestSpotifyOAuthClient:
         assert results[1]["name"] == "XYZ 789"
 
     @responses.activate
-    def test_get_artist_albums_ignores_unplayable(self, artist_albums_mock, web_album_mock, web_album_mock2, spotify_client):
-        web_album_mock["is_playable"] = False
+    def test_get_artist_albums_error(self, artist_albums_mock, web_album_mock, spotify_client, caplog):
         responses.add(
             responses.GET,
             url(f"artists/abba/albums"),
@@ -1197,15 +1196,17 @@ class TestSpotifyOAuthClient:
         responses.add(
             responses.GET,
             url(f"albums/xyz"),
-            json=web_album_mock2,
+            json={"error": "bar"},
         )
 
         link = web.WebLink.from_uri("spotify:artist:abba")
         results = list(spotify_client.get_artist_albums(link))
 
         assert len(responses.calls) == 3
-        assert len(results) == 1
-        assert results[0]["name"] == "XYZ 789"
+        assert len(results) == 2
+        assert results[0]["name"] == "DEF 456"
+        assert results[1] == {}
+        assert "Spotify Web API request failed: bar" in caplog.text
 
     @responses.activate
     @pytest.mark.parametrize(

@@ -425,13 +425,6 @@ def mopidy_album_mock(mopidy_artist_mock):
 
 
 @pytest.fixture
-def session_mock():
-    sp_session_mock = mock.Mock(spec=spotify.Session)
-    sp_session_mock.connection.state = spotify.ConnectionState.LOGGED_IN
-    return sp_session_mock
-
-
-@pytest.fixture
 def web_client_mock():
     web_client_mock = mock.MagicMock(spec=web.SpotifyOAuthClient)
     web_client_mock.user_id = "alice"
@@ -440,10 +433,9 @@ def web_client_mock():
 
 
 @pytest.fixture
-def backend_mock(session_mock, config, web_client_mock):
+def backend_mock(config, web_client_mock):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
-    backend_mock._session = session_mock
     backend_mock._bitrate = 160
     backend_mock._web_client = web_client_mock
     return backend_mock

@@ -54,17 +54,13 @@ def _lookup_album(config, web_client, link):
     if web_album == {}:
         raise WebError("Invalid album response")
 
-    tracks = translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
-    for track in tracks:
-        yield track
+    yield from translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
 
 
 def _lookup_artist(config, web_client, link):
     web_albums = web_client.get_artist_albums(link)
     for web_album in web_albums:
-        tracks = translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
-        for track in tracks:
-            yield track
+        yield from translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
 
 
 def _lookup_playlist(config, web_client, link):

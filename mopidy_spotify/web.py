@@ -509,9 +509,7 @@ class SpotifyOAuthClient(OAuthClient):
                 except ValueError as exc:
                     logger.error(exc)
                     continue
-                full_album = self.get_album(web_link)
-                if full_album.get("is_playable", False):
-                    yield full_album
+                yield self.get_album(web_link)
 
     def get_track(self, web_link):
         if web_link.type != LinkType.TRACK:
