@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 def search(
     config,
-    session,
     web_client,
     query=None,
     uris=None,
@@ -27,7 +26,7 @@ def search(
         return models.SearchResult(uri="spotify:search")
 
     if "uri" in query:
-        return _search_by_uri(config, session, web_client, query)
+        return _search_by_uri(config, web_client, query)
 
     sp_query = translator.sp_search_query(query, exact)
     if not sp_query:
@@ -37,7 +36,7 @@ def search(
     uri = f"spotify:search:{urllib.parse.quote(sp_query)}"
     logger.info(f"Searching Spotify for: {sp_query}")
 
-    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
+    if web_client is None or not web_client.logged_in:
         logger.info("Spotify search aborted: Spotify is offline")
         return models.SearchResult(uri=uri)
 
@@ -107,7 +106,7 @@ def search(
     )
 
 
-def _search_by_uri(config, session, web_client, query):
+def _search_by_uri(config, web_client, query):
     tracks = []
     for uri in query["uri"]:
         tracks += lookup.lookup(config, web_client, uri)
