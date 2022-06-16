@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 from typing import Optional
+from threading import Lock
 
 import requests
 
@@ -116,6 +117,8 @@ class OAuthClient:
 
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
+        self._cache_mutex = Lock()
+        self._refresh_mutex = Lock()
 
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
@@ -138,11 +141,14 @@ class OAuthClient:
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
         try:
+            self._refresh_mutex.acquire()
             if self._should_refresh_token():
                 self._refresh_token()
         except OAuthTokenRefreshError as e:
             logger.error(e)
             return WebResponse(None, None)
+        finally:
+            self._refresh_mutex.release()
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault("headers", {}).update(self._headers)
@@ -155,11 +161,15 @@ class OAuthClient:
             )
             return WebResponse(None, None)
 
-        if self._should_cache_response(cache, result):
-            previous_result = cache.get(path)
-            if previous_result and previous_result.updated(result):
-                result = previous_result
-            cache[path] = result
+        try:
+            self._cache_mutex.acquire()
+            if self._should_cache_response(cache, result):
+                previous_result = cache.get(path)
+                if previous_result and previous_result.updated(result):
+                    result = previous_result
+                cache[path] = result
+        finally:
+            self._cache_mutex.release()
 
         return result
 
