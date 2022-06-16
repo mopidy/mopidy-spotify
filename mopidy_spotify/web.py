@@ -98,7 +98,7 @@ class OAuthClient:
         if result is None or "error" in result:
             logger.error(
                 "Spotify Web API request failed: "
-                f"{result.get('error','Unknown')}"
+                f"{result.get('error','Unknown') if result else '[no response]'}"
             )
             return WebResponse(None, None)
 

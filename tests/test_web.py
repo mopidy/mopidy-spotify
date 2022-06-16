@@ -560,13 +560,17 @@ def test_cache_normalised_query_string(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc?b=bar&f=foo",
         json={"uri": "foobar"},
-        match_querystring=True,
+        match=[
+            responses.matchers.query_param_matcher({"b": "bar", "f": "foo"})
+        ],
     )
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc?b=bar&f=cat",
         json={"uri": "cat"},
-        match_querystring=True,
+        match=[
+            responses.matchers.query_param_matcher({"b": "bar", "f": "cat"})
+        ],
     )
     mock_time.return_value = 0
 
