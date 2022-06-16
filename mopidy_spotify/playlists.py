@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 
 from mopidy import backend
 from mopidy.core import listener
@@ -64,22 +65,24 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         logger.info("Refreshing Spotify playlists")
 
         def refresher():
-            try:
-                with utils.time_logger("playlists.refresh()", logging.DEBUG):
-                    count = 0
-                    for playlist_ref in self._get_flattened_playlist_refs(force_refresh=True):
-                        self._get_playlist(playlist_ref.uri)
-                        count += 1
-                    logger.info(f"Refreshed {count} Spotify playlists")
+            self._loaded = False
+            while not self._loaded:
+                try:
+                    with utils.time_logger("playlists.refresh()", logging.DEBUG):
+                        count = 0
+                        for playlist_ref in self._get_flattened_playlist_refs(force_refresh=True):
+                            self._get_playlist(playlist_ref.uri)
+                            count += 1
+                        logger.info(f"Refreshed {count} Spotify playlists")
 
-                listener.CoreListener.send("playlists_loaded")
-                self._loaded = True
-            except Exception as e:
-                logger.exception(
-                    f"An error occurred while refreshing Spotify playlists: {e}"
-                )
-            finally:
-                self._refreshing = False
+                    listener.CoreListener.send("playlists_loaded")
+                    self._refreshing = False
+                    self._loaded = True
+                except Exception as e:
+                    logger.exception(
+                        f"An error occurred while refreshing Spotify playlists, retrying: {e}"
+                    )
+                    time.sleep(3000)
 
         thread = threading.Thread(target=refresher)
         thread.daemon = True
