@@ -20,6 +20,58 @@ logger = logging.getLogger(__name__)
 def _trace(*args, **kwargs):
     logger.log(utils.TRACE, *args, **kwargs)
 
+def _format_url(base_url, url, *args, **kwargs):
+    b = urllib.parse.urlsplit(base_url)
+    u = urllib.parse.urlsplit(url.format(*args))
+
+    if u.scheme or u.netloc:
+        scheme, netloc, path = u.scheme, u.netloc, u.path
+        query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
+    else:
+        scheme, netloc = b.scheme, b.netloc
+        path = os.path.normpath(os.path.join(b.path, u.path))
+        query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
+        query.extend(
+            urllib.parse.parse_qsl(u.query, keep_blank_values=True)
+        )
+
+    for key, value in kwargs.items():
+        query.append((key, value))
+
+    encoded_query = urllib.parse.urlencode(dict(query))
+    return urllib.parse.urlunsplit(
+        (scheme, netloc, path, encoded_query, "")
+    )
+
+def _normalise_query_string(url, params=None):
+    u = urllib.parse.urlsplit(url)
+    scheme, netloc, path = u.scheme, u.netloc, u.path
+
+    query = dict(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
+    if isinstance(params, dict):
+        query.update(params)
+    sorted_unique_query = sorted(query.items())
+    encoded_query = urllib.parse.urlencode(sorted_unique_query)
+    return urllib.parse.urlunsplit(
+        (scheme, netloc, path, encoded_query, "")
+    )
+
+def _parse_retry_after(response):
+    """Parse Retry-After header from response if it is set."""
+    value = response.headers.get("Retry-After")
+
+    if not value:
+        seconds = 0
+    elif re.match(r"^\s*[0-9]+\s*$", value):
+        seconds = int(value)
+    else:
+        date_tuple = email.utils.parsedate(value)
+        if date_tuple is None:
+            seconds = 0
+        else:
+            seconds = time.mktime(date_tuple) - time.time()
+    return max(0, seconds)
+
 
 class OAuthTokenRefreshError(Exception):
     def __init__(self, reason):
@@ -71,7 +123,7 @@ class OAuthClient:
             return WebResponse(None, None)
 
         params = kwargs.pop("params", None)
-        path = self._normalise_query_string(path, params)
+        path = _normalise_query_string(path, params)
 
         _trace(f"Get '{path}'")
 
@@ -150,7 +202,7 @@ class OAuthClient:
 
     def _request_with_retries(self, method, url, *args, **kwargs):
         prepared_request = self._session.prepare_request(
-            requests.Request(method, self._prepare_url(url, *args), **kwargs)
+            requests.Request(method, _format_url(self._base_url, url, *args), **kwargs)
         )
 
         try_until = time.time() + self._timeout
@@ -178,7 +230,7 @@ class OAuthClient:
                 result = None
             else:
                 status_code = response.status_code
-                backoff_time = self._parse_retry_after(response)
+                backoff_time = _parse_retry_after(response)
                 result = WebResponse.from_requests(prepared_request, response)
 
             if status_code and 400 <= status_code < 600:
@@ -211,59 +263,6 @@ class OAuthClient:
                 "Mopidy to resolve this problem."
             )
         return result
-
-    def _prepare_url(self, url, *args, **kwargs):
-        # TODO: Move this out as a helper and unit-test it directly?
-        b = urllib.parse.urlsplit(self._base_url)
-        u = urllib.parse.urlsplit(url.format(*args))
-
-        if u.scheme or u.netloc:
-            scheme, netloc, path = u.scheme, u.netloc, u.path
-            query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
-        else:
-            scheme, netloc = b.scheme, b.netloc
-            path = os.path.normpath(os.path.join(b.path, u.path))
-            query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(
-                urllib.parse.parse_qsl(u.query, keep_blank_values=True)
-            )
-
-        for key, value in kwargs.items():
-            query.append((key, value))
-
-        encoded_query = urllib.parse.urlencode(dict(query))
-        return urllib.parse.urlunsplit(
-            (scheme, netloc, path, encoded_query, "")
-        )
-
-    def _normalise_query_string(self, url, params=None):
-        u = urllib.parse.urlsplit(url)
-        scheme, netloc, path = u.scheme, u.netloc, u.path
-
-        query = dict(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
-        if isinstance(params, dict):
-            query.update(params)
-        sorted_unique_query = sorted(query.items())
-        encoded_query = urllib.parse.urlencode(sorted_unique_query)
-        return urllib.parse.urlunsplit(
-            (scheme, netloc, path, encoded_query, "")
-        )
-
-    def _parse_retry_after(self, response):
-        """Parse Retry-After header from response if it is set."""
-        value = response.headers.get("Retry-After")
-
-        if not value:
-            seconds = 0
-        elif re.match(r"^\s*[0-9]+\s*$", value):
-            seconds = int(value)
-        else:
-            date_tuple = email.utils.parsedate(value)
-            if date_tuple is None:
-                seconds = 0
-            else:
-                seconds = time.mktime(date_tuple) - time.time()
-        return max(0, seconds)
 
 
 class WebResponse(dict):

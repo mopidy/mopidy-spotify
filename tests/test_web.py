@@ -416,7 +416,7 @@ def test_should_cache_response(oauth_client, cache, ok, expected):
     ],
 )
 def test_normalise_query_string(oauth_client, path, params, expected):
-    result = oauth_client._normalise_query_string(path, params)
+    result = web._normalise_query_string(path, params)
     assert result == expected
 
 
