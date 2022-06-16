@@ -193,8 +193,7 @@ def test_refresh_clears_caches(provider, web_client_mock):
     with ThreadJoiner(timeout=1.0):
         provider.refresh()
 
-    assert "bar" not in playlists._sp_links
-    web_client_mock.clear_cache.assert_called_once()
+    assert "spotify:track:abc" in playlists._sp_links
 
 
 def test_lookup(provider):

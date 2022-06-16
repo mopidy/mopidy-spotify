@@ -27,11 +27,11 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
             return list(self._get_flattened_playlist_refs())
 
-    def _get_flattened_playlist_refs(self):
+    def _get_flattened_playlist_refs(self, force_refresh=True):
         if not self._backend._web_client.logged_in:
             return []
 
-        user_playlists = self._backend._web_client.get_user_playlists()
+        user_playlists = self._backend._web_client.get_user_playlists(force_refresh=force_refresh)
         return translator.to_playlist_refs(
             user_playlists, self._backend._web_client.user_id
         )
@@ -66,10 +66,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         def refresher():
             try:
                 with utils.time_logger("playlists.refresh()", logging.DEBUG):
-                    _sp_links.clear()
-                    self._backend._web_client.clear_cache()
                     count = 0
-                    for playlist_ref in self._get_flattened_playlist_refs():
+                    for playlist_ref in self._get_flattened_playlist_refs(force_refresh=True):
                         self._get_playlist(playlist_ref.uri)
                         count += 1
                     logger.info(f"Refreshed {count} Spotify playlists")

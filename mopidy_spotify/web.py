@@ -128,9 +128,10 @@ class OAuthClient:
         _trace(f"Get '{path}'")
 
         ignore_expiry = kwargs.pop("ignore_expiry", False)
+        force_refresh = kwargs.pop("force_refresh", False)
         if cache is not None and path in cache:
             cached_result = cache.get(path)
-            if cached_result.still_valid(ignore_expiry):
+            if not force_refresh and cached_result.still_valid(ignore_expiry):
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
@@ -205,12 +206,13 @@ class OAuthClient:
             requests.Request(method, _format_url(self._base_url, url, *args), **kwargs)
         )
 
+        retries = kwargs.pop('retries', self._number_of_retries)
         try_until = time.time() + self._timeout
 
         result = None
         backoff_time = 0
 
-        for i in range(self._number_of_retries):
+        for i in range(retries):
             remaining_timeout = max(try_until - time.time(), 1)
 
             # Give up if we don't have any timeout left after sleeping.
@@ -432,9 +434,11 @@ class SpotifyOAuthClient(OAuthClient):
     def logged_in(self):
         return self.user_id is not None
 
-    def get_user_playlists(self):
+    def get_user_playlists(self, **kwargs):
         pages = self.get_all(
-            f"users/{self.user_id}/playlists", params={"limit": 50}
+            f"users/{self.user_id}/playlists",
+            params={"limit": 50},
+            **kwargs
         )
         for page in pages:
             yield from page.get("items", [])
@@ -475,7 +479,7 @@ class SpotifyOAuthClient(OAuthClient):
 
         return playlist
 
-    def clear_cache(self, extra_expiry=None):
+    def clear_cache(self):
         self._cache.clear()
 
 
