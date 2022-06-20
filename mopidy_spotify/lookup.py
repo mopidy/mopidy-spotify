@@ -5,6 +5,8 @@ from mopidy_spotify.web import LinkType, WebLink, WebError
 
 logger = logging.getLogger(__name__)
 
+_VARIOUS_ARTISTS_URI = "spotify:artist:0LyfQWJT6nXafLPZqxe9Of"
+
 
 def lookup(config, web_client, uri):
     if web_client is None or not web_client.logged_in:
@@ -60,6 +62,15 @@ def _lookup_album(config, web_client, link):
 def _lookup_artist(config, web_client, link):
     web_albums = web_client.get_artist_albums(link)
     for web_album in web_albums:
+        is_various_artists = False
+        if web_album.get("album_type", "") == "compilation":
+            continue
+        for artist in web_album.get("artists", []):
+            if artist.get("uri") == _VARIOUS_ARTISTS_URI:
+                is_various_artists = True
+                break
+        if is_various_artists:
+            continue
         yield from translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
 
 
