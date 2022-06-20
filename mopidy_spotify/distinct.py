@@ -9,6 +9,7 @@ def get_distinct(config, playlists, web_client, field, query=None):
     # To make the returned data as interesting as possible, we limit
     # ourselves to data extracted from the user's playlists when no search
     # query is included.
+    # TODO: Perhaps should use tracks from My Music instead?
 
     if field == "artist":
         result = _get_distinct_artists(config, playlists, web_client, query)
@@ -53,9 +54,10 @@ def _get_distinct_albumartists(config, playlists, web_client, query):
         }
     else:
         return {
-            track.album.artist.name
+            artists.name
             for track in _get_playlist_tracks(config, playlists, web_client)
-            if track.album and track.album.artist
+            for artists in track.album.artists
+            if track.album and track.album.artists
         }
 
 
@@ -87,9 +89,9 @@ def _get_distinct_dates(config, playlists, web_client, query):
         }
     else:
         return {
-            f"{track.album.year}"
+            f"{track.album.date}"
             for track in _get_playlist_tracks(config, playlists, web_client)
-            if track.album and track.album.year not in (None, 0)
+            if track.album and track.album.date not in (None, 0)
         }
 
 
@@ -113,4 +115,7 @@ def _get_playlist_tracks(config, playlists, web_client):
         return
 
     for playlist_ref in playlists.as_list():
-        yield from playlist.get_items(playlist_ref.uri)
+        playlist = playlists.lookup(playlist_ref.uri)
+        if playlist:
+            for track in playlist.tracks:
+                yield track

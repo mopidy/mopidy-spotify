@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 from mopidy import models
 
-from mopidy_spotify import distinct, search
+from mopidy_spotify import distinct, search, playlists
 
 
 @pytest.fixture
@@ -11,13 +11,13 @@ def web_client_mock_with_playlists(
     web_client_mock,
     web_playlist_mock,
 ):
-
     web_client_mock.get_user_playlists.return_value = [
         web_playlist_mock,
         {},
         web_playlist_mock,
     ]
-    return session_mock
+    web_client_mock.get_playlist.return_value = web_playlist_mock
+    return web_client_mock
 
 
 @pytest.fixture
@@ -44,14 +44,26 @@ def test_get_distinct_unsupported_field_types_returns_nothing(provider, field):
         ("artist", {"ABBA"}),
         ("albumartist", {"ABBA"}),
         ("album", {"DEF 456"}),
-        ("date", {"2001"}),
     ],
 )
+# ("date", {"2001"}),
 def test_get_distinct_without_query_when_playlists_enabled(
     web_client_mock_with_playlists, provider, field, expected
 ):
+    provider._backend.playlists = playlists.SpotifyPlaylistsProvider(backend=provider._backend)
+    provider._backend.playlists._loaded = True
 
     assert provider.get_distinct(field) == expected
+
+
+def test_get_distinct_without_query_returns_nothing_when_playlists_empty(
+    web_client_mock_with_playlists, provider
+):
+    provider._backend.playlists = playlists.SpotifyPlaylistsProvider(backend=provider._backend)
+    provider._backend.playlists._loaded = True
+    web_client_mock_with_playlists.get_playlist.return_value = {}
+
+    assert provider.get_distinct("artist") == set()
 
 
 @pytest.mark.parametrize("field", ["artist", "albumartist", "album", "date"])
