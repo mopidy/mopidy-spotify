@@ -110,8 +110,16 @@ def web_to_album_ref(web_album):
     if not valid_web_data(web_album, "album"):
         return
 
-    uri = web_album["uri"]
-    return models.Ref.album(uri=uri, name=web_album.get("name", uri))
+    if "name" in web_album:
+        artists = web_album.get("artists", [])
+        if artists and artists[0].get("name"):
+            name = f"{artists[0].get('name')} - {web_album['name']}"
+        else:
+            name = web_album["name"]
+    else:
+        name = web_album["uri"]
+
+    return models.Ref.album(uri=web_album["uri"], name=name)
 
 
 def web_to_album_refs(web_albums):
@@ -342,7 +350,8 @@ def web_to_album(web_album):
     ]
     artists = [a for a in artists if a]
 
-    return models.Album(uri=ref.uri, name=ref.name, artists=artists)
+    name = web_album.get("name", "Unknown album")
+    return models.Album(uri=ref.uri, name=name, artists=artists)
 
 
 def web_to_track(web_track, bitrate=None, album=None):

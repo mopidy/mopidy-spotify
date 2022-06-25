@@ -511,7 +511,7 @@ def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
     )
     assert results == [results[0]] * 4
     assert results[0] == models.Ref.album(
-        uri="spotify:album:def", name="DEF 456"
+        uri="spotify:album:def", name="ABBA - DEF 456"
     )
 
 

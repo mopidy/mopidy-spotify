@@ -323,6 +323,13 @@ class TestWebToAlbumRef:
 
         assert ref.type == models.Ref.ALBUM
         assert ref.uri == "spotify:album:def"
+        assert ref.name == "ABBA - DEF 456"
+
+    def test_without_artists_uses_name(self, web_album_mock):
+        del web_album_mock["artists"]
+
+        ref = translator.web_to_album_ref(web_album_mock)
+
         assert ref.name == "DEF 456"
 
     def test_without_name_uses_uri(self, web_album_mock):
@@ -342,7 +349,7 @@ class TestWebToAlbumRefs:
 
         assert refs[0].type == models.Ref.ALBUM
         assert refs[0].uri == "spotify:album:def"
-        assert refs[0].name == "DEF 456"
+        assert refs[0].name == "ABBA - DEF 456"
 
     def test_returns_bare_albums(self, web_album_mock):
         web_albums = [web_album_mock] * 3
@@ -352,7 +359,7 @@ class TestWebToAlbumRefs:
 
         assert refs[0].type == models.Ref.ALBUM
         assert refs[0].uri == "spotify:album:def"
-        assert refs[0].name == "DEF 456"
+        assert refs[0].name == "ABBA - DEF 456"
 
     def test_bad_albums_filtered(self, web_album_mock, web_artist_mock):
         refs = list(
@@ -757,7 +764,7 @@ class TestWebToAlbum:
             ref_func_mock.assert_called_once_with(web_album_mock)
 
         assert album.uri == str(sentinel.uri)
-        assert album.name == str(sentinel.name)
+        assert album.name == "DEF 456"
 
     def test_returns_none_if_invalid_ref(self, web_album_mock):
         with patch.object(translator, "web_to_album_ref", return_value=None):
