@@ -10,6 +10,8 @@ def get_distinct(config, playlists, web_client, field, query=None):
     # ourselves to data extracted from the user's playlists when no search
     # query is included.
     # TODO: Perhaps should use tracks from My Music instead?
+    if web_client is None or not web_client.logged_in:
+        return set()
 
     if field == "artist":
         result = _get_distinct_artists(config, playlists, web_client, query)
