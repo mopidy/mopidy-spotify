@@ -1154,7 +1154,11 @@ class TestSpotifyOAuthClient:
         assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
 
     @responses.activate
-    def test_get_artist_albums(self, artist_albums_mock, web_album_mock, web_album_mock2, spotify_client):
+    @pytest.mark.parametrize(
+        "all_tracks,",
+        [(True), (False)],
+    )
+    def test_get_artist_albums(self, artist_albums_mock, web_album_mock, web_album_mock2, spotify_client, all_tracks):
         responses.add(
             responses.GET,
             url("artists/abba/albums"),
@@ -1173,13 +1177,24 @@ class TestSpotifyOAuthClient:
         )
 
         link = web.WebLink.from_uri("spotify:artist:abba")
-        results = list(spotify_client.get_artist_albums(link))
+        results = list(spotify_client.get_artist_albums(link, all_tracks=all_tracks))
         
-        assert len(responses.calls) == 3
-
+        if all_tracks:
+            assert len(responses.calls) == 3
+        else:
+            assert len(responses.calls) == 1
+            
         assert len(results) == 2
         assert results[0]["name"] == "DEF 456"
         assert results[1]["name"] == "XYZ 789"
+
+        if all_tracks:
+            assert results[0]["tracks"]
+            assert results[1]["tracks"]
+        else:
+            assert "tracks" not in results[0]
+            assert "tracks" not in results[1]
+
 
     @responses.activate
     def test_get_artist_albums_error(self, artist_albums_mock, web_album_mock, spotify_client, caplog):
@@ -1240,6 +1255,20 @@ class TestSpotifyOAuthClient:
             assert result == web_track_mock
         else:
             assert result == {}
+
+    @responses.activate
+    def test_get_artist_top_tracks(self, web_track_mock, spotify_client):
+        responses.add(
+            responses.GET,
+            url(f"artists/baz/top-tracks"),
+            json={"tracks": [web_track_mock, web_track_mock]},
+        )
+        link = web.WebLink.from_uri("spotify:artist:baz")
+        results = spotify_client.get_artist_top_tracks(link)
+
+        assert len(responses.calls) == 1
+        assert len(results) == 2
+        assert results[0]["name"] == "ABC 123"
 
 
 @pytest.mark.parametrize(

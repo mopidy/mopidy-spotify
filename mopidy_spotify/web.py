@@ -493,7 +493,7 @@ class SpotifyOAuthClient(OAuthClient):
         )
         return self._with_all_tracks(album)
 
-    def get_artist_albums(self, web_link):
+    def get_artist_albums(self, web_link, all_tracks=True):
         if web_link.type != LinkType.ARTIST:
             logger.error(f"Expecting Spotify artist URI")
             return []
@@ -504,12 +504,25 @@ class SpotifyOAuthClient(OAuthClient):
         )
         for page in pages:
             for album in page["items"]:
-                try:
-                    web_link = WebLink.from_uri(album.get("uri"))
-                except ValueError as exc:
-                    logger.error(exc)
-                    continue
-                yield self.get_album(web_link)
+                if all_tracks:
+                    try:
+                        web_link = WebLink.from_uri(album.get("uri"))
+                    except ValueError as exc:
+                        logger.error(exc)
+                        continue
+                    yield self.get_album(web_link)
+                else:
+                    yield album
+
+    def get_artist_top_tracks(self, web_link):
+        if web_link.type != LinkType.ARTIST:
+            logger.error(f"Expecting Spotify artist URI")
+            return []
+
+        return self.get_one(
+            f"artists/{web_link.id}/top-tracks",
+            params={"market": "from_token"},
+        ).get("tracks")
 
     def get_track(self, web_link):
         if web_link.type != LinkType.TRACK:
