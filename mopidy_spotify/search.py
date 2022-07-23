@@ -3,7 +3,6 @@ import urllib.parse
 
 from mopidy import models
 
-import spotify
 from mopidy_spotify import lookup, translator
 
 _SEARCH_TYPES = ["album", "artist", "track"]

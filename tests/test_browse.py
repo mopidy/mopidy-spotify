@@ -3,8 +3,6 @@ from unittest import mock
 import pytest
 from mopidy import models
 
-import spotify
-
 
 def test_has_a_root_directory(provider):
     assert provider.root_directory == models.Ref.directory(

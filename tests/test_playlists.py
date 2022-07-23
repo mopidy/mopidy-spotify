@@ -4,7 +4,6 @@ import pytest
 from mopidy import backend as backend_api
 from mopidy.models import Ref
 
-import spotify
 from mopidy_spotify import playlists
 
 

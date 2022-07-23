@@ -1,8 +1,6 @@
 import copy
 from unittest import mock
 
-import spotify
-
 
 def test_lookup_of_invalid_uri(provider, caplog):
     results = provider.lookup("invalid")

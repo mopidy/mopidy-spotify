@@ -9,7 +9,6 @@ include tox.ini
 recursive-include .github *
 
 include mopidy_*/ext.conf
-include mopidy_spotify/spotify_appkey.key
 
 recursive-include tests *.py
 recursive-include tests/data *
