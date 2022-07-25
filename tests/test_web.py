@@ -777,7 +777,9 @@ def foo_album_response(foo_album):
 
 @pytest.fixture
 def artist_albums_mock(web_album_mock_base, web_album_mock_base2):
-    params = urllib.parse.urlencode({"market": "from_token", "include_groups": "single,album"})
+    params = urllib.parse.urlencode(
+        {"market": "from_token", "include_groups": "single,album"}
+    )
     return {
         "href": url(f"artists/abba/albums?{params}"),
         "items": [web_album_mock_base, web_album_mock_base2],
@@ -972,7 +974,9 @@ class TestSpotifyOAuthClient:
         assert "Spotify Web API request failed: baz" in caplog.text
 
     @responses.activate
-    def test_with_all_tracks(self, spotify_client, foo_album_response, foo_album_next_tracks):
+    def test_with_all_tracks(
+        self, spotify_client, foo_album_response, foo_album_next_tracks
+    ):
         responses.add(
             responses.GET,
             foo_album_next_tracks["href"],
@@ -986,7 +990,11 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_with_all_tracks_uses_cached_tracks_when_unchanged(
-        self, mock_time, foo_album_response, foo_album_next_tracks, spotify_client
+        self,
+        mock_time,
+        foo_album_response,
+        foo_album_next_tracks,
+        spotify_client,
     ):
         responses.add(
             responses.GET,
@@ -1158,32 +1166,45 @@ class TestSpotifyOAuthClient:
         "all_tracks,",
         [(True), (False)],
     )
-    def test_get_artist_albums(self, artist_albums_mock, web_album_mock, web_album_mock2, spotify_client, all_tracks):
+    def test_get_artist_albums(
+        self,
+        artist_albums_mock,
+        web_album_mock,
+        web_album_mock2,
+        spotify_client,
+        all_tracks,
+    ):
         responses.add(
             responses.GET,
             url("artists/abba/albums"),
             json=artist_albums_mock,
-            match=[matchers.query_string_matcher("market=from_token&include_groups=single%2Calbum")],
+            match=[
+                matchers.query_string_matcher(
+                    "market=from_token&include_groups=single%2Calbum"
+                )
+            ],
         )
         responses.add(
             responses.GET,
-            url(f"albums/def"),
+            url("albums/def"),
             json=web_album_mock,
         )
         responses.add(
             responses.GET,
-            url(f"albums/xyz"),
+            url("albums/xyz"),
             json=web_album_mock2,
         )
 
         link = web.WebLink.from_uri("spotify:artist:abba")
-        results = list(spotify_client.get_artist_albums(link, all_tracks=all_tracks))
-        
+        results = list(
+            spotify_client.get_artist_albums(link, all_tracks=all_tracks)
+        )
+
         if all_tracks:
             assert len(responses.calls) == 3
         else:
             assert len(responses.calls) == 1
-            
+
         assert len(results) == 2
         assert results[0]["name"] == "DEF 456"
         assert results[1]["name"] == "XYZ 789"
@@ -1195,22 +1216,23 @@ class TestSpotifyOAuthClient:
             assert "tracks" not in results[0]
             assert "tracks" not in results[1]
 
-
     @responses.activate
-    def test_get_artist_albums_error(self, artist_albums_mock, web_album_mock, spotify_client, caplog):
+    def test_get_artist_albums_error(
+        self, artist_albums_mock, web_album_mock, spotify_client, caplog
+    ):
         responses.add(
             responses.GET,
-            url(f"artists/abba/albums"),
+            url("artists/abba/albums"),
             json=artist_albums_mock,
         )
         responses.add(
             responses.GET,
-            url(f"albums/def"),
+            url("albums/def"),
             json=web_album_mock,
         )
         responses.add(
             responses.GET,
-            url(f"albums/xyz"),
+            url("albums/xyz"),
             json={"error": "bar"},
         )
 
@@ -1238,12 +1260,12 @@ class TestSpotifyOAuthClient:
     def test_get_track(self, web_track_mock, spotify_client, uri, success):
         responses.add(
             responses.GET,
-            url(f"tracks/abc"),
+            url("tracks/abc"),
             json=web_track_mock,
         )
         responses.add(
             responses.GET,
-            url(f"tracks/xyz"),
+            url("tracks/xyz"),
             json={},
         )
 
@@ -1260,7 +1282,7 @@ class TestSpotifyOAuthClient:
     def test_get_artist_top_tracks(self, web_track_mock, spotify_client):
         responses.add(
             responses.GET,
-            url(f"artists/baz/top-tracks"),
+            url("artists/baz/top-tracks"),
             json={"tracks": [web_track_mock, web_track_mock]},
         )
         link = web.WebLink.from_uri("spotify:artist:baz")

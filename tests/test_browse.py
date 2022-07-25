@@ -26,7 +26,7 @@ def test_browse_root_directory(provider):
 
 def test_browse_root_when_offline(web_client_mock, provider):
     web_client_mock.logged_in = False
-    
+
     results = provider.browse("spotify:directory")
 
     assert len(results) == 3
@@ -83,8 +83,17 @@ def test_browse_playlist(web_client_mock, web_playlist_mock, provider):
         uri="spotify:track:abc", name="ABC 123"
     )
 
+
 @pytest.mark.parametrize(
-    "uri", ["album:def", "artist:abba", "user:alice:playlist:foo", "unknown", "top:tracks", "your:tracks"]
+    "uri",
+    [
+        "album:def",
+        "artist:abba",
+        "user:alice:playlist:foo",
+        "unknown",
+        "top:tracks",
+        "your:tracks",
+    ],
 )
 def test_browse_item_when_offline(web_client_mock, uri, provider, caplog):
     web_client_mock.logged_in = False
@@ -106,7 +115,9 @@ def test_browse_album(web_client_mock, web_album_mock, provider):
     )
 
 
-def test_browse_album_bad_uri(web_client_mock, web_album_mock, provider, caplog):
+def test_browse_album_bad_uri(
+    web_client_mock, web_album_mock, provider, caplog
+):
     web_client_mock.get_album.return_value = web_album_mock
 
     results = provider.browse("spotify:album:def:xyz")
@@ -122,11 +133,17 @@ def test_browse_artist(
     provider,
 ):
     web_client_mock.get_artist_albums.return_value = [web_album_mock_base]
-    web_client_mock.get_artist_top_tracks.return_value = [web_track_mock, web_track_mock, web_track_mock]
-    
+    web_client_mock.get_artist_top_tracks.return_value = [
+        web_track_mock,
+        web_track_mock,
+        web_track_mock,
+    ]
+
     results = provider.browse("spotify:artist:abba")
 
-    web_client_mock.get_artist_albums.assert_called_once_with(mock.ANY, all_tracks=False)
+    web_client_mock.get_artist_albums.assert_called_once_with(
+        mock.ANY, all_tracks=False
+    )
     assert len(results) == 4
     assert results[0] == models.Ref.track(
         uri="spotify:track:abc", name="ABC 123"

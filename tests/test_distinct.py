@@ -58,7 +58,9 @@ def test_get_distinct_unsupported_field_types_returns_nothing(provider, field):
 def test_get_distinct_without_query_when_playlists_enabled(
     web_client_mock_with_playlists, provider, field, expected
 ):
-    provider._backend.playlists = playlists.SpotifyPlaylistsProvider(backend=provider._backend)
+    provider._backend.playlists = playlists.SpotifyPlaylistsProvider(
+        backend=provider._backend
+    )
     provider._backend.playlists._loaded = True
 
     assert provider.get_distinct(field) == expected
@@ -67,7 +69,9 @@ def test_get_distinct_without_query_when_playlists_enabled(
 def test_get_distinct_without_query_returns_nothing_when_playlists_empty(
     web_client_mock_with_playlists, provider
 ):
-    provider._backend.playlists = playlists.SpotifyPlaylistsProvider(backend=provider._backend)
+    provider._backend.playlists = playlists.SpotifyPlaylistsProvider(
+        backend=provider._backend
+    )
     provider._backend.playlists._loaded = True
     web_client_mock_with_playlists.get_playlist.return_value = {}
 
@@ -114,7 +118,14 @@ def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
     ],
 )
 def test_get_distinct_with_query(
-    search_mock, provider, config, web_client_mock, field, query, expected, types
+    search_mock,
+    provider,
+    config,
+    web_client_mock,
+    field,
+    query,
+    expected,
+    types,
 ):
 
     assert provider.get_distinct(field, query) == expected

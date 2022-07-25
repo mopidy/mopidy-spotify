@@ -559,7 +559,9 @@ class TestWebToAlbum:
         assert album.name == "DEF 456"
         assert list(album.artists) == artists
 
-    def test_returns_empty_artists_list_if_artist_is_empty(self, web_album_mock):
+    def test_returns_empty_artists_list_if_artist_is_empty(
+        self, web_album_mock
+    ):
         web_album_mock["artists"] = []
 
         album = translator.web_to_album(web_album_mock)

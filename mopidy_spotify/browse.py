@@ -2,7 +2,7 @@ import logging
 
 from mopidy import models
 
-from mopidy_spotify import countries, playlists, translator
+from mopidy_spotify import playlists, translator
 from mopidy_spotify.web import WebLink
 from mopidy_spotify.utils import flatten
 
@@ -48,7 +48,7 @@ def browse(*, config, session, web_client, uri):
     if web_client is None or not web_client.logged_in:
         return []
 
-    #TODO: Support for category browsing.
+    # TODO: Support for category browsing.
     if uri.startswith("spotify:user:") or uri.startswith("spotify:playlist:"):
         return _browse_playlist(web_client, uri)
     elif uri.startswith("spotify:album:"):

@@ -453,7 +453,7 @@ class SpotifyOAuthClient(OAuthClient):
         more_tracks = []
         for page in track_pages:
             if "items" not in page:
-                return {} # Return nothing on error, or what we have so far?
+                return {}  # Return nothing on error, or what we have so far?
             more_tracks += page["items"]
 
         if more_tracks:
@@ -461,7 +461,7 @@ class SpotifyOAuthClient(OAuthClient):
             obj = copy.deepcopy(obj)
             obj.setdefault("tracks", {}).setdefault("items", [])
             obj["tracks"]["items"] += more_tracks
-        
+
         return obj
 
     def get_playlist(self, uri):
@@ -480,11 +480,10 @@ class SpotifyOAuthClient(OAuthClient):
             params={"fields": self.PLAYLIST_FIELDS, "market": "from_token"},
         )
         return self._with_all_tracks(playlist, {"fields": self.TRACK_FIELDS})
-        
 
     def get_album(self, web_link):
         if web_link.type != LinkType.ALBUM:
-            logger.error(f"Expecting Spotify album URI")
+            logger.error("Expecting Spotify album URI")
             return {}
 
         album = self.get_one(
@@ -495,7 +494,7 @@ class SpotifyOAuthClient(OAuthClient):
 
     def get_artist_albums(self, web_link, all_tracks=True):
         if web_link.type != LinkType.ARTIST:
-            logger.error(f"Expecting Spotify artist URI")
+            logger.error("Expecting Spotify artist URI")
             return []
 
         pages = self.get_all(
@@ -516,7 +515,7 @@ class SpotifyOAuthClient(OAuthClient):
 
     def get_artist_top_tracks(self, web_link):
         if web_link.type != LinkType.ARTIST:
-            logger.error(f"Expecting Spotify artist URI")
+            logger.error("Expecting Spotify artist URI")
             return []
 
         return self.get_one(
@@ -526,12 +525,11 @@ class SpotifyOAuthClient(OAuthClient):
 
     def get_track(self, web_link):
         if web_link.type != LinkType.TRACK:
-            logger.error(f"Expecting Spotify track URI")
+            logger.error("Expecting Spotify track URI")
             return {}
 
         return self.get_one(
-            f"tracks/{web_link.id}",
-            params={"market": "from_token"}
+            f"tracks/{web_link.id}", params={"market": "from_token"}
         )
 
     def clear_cache(self, extra_expiry=None):

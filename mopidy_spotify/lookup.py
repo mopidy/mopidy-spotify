@@ -36,7 +36,9 @@ def lookup(config, web_client, uri):
             )
             return []
     except WebError as exc:
-        logger.info(f"Failed to lookup Spotify {link.type.value} {link.uri!r}: {exc}")
+        logger.info(
+            f"Failed to lookup Spotify {link.type.value} {link.uri!r}: {exc}"
+        )
         return []
 
 
@@ -56,7 +58,9 @@ def _lookup_album(config, web_client, link):
     if web_album == {}:
         raise WebError("Invalid album response")
 
-    yield from translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
+    yield from translator.web_to_album_tracks(
+        web_album, bitrate=config["bitrate"]
+    )
 
 
 def _lookup_artist(config, web_client, link):
@@ -71,11 +75,15 @@ def _lookup_artist(config, web_client, link):
                 break
         if is_various_artists:
             continue
-        yield from translator.web_to_album_tracks(web_album, bitrate=config["bitrate"])
+        yield from translator.web_to_album_tracks(
+            web_album, bitrate=config["bitrate"]
+        )
 
 
 def _lookup_playlist(config, web_client, link):
-    playlist = playlists.playlist_lookup(web_client, link.uri, config["bitrate"])
+    playlist = playlists.playlist_lookup(
+        web_client, link.uri, config["bitrate"]
+    )
     if playlist is None:
         raise WebError("Invalid playlist response")
     return playlist.tracks

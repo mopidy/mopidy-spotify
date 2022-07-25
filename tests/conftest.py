@@ -4,7 +4,7 @@ import pytest
 from mopidy import backend as backend_api
 from mopidy import models
 
-from mopidy_spotify import backend, library, utils, playlists, web
+from mopidy_spotify import backend, library, utils, web
 
 
 @pytest.fixture

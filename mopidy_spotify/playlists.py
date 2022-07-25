@@ -89,7 +89,7 @@ def playlist_lookup(web_client, uri, bitrate, as_items=False):
         bitrate=bitrate,
         as_items=as_items,
     )
-    #TODO: cache the Mopidy tracks? And handle as_items here instead of translator
+    # TODO: cache the Mopidy tracks? And handle as_items here instead of translator
     if playlist is None:
         return
 

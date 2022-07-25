@@ -17,7 +17,6 @@ def audio_mock():
 def backend_mock(config):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
-    backend_mock._actor_proxy = None
     return backend_mock
 
 
@@ -33,7 +32,6 @@ def test_is_a_playback_provider(provider):
 
 
 def test_translate_uri_sets_credentials(config, provider):
-    config["spotify"]["username"] = "foo"
-    config["spotify"]["password"] = "bar"
-
-    assert provider.translate_uri("baz") == "baz?username=foo&password=bar"
+    assert (
+        provider.translate_uri("baz") == "baz?username=alice&password=password"
+    )

@@ -1,5 +1,4 @@
 import copy
-from unittest import mock
 
 
 def test_lookup_of_invalid_uri(provider, caplog):
@@ -34,7 +33,8 @@ def test_lookup_of_unhandled_uri(provider, caplog):
     assert len(results) == 0
     assert (
         "Failed to lookup 'spotify:invalid:something': "
-        "Could not parse 'spotify:invalid:something' as a Spotify URI" in caplog.text
+        "Could not parse 'spotify:invalid:something' as a Spotify URI"
+        in caplog.text
     )
 
 
@@ -62,7 +62,7 @@ def test_lookup_of_track_uri(web_client_mock, web_track_mock, provider):
 
 def test_lookup_of_album_uri(web_client_mock, web_album_mock, provider):
     web_client_mock.get_album.return_value = web_album_mock
-    
+
     results = provider.lookup("spotify:album:def")
 
     assert len(results) == 10
@@ -73,15 +73,18 @@ def test_lookup_of_album_uri(web_client_mock, web_album_mock, provider):
     assert track.album.name == "DEF 456"
 
 
-def test_lookup_of_artist_uri(web_track_mock, web_album_mock, web_client_mock, provider):
+def test_lookup_of_artist_uri(
+    web_track_mock, web_album_mock, web_client_mock, provider
+):
     web_track_mock2 = copy.deepcopy(web_track_mock)
-    web_track_mock2['name'] = "XYZ track"
+    web_track_mock2["name"] = "XYZ track"
     web_album_mock2 = copy.deepcopy(web_album_mock)
-    web_album_mock2['name'] = "XYZ album"
-    web_album_mock2['tracks']['items'] = [web_track_mock2] * 3
-    
+    web_album_mock2["name"] = "XYZ album"
+    web_album_mock2["tracks"]["items"] = [web_track_mock2] * 3
+
     web_client_mock.get_artist_albums.return_value = [
-        web_album_mock, web_album_mock2,
+        web_album_mock,
+        web_album_mock2,
     ]
     results = provider.lookup("spotify:artist:abba")
 
@@ -105,7 +108,8 @@ def test_lookup_of_artist_ignores_unavailable_albums(
 ):
     web_album_mock["is_playable"] = False
     web_client_mock.get_artist_albums.return_value = [
-        web_album_mock, web_album_mock2,
+        web_album_mock,
+        web_album_mock2,
     ]
 
     results = provider.lookup("spotify:artist:abba")
@@ -127,7 +131,9 @@ def test_lookup_of_artist_uri_ignores_compilations(
 def test_lookup_of_artist_uri_ignores_various_artists_albums(
     web_client_mock, web_album_mock, provider
 ):
-    web_album_mock["artists"][0]["uri"] = "spotify:artist:0LyfQWJT6nXafLPZqxe9Of"
+    web_album_mock["artists"][0][
+        "uri"
+    ] = "spotify:artist:0LyfQWJT6nXafLPZqxe9Of"
     web_client_mock.get_artist_albums.return_value = [web_album_mock]
 
     results = provider.lookup("spotify:artist:abba")
@@ -178,7 +184,7 @@ def test_lookup_of_youralbums_uri(web_client_mock, web_album_mock, provider):
 
     results = provider.lookup("spotify:your:albums")
 
-    assert len(results) == 4*10
+    assert len(results) == 4 * 10
     for track in results:
         assert track.uri == "spotify:track:abc"
         assert track.name == "ABC 123"

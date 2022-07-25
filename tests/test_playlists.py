@@ -233,4 +233,7 @@ def test_playlist_lookup_when_link_invalid(
     )
 
     assert playlist is None
-    assert "Failed to lookup Spotify playlist URI 'spotify:in:valid'" in caplog.text
+    assert (
+        "Failed to lookup Spotify playlist URI 'spotify:in:valid'"
+        in caplog.text
+    )

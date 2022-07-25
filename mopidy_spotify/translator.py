@@ -24,7 +24,8 @@ class memoized:  # noqa N801
             return value
 
 
-#TODO: memoize web functions?
+# TODO: memoize web functions?
+
 
 def web_to_artist_ref(web_artist):
     if not valid_web_data(web_artist, "artist"):
@@ -216,8 +217,7 @@ def web_to_album_tracks(web_album, bitrate=None):
         return []
 
     tracks = [
-        web_to_track(web_track, bitrate, album)
-        for web_track in web_tracks
+        web_to_track(web_track, bitrate, album) for web_track in web_tracks
     ]
     return [t for t in tracks if t]
 

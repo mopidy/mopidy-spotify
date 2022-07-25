@@ -1,4 +1,3 @@
-import threading
 from unittest import mock
 from unittest import skip
 
@@ -39,12 +38,6 @@ def test_init_disables_playlists_provider_if_not_allowed(config):
     backend = get_backend(config)
 
     assert backend.playlists is None
-
-
-@skip("support this with spotifyaudiosrc")
-def test_on_start_creates_configured_session(tmp_path, config):
-    cache_location_mock = mock.PropertyMock()
-    pass
 
 
 @skip("currently can't configure this")
