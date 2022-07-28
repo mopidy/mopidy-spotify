@@ -31,7 +31,23 @@ def test_is_a_playback_provider(provider):
     assert isinstance(provider, backend_api.PlaybackProvider)
 
 
-def test_translate_uri_sets_credentials(config, provider):
-    assert (
-        provider.translate_uri("baz") == "baz?username=alice&password=password"
-    )
+def test_on_source_setup_sets_properties(config, provider):
+    mock_source = mock.MagicMock()
+    provider.on_source_setup(mock_source)
+
+    assert mock_source.set_property.mock_calls == [
+        mock.call("username", "alice"),
+        mock.call("password", "password"),
+        mock.call("cache-credentials", mock.ANY),
+    ]
+
+
+def test_on_source_setup_without_caching(config, provider):
+    config["spotify"]["allow_cache"] = False
+    mock_source = mock.MagicMock()
+    provider.on_source_setup(mock_source)
+
+    assert mock_source.set_property.mock_calls == [
+        mock.call("username", "alice"),
+        mock.call("password", "password"),
+    ]

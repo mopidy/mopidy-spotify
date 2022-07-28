@@ -1,11 +1,7 @@
-import logging
-
 import pykka
 from mopidy import backend
 
 from mopidy_spotify import Extension, library, playlists, web
-
-logger = logging.getLogger(__name__)
 
 
 class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
@@ -43,9 +39,11 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        username = self.backend._config["spotify"]["username"]
-        password = self.backend._config["spotify"]["password"]
-        self._auth_string = f"username={username}&password={password}"
+        self._cache_location = Extension().get_cache_dir(self.backend._config)
 
-    def translate_uri(self, uri):
-        return f"{uri}?{self._auth_string}"
+    def on_source_setup(self, source):
+        config = self.backend._config["spotify"]
+        for prop in ["username", "password"]:
+            source.set_property(prop, config[prop])
+        if config["allow_cache"]:
+            source.set_property("cache-credentials", self._cache_location)
