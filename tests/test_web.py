@@ -960,7 +960,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_with_all_tracks_error(
-        self, spotify_client, foo_album_response, foo_album_next_tracks, caplog
+        self, spotify_client, foo_album_response, caplog
     ):
         responses.add(
             responses.GET,
@@ -1162,6 +1162,16 @@ class TestSpotifyOAuthClient:
         assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
 
     @responses.activate
+    def test_get_album_wrong_linktype(self, spotify_client, caplog):
+        link = web.WebLink.from_uri("spotify:album:abba")
+        link.type = "your"
+        results = list(spotify_client.get_album(link))
+
+        assert len(responses.calls) == 0
+        assert len(results) == 0
+        assert "Expecting Spotify album URI" in caplog.text
+
+    @responses.activate
     @pytest.mark.parametrize(
         "all_tracks,",
         [(True), (False)],
@@ -1246,6 +1256,43 @@ class TestSpotifyOAuthClient:
         assert "Spotify Web API request failed: bar" in caplog.text
 
     @responses.activate
+    def test_get_artist_albums_wrong_linktype(self, spotify_client, caplog):
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        link.type = "your"
+        results = list(spotify_client.get_artist_albums(link))
+
+        assert len(responses.calls) == 0
+        assert len(results) == 0
+        assert "Expecting Spotify artist URI" in caplog.text
+
+    @responses.activate
+    def test_get_artist_albums_value_error(
+        self, web_album_mock, spotify_client, caplog
+    ):
+        responses.add(
+            responses.GET,
+            url("artists/abba/albums"),
+            json={
+                "href": url("artists/abba/albums"),
+                "items": [{"uri": "BLOPP"}, web_album_mock],
+                "next": None,
+            },
+        )
+        responses.add(
+            responses.GET,
+            url("albums/def"),
+            json=web_album_mock,
+        )
+
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        results = list(spotify_client.get_artist_albums(link))
+
+        assert len(responses.calls) == 2
+        assert len(results) == 1
+        assert results[0]["name"] == "DEF 456"
+        assert "Could not parse 'BLOPP' as a Spotify URI" in caplog.text
+
+    @responses.activate
     @pytest.mark.parametrize(
         "uri,success",
         [
@@ -1291,6 +1338,23 @@ class TestSpotifyOAuthClient:
         assert len(responses.calls) == 1
         assert len(results) == 2
         assert results[0]["name"] == "ABC 123"
+
+    @responses.activate
+    def test_get_artist_top_tracks_invalid_uri(
+        self, web_track_mock, spotify_client, caplog
+    ):
+        responses.add(
+            responses.GET,
+            url("artists/baz/top-tracks"),
+            json={"tracks": [web_track_mock, web_track_mock]},
+        )
+        link = web.WebLink.from_uri("spotify:artist:baz")
+        link.type = "your"
+        results = spotify_client.get_artist_top_tracks(link)
+
+        assert len(responses.calls) == 0
+        assert len(results) == 0
+        assert "Expecting Spotify artist URI" in caplog.text
 
 
 @pytest.mark.parametrize(

@@ -153,6 +153,26 @@ def test_browse_artist(
     )
 
 
+def test_browse_artist_bad_uri(
+    web_client_mock,
+    web_album_mock_base,
+    web_track_mock,
+    provider,
+    caplog,
+):
+    web_client_mock.get_artist_albums.return_value = [web_album_mock_base]
+    web_client_mock.get_artist_top_tracks.return_value = [
+        web_track_mock,
+        web_track_mock,
+        web_track_mock,
+    ]
+
+    results = provider.browse("spotify:artist:def:xyz")
+
+    assert len(results) == 0
+    assert "Failed to browse" in caplog.text
+
+
 def test_browse_top_tracks_with_too_many_uri_parts(provider):
     results = provider.browse("spotify:top:tracks:foo:bar")
 

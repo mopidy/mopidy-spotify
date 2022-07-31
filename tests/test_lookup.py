@@ -73,6 +73,15 @@ def test_lookup_of_album_uri(web_client_mock, web_album_mock, provider):
     assert track.album.name == "DEF 456"
 
 
+def test_lookup_of_album_uri_empty_response(web_client_mock, provider, caplog):
+    web_client_mock.get_album.return_value = {}
+
+    results = provider.lookup("spotify:album:def")
+
+    assert len(results) == 0
+    assert "Invalid album response" in caplog.text
+
+
 def test_lookup_of_artist_uri(
     web_track_mock, web_album_mock, web_client_mock, provider
 ):
@@ -155,6 +164,17 @@ def test_lookup_of_playlist_uri(web_client_mock, web_playlist_mock, provider):
     assert track.uri == "spotify:track:abc"
     assert track.name == "ABC 123"
     assert track.bitrate == 160
+
+
+def test_lookup_of_playlist_uri_empty_response(
+    web_client_mock, provider, caplog
+):
+    web_client_mock.get_playlist.return_value = None
+
+    results = provider.lookup("spotify:playlist:alice:foo")
+
+    assert len(results) == 0
+    assert "Invalid playlist response" in caplog.text
 
 
 def test_lookup_of_yourtracks_uri(web_client_mock, web_track_mock, provider):
