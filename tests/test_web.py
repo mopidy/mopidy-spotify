@@ -1246,6 +1246,34 @@ class TestSpotifyOAuthClient:
         assert "Spotify Web API request failed: bar" in caplog.text
 
     @responses.activate
+    def test_get_artist_albums_value_error(
+        self, web_album_mock, spotify_client, caplog
+    ):
+        responses.add(
+            responses.GET,
+            url("artists/abba/albums"),
+            json={
+                "href": url("artists/abba/albums"),
+                "items": [{"uri": "BLOPP"}, web_album_mock],
+                "next": None,
+            },
+        )
+        responses.add(
+            responses.GET,
+            url("albums/def"),
+            json=web_album_mock,
+        )
+
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        results = list(spotify_client.get_artist_albums(link))
+
+        assert len(responses.calls) == 2
+        assert len(results) == 1
+        assert results[0]["name"] == "DEF 456"
+        # raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
+        assert "Could not parse BLOPP as a Spotfy URI" in caplog.text
+
+    @responses.activate
     @pytest.mark.parametrize(
         "uri,success",
         [
