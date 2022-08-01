@@ -1,10 +1,12 @@
 import urllib
 from unittest import mock
 
+from time import time
 import pytest
 import requests
 import responses
 from responses import matchers
+from email.utils import formatdate
 
 import mopidy_spotify
 from mopidy_spotify import web
@@ -891,6 +893,70 @@ class TestSpotifyOAuthClient:
         result = spotify_client.get_one("foo")
 
         assert 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY == result._expires
+
+    @responses.activate
+    def test_get_one_retry_header_invalid(self, spotify_client, caplog):
+        responses.add(
+            responses.GET,
+            url("foo"),
+            status=429,
+            adding_headers={"Retry-After": " herpderp "},
+        )
+        responses.add(
+            responses.GET, url("foo"), json={"error": "bar"}, status=403
+        )
+
+        result = spotify_client.get_one("foo")
+
+        assert result == {}
+        assert (
+            "Retrying https://api.spotify.com/v1/foo in 0.500 seconds."
+            in caplog.text
+        )
+        assert "Spotify Web API request failed: bar" in caplog.text
+
+    @responses.activate
+    def test_get_one_retry_header_date(self, spotify_client, caplog):
+        t = time() + 2
+        responses.add(
+            responses.GET,
+            url("foo"),
+            status=429,
+            adding_headers={"Retry-After": formatdate(t)},
+        )
+        responses.add(
+            responses.GET, url("foo"), json={"error": "bar"}, status=403
+        )
+
+        result = spotify_client.get_one("foo")
+
+        assert result == {}
+        assert (
+            "Retrying https://api.spotify.com/v1/foo in 1.000 seconds."
+            in caplog.text
+        )
+        assert "Spotify Web API request failed: bar" in caplog.text
+
+    @responses.activate
+    def test_get_one_retry_header_seconds(self, spotify_client, caplog):
+        responses.add(
+            responses.GET,
+            url("foo"),
+            status=429,
+            adding_headers={"Retry-After": " 1 "},
+        )
+        responses.add(
+            responses.GET, url("foo"), json={"error": "bar"}, status=403
+        )
+
+        result = spotify_client.get_one("foo")
+
+        assert result == {}
+        assert (
+            "Retrying https://api.spotify.com/v1/foo in 1.000 seconds."
+            in caplog.text
+        )
+        assert "Spotify Web API request failed: bar" in caplog.text
 
     @responses.activate
     def test_get_all(self, spotify_client):
