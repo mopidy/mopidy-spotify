@@ -1446,6 +1446,7 @@ def test_weblink_from_uri_spotify_uri(uri, type_, id_):
     "uri,id_,owner",
     [
         ("spotify:user:alice:playlist:foo", "foo", "alice"),
+        ("spotify:user:alice:starred", None, "alice"),
         ("spotify:playlist:foo", "foo", None),
         ("http://open.spotify.com/playlist/foo", "foo", None),
         ("https://open.spotify.com/playlist/foo", "foo", None),
