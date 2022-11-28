@@ -1,5 +1,4 @@
 import copy
-import email
 import logging
 import os
 import re
@@ -9,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 from typing import Optional
+from email.utils import parsedate_to_datetime
 
 import requests
 
@@ -98,7 +98,7 @@ class OAuthClient:
         if result is None or "error" in result:
             logger.error(
                 "Spotify Web API request failed: "
-                f"{result.get('error','Unknown')}"
+                f"{result.get('error','Unknown') if result else 'Unknown'}"
             )
             return WebResponse(None, None)
 
@@ -258,11 +258,12 @@ class OAuthClient:
         elif re.match(r"^\s*[0-9]+\s*$", value):
             seconds = int(value)
         else:
-            date_tuple = email.utils.parsedate(value)
-            if date_tuple is None:
+            now = datetime.utcnow()
+            try:
+                date_tuple = parsedate_to_datetime(value)
+                seconds = (date_tuple - now).seconds
+            except ValueError:
                 seconds = 0
-            else:
-                seconds = time.mktime(date_tuple) - time.time()
         return max(0, seconds)
 
 
