@@ -31,7 +31,7 @@ def search_mock(mopidy_album_mock, mopidy_artist_mock):
     patcher.stop()
 
 
-def test_get_distinct_when_offine(web_client_mock, provider):
+def test_get_distinct_when_offline(web_client_mock, provider):
     web_client_mock.logged_in = False
 
     results = provider.get_distinct("artist")
