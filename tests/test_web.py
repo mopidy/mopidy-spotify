@@ -1,12 +1,11 @@
 import urllib
 from unittest import mock
 
-from time import time
+from datetime import datetime
 import pytest
 import requests
 import responses
 from responses import matchers
-from email.utils import formatdate
 
 import mopidy_spotify
 from mopidy_spotify import web
@@ -29,6 +28,16 @@ def mock_time():
     patcher = mock.patch.object(web.time, "time")
     mock_time = patcher.start()
     yield mock_time
+    patcher.stop()
+
+
+@pytest.fixture
+def mock_utcnow():
+    patcher = mock.patch("mopidy_spotify.web.datetime")
+    mock_datetime = patcher.start()
+    mock_datetime.utcnow = mock.Mock()
+    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+    yield mock_datetime.utcnow
     patcher.stop()
 
 
@@ -61,6 +70,31 @@ def test_user_agent(oauth_client):
     assert oauth_client._session.headers["user-agent"].startswith(
         f"Mopidy-Spotify/{mopidy_spotify.__version__}"
     )
+
+
+@pytest.mark.parametrize(
+    "header,expected",
+    [
+        (None, 0),
+        ("", 0),
+        ("1", 1),
+        ("-1", 0),
+        (" 2 ", 2),
+        (" 2 foo", 0),
+        ("2 9", 0),
+        ("foo", 0),
+        ("Wed, 07 Dec 2022 11:24:16", 0),
+        ("Wed, 07 Dec 2022 11:29:16", 110),
+        ("Wed, 77 Dec 2022 11:29:16", 0),
+        ("foobar", 0),
+    ],
+)
+def test_parse_retry_after(oauth_client, mock_utcnow, header, expected):
+    mock_utcnow.return_value = datetime(2022, 12, 7, 11, 27, 26, 0)
+    mock_response = mock.Mock(headers={"Retry-After": header})
+    result = oauth_client._parse_retry_after(mock_response)
+
+    assert result == expected
 
 
 @responses.activate
@@ -895,68 +929,22 @@ class TestSpotifyOAuthClient:
         assert 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY == result._expires
 
     @responses.activate
-    def test_get_one_retry_header_invalid(self, spotify_client, caplog):
+    def test_get_one_retry_header(self, spotify_client, caplog):
+        spotify_client._timeout = 0
         responses.add(
             responses.GET,
             url("foo"),
             status=429,
-            adding_headers={"Retry-After": " herpderp "},
-        )
-        responses.add(
-            responses.GET, url("foo"), json={"error": "bar"}, status=403
+            adding_headers={"Retry-After": "66"},
         )
 
         result = spotify_client.get_one("foo")
 
         assert result == {}
         assert (
-            "Retrying https://api.spotify.com/v1/foo in 0.500 seconds."
+            "Retrying https://api.spotify.com/v1/foo in 66.000 seconds."
             in caplog.text
         )
-        assert "Spotify Web API request failed: bar" in caplog.text
-
-    @responses.activate
-    def test_get_one_retry_header_date(self, spotify_client, caplog):
-        t = time() + 2
-        responses.add(
-            responses.GET,
-            url("foo"),
-            status=429,
-            adding_headers={"Retry-After": formatdate(t)},
-        )
-        responses.add(
-            responses.GET, url("foo"), json={"error": "bar"}, status=403
-        )
-
-        result = spotify_client.get_one("foo")
-
-        assert result == {}
-        assert (
-            "Retrying https://api.spotify.com/v1/foo in 1.000 seconds."
-            in caplog.text
-        )
-        assert "Spotify Web API request failed: bar" in caplog.text
-
-    @responses.activate
-    def test_get_one_retry_header_seconds(self, spotify_client, caplog):
-        responses.add(
-            responses.GET,
-            url("foo"),
-            status=429,
-            adding_headers={"Retry-After": " 1 "},
-        )
-        responses.add(
-            responses.GET, url("foo"), json={"error": "bar"}, status=403
-        )
-
-        result = spotify_client.get_one("foo")
-
-        assert result == {}
-        assert (
-            "Retrying https://api.spotify.com/v1/foo in 1.000 seconds."
-            in caplog.text
-        )
-        assert "Spotify Web API request failed: bar" in caplog.text
 
     @responses.activate
     def test_get_all(self, spotify_client):

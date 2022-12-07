@@ -261,8 +261,8 @@ class OAuthClient:
             now = datetime.utcnow()
             try:
                 date_tuple = parsedate_to_datetime(value)
-                seconds = (date_tuple - now).seconds
-            except ValueError:
+                seconds = (date_tuple - now).total_seconds()
+            except Exception:
                 seconds = 0
         return max(0, seconds)
 
