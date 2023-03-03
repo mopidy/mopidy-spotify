@@ -7,7 +7,6 @@ __version__ = pkg_resources.get_distribution("Mopidy-Spotify").version
 
 
 class Extension(ext.Extension):
-
     dist_name = "Mopidy-Spotify"
     ext_name = "spotify"
     version = __version__

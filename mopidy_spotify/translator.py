@@ -161,7 +161,7 @@ def sp_search_query(query, exact=False):
 
     result = []
 
-    for (field, values) in query.items():
+    for field, values in query.items():
         field = SEARCH_FIELD_MAP.get(field, field)
         if field is None:
             continue

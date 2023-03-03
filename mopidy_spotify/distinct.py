@@ -94,7 +94,6 @@ def _get_distinct_dates(config, playlists, web_client, query):
 def _get_search(
     config, web_client, query, album=False, artist=False, track=False
 ):
-
     types = []
     if album:
         types.append("album")

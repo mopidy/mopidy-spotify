@@ -44,7 +44,6 @@ class OAuthClient:
         retries=3,
         retry_statuses=(500, 502, 503, 429),
     ):
-
         if client_id and client_secret:
             self._auth = (client_id, client_secret)
         else:
@@ -387,7 +386,6 @@ class WebResponse(dict):
 
 
 class SpotifyOAuthClient(OAuthClient):
-
     TRACK_FIELDS = (
         "next,items(track(type,uri,name,duration_ms,disc_number,track_number,"
         "artists,album,is_playable,linked_from.uri))"

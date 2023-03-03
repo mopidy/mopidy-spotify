@@ -82,7 +82,6 @@ def test_get_distinct_without_query_returns_nothing_when_playlists_empty(
 def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
     provider, config, field
 ):
-
     config["spotify"]["allow_playlists"] = False
 
     assert provider.get_distinct(field) == set()
@@ -127,7 +126,6 @@ def test_get_distinct_with_query(
     expected,
     types,
 ):
-
     assert provider.get_distinct(field, query) == expected
     search_mock.search.assert_called_once_with(
         mock.ANY, mock.ANY, query, types=types
