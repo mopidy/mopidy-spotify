@@ -89,20 +89,35 @@ Dependencies
   Settings > Security > App passwords > Generate app passwords, and generate one
   to use with Mopidy-Spotify.
 
-- ``libspotify`` 12. The official C library from our `Unofficial
-  libspotify archive <https://mopidy.github.io/libspotify-archive/>`_.
-  The package is available as ``libspotify12`` from
-  `apt.mopidy.com <http://apt.mopidy.com/>`__.
+- ``gst-plugins-spotify`` >= 0.10. The `GStreamer Rust Plugin
+  <https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs>`_ to stream Spotify
+  audio, based on `librespot <https://github.com/librespot-org/librespot/>`_.
+  This plugin is not yet available from apt.mopidy.com and must be built from
+  source (see below).
 
-- ``pyspotify`` >= 2.0.5. The ``libspotify`` Python wrapper. The package is
-  available as ``python3-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
-  See https://pyspotify.readthedocs.io/en/latest/installation/ for how to install
-  it and its dependencies on most platforms.
+- ``Mopidy`` >= 3.4. The music server that Mopidy-Spotify extends.
 
-- ``Mopidy`` >= 3.0. The music server that Mopidy-Spotify extends.
+Example build instructions for ``gst-plugins-spotify``::
 
-If you install Mopidy-Spotify from apt.mopidy.com, AUR, or Homebrew, these
-dependencies are installed automatically.
+1. `Install Rust <https://www.rust-lang.org/tools/install>`_::
+
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+2. Install the `GStreamer Rust bindings
+   <https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#installation>`_ dependencies::
+
+    sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev pkg-config git
+
+3. Download, build and install ``gst-plugins-spotify`` from source::
+
+    git clone --depth 1 https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs
+    cd gst-plugins-rs
+    cargo build --package gst-plugin-spotify --release
+    sudo install -m 644 target/release/libgstspotify.so $(pkg-config --variable=pluginsdir gstreamer-1.0)/
+
+4. Verify the spotify plugin is available::
+
+    gst-inspect-1.0 spotify
 
 
 Installation
