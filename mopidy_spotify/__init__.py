@@ -25,7 +25,7 @@ class Extension(ext.Extension):
 
         schema["bitrate"] = config.Integer(choices=(96, 160, 320))
         schema["volume_normalization"] = config.Boolean()
-        schema["private_session"] = config.Boolean()
+        schema["private_session"] = config.Deprecated()  # since 5.0
 
         schema["timeout"] = config.Integer(minimum=0)
 
@@ -33,14 +33,14 @@ class Extension(ext.Extension):
         schema["settings_dir"] = config.Deprecated()  # since 2.0
 
         schema["allow_cache"] = config.Boolean()
-        schema["allow_network"] = config.Boolean()
+        schema["allow_network"] = config.Deprecated()  # since 5.0
         schema["allow_playlists"] = config.Boolean()
 
         schema["search_album_count"] = config.Integer(minimum=0, maximum=200)
         schema["search_artist_count"] = config.Integer(minimum=0, maximum=200)
         schema["search_track_count"] = config.Integer(minimum=0, maximum=200)
 
-        schema["toplist_countries"] = config.List(optional=True)
+        schema["toplist_countries"] = config.Deprecated()  # since 5.0
 
         return schema
 

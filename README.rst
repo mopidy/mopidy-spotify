@@ -21,28 +21,13 @@ Mopidy-Spotify
 Status  :warning:
 =================
 
-**Playback/streaming does not work for any version of mopidy-spotify https://github.com/mopidy/mopidy-spotify/issues/110** 
+Mopidy-Spotify currently has no support for the following:
 
-As `promised last month
-<https://developer.spotify.com/community/news/2022/04/12/libspotify-sunset>`_,
-**Spotify disabled access to libspotify on May 16 2022**. As of today, seven
-years after libspotify was deprecated, there is still no official replacement
-library available.
+- Seeking
 
-Mopidy-Spotify is dependent on ``pyspotify``, a wrapper for Spotify's
-``libspotify`` C library. ``libspotify`` was `deprecated in 2015
-<https://github.com/mopidy/mopidy-spotify/issues/110>`_ with no replacement. It
-is unmaintained, functionally limited, and also now unavailable from the
-`Spotify developer site <https://developer.spotify.com/technologies/>`_. Where
-possible we are `moving to use Spotify's Web API instead
-<https://github.com/mopidy/mopidy-spotify/issues/114>`_. However, native
-playback is still only possible using ``libspotify`` and there is no official
-way for us to provide some Spotify features.
+- Gapless playback
 
-Limitations and/or bugs in ``libspotify`` currently result in missing/broken
-Mopidy-Spotify support for the following:
-
-- Playback - unavailable as of 16/05/2022
+- Volume normalization and bitrate selection
 
 - Saving items to My Music (`#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) -
   possible via web API
@@ -169,9 +154,6 @@ The following configuration values are available:
 - ``spotify/allow_cache``: Whether to allow caching. The cache is stored in a
   "spotify" directory within Mopidy's ``core/cache_dir``. Defaults to ``true``.
 
-- ``spotify/allow_network``: Whether to allow network access or not. Defaults
-  to ``true``.
-
 - ``spotify/allow_playlists``: Whether or not playlists should be exposed.
   Defaults to ``true``.
 
@@ -183,16 +165,6 @@ The following configuration values are available:
 
 - ``spotify/search_track_count``: Maximum number of tracks returned in search
   results. Number between 0 and 50. Defaults to 50.
-
-- ``spotify/toplist_countries``: Comma separated list of two letter ISO country
-  codes to get toplists for. Defaults to blank, which is interpreted as all
-  countries that Spotify is available in.
-
-- ``spotify/private_session``: Whether to use a private Spotify session. Turn
-  on private session to disable sharing of played tracks with friends through
-  the Spotify activity feed, Last.fm scrobbling, and Facebook. This only
-  affects social sharing done by Spotify, not by other Mopidy extensions.
-  Defaults to ``false``.
 
 
 Project resources
