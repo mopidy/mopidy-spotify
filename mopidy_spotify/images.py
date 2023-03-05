@@ -5,11 +5,6 @@ import urllib.parse
 
 from mopidy import models
 
-# NOTE: This module is independent of libspotify and built using the Spotify
-# Web APIs. As such it does not tie in with any of the regular code used
-# elsewhere in the mopidy-spotify extensions. It is also intended to be used
-# across both the 1.x and 2.x versions.
-
 _API_MAX_IDS_PER_REQUEST = 50
 
 _cache = {}  # (type, id) -> [Image(), ...]
