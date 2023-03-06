@@ -13,9 +13,6 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._bitrate = config["spotify"]["bitrate"]
         self._web_client = None
 
-        if config["spotify"]["allow_cache"]:
-            self._cache_location = Extension().get_cache_dir(config)
-
         self.library = library.SpotifyLibraryProvider(backend=self)
         self.playback = SpotifyPlaybackProvider(audio=audio, backend=self)
         if config["spotify"]["allow_playlists"]:
@@ -40,10 +37,11 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._cache_location = Extension().get_cache_dir(self.backend._config)
+        self._config = self.backend._config["spotify"]
 
     def on_source_setup(self, source):
-        config = self.backend._config["spotify"]
         for prop in ["username", "password"]:
-            source.set_property(prop, config[prop])
-        if config["allow_cache"]:
+            source.set_property(prop, self._config[prop])
+        if self._config["allow_cache"]:
             source.set_property("cache-credentials", self._cache_location)
+            source.set_property("cache-files", self._cache_location)
