@@ -40,7 +40,7 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self._config = self.backend._config["spotify"]
 
     def on_source_setup(self, source):
-        for prop in ["username", "password"]:
+        for prop in ["username", "password", "bitrate"]:
             source.set_property(prop, self._config[prop])
         if self._config["allow_cache"]:
             source.set_property("cache-credentials", self._cache_location)

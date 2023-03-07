@@ -27,7 +27,7 @@ Mopidy-Spotify currently has no support for the following:
 
 - Gapless playback
 
-- Volume normalization and bitrate selection
+- Volume normalization
 
 - Saving items to My Music (`#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) -
   possible via web API
