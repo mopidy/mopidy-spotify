@@ -1,5 +1,4 @@
 from unittest import mock
-from unittest.mock import sentinel
 
 import pytest
 from mopidy import audio
@@ -34,15 +33,15 @@ def test_is_a_playback_provider(provider):
 
 def test_on_source_setup_sets_properties(config, provider):
     mock_source = mock.MagicMock()
-    provider._cache_location = sentinel.cache_dir
     provider.on_source_setup(mock_source)
+    spotify_cache_dir = backend.Extension.get_cache_dir(config)
 
     assert mock_source.set_property.mock_calls == [
         mock.call("username", "alice"),
         mock.call("password", "password"),
         mock.call("bitrate", 160),
-        mock.call("cache-credentials", sentinel.cache_dir),
-        mock.call("cache-files", sentinel.cache_dir),
+        mock.call("cache-credentials", spotify_cache_dir),
+        mock.call("cache-files", spotify_cache_dir),
     ]
 
 
