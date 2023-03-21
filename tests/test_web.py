@@ -1,9 +1,11 @@
 import urllib
 from unittest import mock
 
+from datetime import datetime
 import pytest
 import requests
 import responses
+from responses import matchers
 
 import mopidy_spotify
 from mopidy_spotify import web
@@ -26,6 +28,16 @@ def mock_time():
     patcher = mock.patch.object(web.time, "time")
     mock_time = patcher.start()
     yield mock_time
+    patcher.stop()
+
+
+@pytest.fixture
+def mock_utcnow():
+    patcher = mock.patch("mopidy_spotify.web.datetime")
+    mock_datetime = patcher.start()
+    mock_datetime.utcnow = mock.Mock()
+    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+    yield mock_datetime.utcnow
     patcher.stop()
 
 
@@ -58,6 +70,31 @@ def test_user_agent(oauth_client):
     assert oauth_client._session.headers["user-agent"].startswith(
         f"Mopidy-Spotify/{mopidy_spotify.__version__}"
     )
+
+
+@pytest.mark.parametrize(
+    "header,expected",
+    [
+        (None, 0),
+        ("", 0),
+        ("1", 1),
+        ("-1", 0),
+        (" 2 ", 2),
+        (" 2 foo", 0),
+        ("2 9", 0),
+        ("foo", 0),
+        ("Wed, 07 Dec 2022 11:24:16", 0),
+        ("Wed, 07 Dec 2022 11:29:16", 110),
+        ("Wed, 77 Dec 2022 11:29:16", 0),
+        ("foobar", 0),
+    ],
+)
+def test_parse_retry_after(oauth_client, mock_utcnow, header, expected):
+    mock_utcnow.return_value = datetime(2022, 12, 7, 11, 27, 26, 0)
+    mock_response = mock.Mock(headers={"Retry-After": header})
+    result = oauth_client._parse_retry_after(mock_response)
+
+    assert result == expected
 
 
 @responses.activate
@@ -556,17 +593,19 @@ def test_cache_normalised_query_string(
     mock_time, skip_refresh_token, oauth_client
 ):
     cache = {}
+    url = "https://api.spotify.com/v1/tracks/abc"
     responses.add(
         responses.GET,
-        "https://api.spotify.com/v1/tracks/abc?b=bar&f=foo",
+        url,
         json={"uri": "foobar"},
-        match_querystring=True,
+        # match_querystring=True,
+        match=[matchers.query_string_matcher("b=bar&f=foo")],
     )
     responses.add(
         responses.GET,
-        "https://api.spotify.com/v1/tracks/abc?b=bar&f=cat",
+        url,
         json={"uri": "cat"},
-        match_querystring=True,
+        match=[matchers.query_string_matcher("b=bar&f=cat")],
     )
     mock_time.return_value = 0
 
@@ -744,6 +783,46 @@ def foo_playlist(playlist_parms, foo_playlist_tracks):
     }
 
 
+@pytest.fixture
+def foo_album_next_tracks():
+    params = urllib.parse.urlencode({"market": "from_token", "offset": 3})
+    return {
+        "href": url(f"albums/foo/tracks?{params}"),
+        "items": [6, 7, 8],
+        "next": None,
+    }
+
+
+@pytest.fixture
+def foo_album(foo_album_next_tracks):
+    params = urllib.parse.urlencode({"market": "from_token"})
+    return {
+        "href": url(f"albums/foo?{params}"),
+        "tracks": {
+            "href": url(f"albums/foo/tracks?{params}"),
+            "items": [3, 4, 5],
+            "next": foo_album_next_tracks["href"],
+        },
+    }
+
+
+@pytest.fixture
+def foo_album_response(foo_album):
+    return web.WebResponse(foo_album["href"], foo_album)
+
+
+@pytest.fixture
+def artist_albums_mock(web_album_mock_base, web_album_mock_base2):
+    params = urllib.parse.urlencode(
+        {"market": "from_token", "include_groups": "single,album"}
+    )
+    return {
+        "href": url(f"artists/abba/albums?{params}"),
+        "items": [web_album_mock_base, web_album_mock_base2],
+        "next": None,
+    }
+
+
 @pytest.mark.usefixtures("skip_refresh_token")
 class TestSpotifyOAuthClient:
     @pytest.mark.parametrize(
@@ -850,6 +929,24 @@ class TestSpotifyOAuthClient:
         assert 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY == result._expires
 
     @responses.activate
+    def test_get_one_retry_header(self, spotify_client, caplog):
+        spotify_client._timeout = 0
+        responses.add(
+            responses.GET,
+            url("foo"),
+            status=429,
+            adding_headers={"Retry-After": "66"},
+        )
+
+        result = spotify_client.get_one("foo")
+
+        assert result == {}
+        assert (
+            "Retrying https://api.spotify.com/v1/foo in 66.000 seconds."
+            in caplog.text
+        )
+
+    @responses.activate
     def test_get_all(self, spotify_client):
         responses.add(
             responses.GET, url("page1"), json={"n": 1, "next": "page2"}
@@ -916,6 +1013,66 @@ class TestSpotifyOAuthClient:
         assert [f"playlist{i}" for i in range(6)] == results
 
     @responses.activate
+    def test_with_all_tracks_error(
+        self, spotify_client, foo_album_response, caplog
+    ):
+        responses.add(
+            responses.GET,
+            foo_album_response["tracks"]["next"],
+            json={"error": "baz"},
+        )
+
+        result = spotify_client._with_all_tracks(foo_album_response)
+
+        assert result == {}
+        assert "Spotify Web API request failed: baz" in caplog.text
+
+    @responses.activate
+    def test_with_all_tracks(
+        self, spotify_client, foo_album_response, foo_album_next_tracks
+    ):
+        responses.add(
+            responses.GET,
+            foo_album_next_tracks["href"],
+            json=foo_album_next_tracks,
+        )
+
+        result = spotify_client._with_all_tracks(foo_album_response)
+
+        assert len(responses.calls) == 1
+        assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
+
+    @responses.activate
+    def test_with_all_tracks_uses_cached_tracks_when_unchanged(
+        self,
+        mock_time,
+        foo_album_response,
+        foo_album_next_tracks,
+        spotify_client,
+    ):
+        responses.add(
+            responses.GET,
+            foo_album_next_tracks["href"],
+            json=foo_album_next_tracks,
+        )
+        mock_time.return_value = -1000
+
+        result1 = spotify_client._with_all_tracks(foo_album_response)
+
+        assert len(responses.calls) == 1
+        cache_keys = list(spotify_client._cache.keys())
+        assert len(cache_keys) == 1
+
+        responses.calls.reset()
+        mock_time.return_value = 1000
+
+        foo_album_response._status_code = 304
+        result2 = spotify_client._with_all_tracks(foo_album_response)
+
+        assert len(responses.calls) == 0
+        assert result1 == result2
+
+    @responses.activate
     @pytest.mark.parametrize(
         "uri,success",
         [
@@ -962,26 +1119,6 @@ class TestSpotifyOAuthClient:
 
         assert result == {}
         assert "Spotify Web API request failed: bar" in caplog.text
-
-    @responses.activate
-    def test_get_playlist_tracks_error(
-        self, foo_playlist, foo_playlist_tracks, spotify_client, caplog
-    ):
-        responses.add(
-            responses.GET,
-            foo_playlist["href"],
-            json=foo_playlist,
-        )
-        responses.add(
-            responses.GET,
-            foo_playlist_tracks["href"],
-            json={"error": "baz"},
-        )
-
-        result = spotify_client.get_playlist("spotify:playlist:foo")
-
-        assert result == {}
-        assert "Spotify Web API request failed: baz" in caplog.text
 
     @responses.activate
     def test_get_playlist_sets_params_for_tracks(
@@ -1032,46 +1169,6 @@ class TestSpotifyOAuthClient:
         assert len(responses.calls) == 2
         assert result["tracks"]["items"] == [1, 2, 3, 4, 5]
 
-    @responses.activate
-    def test_get_playlist_uses_cached_tracks_when_unchanged(
-        self, mock_time, foo_playlist, foo_playlist_tracks, spotify_client
-    ):
-        responses.add(
-            responses.GET,
-            foo_playlist["href"],
-            json=foo_playlist,
-            status=304,
-        )
-        responses.add(
-            responses.GET,
-            foo_playlist_tracks["href"],
-            json=foo_playlist_tracks,
-        )
-        mock_time.return_value = -1000
-
-        result1 = spotify_client.get_playlist("spotify:playlist:foo")
-
-        assert len(responses.calls) == 2
-        assert result1["tracks"]["items"] == [1, 2, 3, 4, 5]
-        cache_keys = list(spotify_client._cache.keys())
-        assert len(cache_keys) == 2
-        assert cache_keys[0].startswith("playlists/foo?")
-        assert cache_keys[1].startswith(url("playlists/foo/tracks?"))
-
-        # The requested and cached URIs differ where we specified a relative URI but
-        # match where we used the full URI in the response:
-        assert cache_keys[0] != responses.calls[1].request.url
-        assert cache_keys[1] == responses.calls[1].request.url
-
-        responses.calls.reset()
-        mock_time.return_value = 1000
-
-        result2 = spotify_client.get_playlist("spotify:playlist:foo")
-
-        assert len(responses.calls) == 1
-        assert responses.calls[0].request.url == foo_playlist["href"]
-        assert result1["tracks"]["items"] == result2["tracks"]["items"]
-
     @pytest.mark.parametrize(
         "uri,msg",
         [
@@ -1098,6 +1195,221 @@ class TestSpotifyOAuthClient:
 
         assert spotify_client.logged_in is expected
 
+    @responses.activate
+    def test_get_album(self, foo_album, foo_album_next_tracks, spotify_client):
+        responses.add(
+            responses.GET,
+            url("albums/foo"),
+            json=foo_album,
+            match=[matchers.query_string_matcher("market=from_token")],
+        )
+        responses.add(
+            responses.GET,
+            url("albums/foo/tracks"),
+            json=foo_album_next_tracks,
+        )
+
+        link = web.WebLink.from_uri("spotify:album:foo")
+        result = spotify_client.get_album(link)
+
+        assert len(responses.calls) == 2
+        assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
+
+    @responses.activate
+    def test_get_album_wrong_linktype(self, spotify_client, caplog):
+        link = web.WebLink.from_uri("spotify:album:abba")
+        link.type = "your"
+        results = list(spotify_client.get_album(link))
+
+        assert len(responses.calls) == 0
+        assert len(results) == 0
+        assert "Expecting Spotify album URI" in caplog.text
+
+    @responses.activate
+    @pytest.mark.parametrize(
+        "all_tracks,",
+        [(True), (False)],
+    )
+    def test_get_artist_albums(
+        self,
+        artist_albums_mock,
+        web_album_mock,
+        web_album_mock2,
+        spotify_client,
+        all_tracks,
+    ):
+        responses.add(
+            responses.GET,
+            url("artists/abba/albums"),
+            json=artist_albums_mock,
+            match=[
+                matchers.query_string_matcher(
+                    "market=from_token&include_groups=single%2Calbum"
+                )
+            ],
+        )
+        responses.add(
+            responses.GET,
+            url("albums/def"),
+            json=web_album_mock,
+        )
+        responses.add(
+            responses.GET,
+            url("albums/xyz"),
+            json=web_album_mock2,
+        )
+
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        results = list(
+            spotify_client.get_artist_albums(link, all_tracks=all_tracks)
+        )
+
+        if all_tracks:
+            assert len(responses.calls) == 3
+        else:
+            assert len(responses.calls) == 1
+
+        assert len(results) == 2
+        assert results[0]["name"] == "DEF 456"
+        assert results[1]["name"] == "XYZ 789"
+
+        if all_tracks:
+            assert results[0]["tracks"]
+            assert results[1]["tracks"]
+        else:
+            assert "tracks" not in results[0]
+            assert "tracks" not in results[1]
+
+    @responses.activate
+    def test_get_artist_albums_error(
+        self, artist_albums_mock, web_album_mock, spotify_client, caplog
+    ):
+        responses.add(
+            responses.GET,
+            url("artists/abba/albums"),
+            json=artist_albums_mock,
+        )
+        responses.add(
+            responses.GET,
+            url("albums/def"),
+            json=web_album_mock,
+        )
+        responses.add(
+            responses.GET,
+            url("albums/xyz"),
+            json={"error": "bar"},
+        )
+
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        results = list(spotify_client.get_artist_albums(link))
+
+        assert len(responses.calls) == 3
+        assert len(results) == 2
+        assert results[0]["name"] == "DEF 456"
+        assert results[1] == {}
+        assert "Spotify Web API request failed: bar" in caplog.text
+
+    @responses.activate
+    def test_get_artist_albums_wrong_linktype(self, spotify_client, caplog):
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        link.type = "your"
+        results = list(spotify_client.get_artist_albums(link))
+
+        assert len(responses.calls) == 0
+        assert len(results) == 0
+        assert "Expecting Spotify artist URI" in caplog.text
+
+    @responses.activate
+    def test_get_artist_albums_value_error(
+        self, web_album_mock, spotify_client, caplog
+    ):
+        responses.add(
+            responses.GET,
+            url("artists/abba/albums"),
+            json={
+                "href": url("artists/abba/albums"),
+                "items": [{"uri": "BLOPP"}, web_album_mock],
+                "next": None,
+            },
+        )
+        responses.add(
+            responses.GET,
+            url("albums/def"),
+            json=web_album_mock,
+        )
+
+        link = web.WebLink.from_uri("spotify:artist:abba")
+        results = list(spotify_client.get_artist_albums(link))
+
+        assert len(responses.calls) == 2
+        assert len(results) == 1
+        assert results[0]["name"] == "DEF 456"
+        assert "Could not parse 'BLOPP' as a Spotify URI" in caplog.text
+
+    @responses.activate
+    @pytest.mark.parametrize(
+        "uri,success",
+        [
+            ("spotify:track:abc", True),
+            ("spotify:track:xyz", False),
+            ("spotify:user:alice:playlist:bar", False),
+            ("spotify:playlist:bar", False),
+            ("spotify:artist:baz", False),
+            ("spotify:album:foo", False),
+        ],
+    )
+    def test_get_track(self, web_track_mock, spotify_client, uri, success):
+        responses.add(
+            responses.GET,
+            url("tracks/abc"),
+            json=web_track_mock,
+        )
+        responses.add(
+            responses.GET,
+            url("tracks/xyz"),
+            json={},
+        )
+
+        link = web.WebLink.from_uri(uri)
+        result = spotify_client.get_track(link)
+
+        if success:
+            assert len(responses.calls) == 1
+            assert result == web_track_mock
+        else:
+            assert result == {}
+
+    @responses.activate
+    def test_get_artist_top_tracks(self, web_track_mock, spotify_client):
+        responses.add(
+            responses.GET,
+            url("artists/baz/top-tracks"),
+            json={"tracks": [web_track_mock, web_track_mock]},
+        )
+        link = web.WebLink.from_uri("spotify:artist:baz")
+        results = spotify_client.get_artist_top_tracks(link)
+
+        assert len(responses.calls) == 1
+        assert len(results) == 2
+        assert results[0]["name"] == "ABC 123"
+
+    @responses.activate
+    def test_get_artist_top_tracks_invalid_uri(
+        self, web_track_mock, spotify_client, caplog
+    ):
+        responses.add(
+            responses.GET,
+            url("artists/baz/top-tracks"),
+            json={"tracks": [web_track_mock, web_track_mock]},
+        )
+        link = web.WebLink.from_uri("spotify:artist:baz")
+        link.type = "your"
+        results = spotify_client.get_artist_top_tracks(link)
+
+        assert len(responses.calls) == 0
+        assert len(results) == 0
+        assert "Expecting Spotify artist URI" in caplog.text
+
 
 @pytest.mark.parametrize(
     "uri,type_,id_",
@@ -1122,6 +1434,7 @@ def test_weblink_from_uri_spotify_uri(uri, type_, id_):
     "uri,id_,owner",
     [
         ("spotify:user:alice:playlist:foo", "foo", "alice"),
+        ("spotify:user:alice:starred", None, "alice"),
         ("spotify:playlist:foo", "foo", None),
         ("http://open.spotify.com/playlist/foo", "foo", None),
         ("https://open.spotify.com/playlist/foo", "foo", None),

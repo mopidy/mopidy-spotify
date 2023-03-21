@@ -2,8 +2,8 @@ import logging
 
 from mopidy import models
 
-import spotify
-from mopidy_spotify import countries, playlists, translator
+from mopidy_spotify import playlists, translator
+from mopidy_spotify.web import WebLink
 from mopidy_spotify.utils import flatten
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,6 @@ _ROOT_DIR_CONTENTS = [
 
 _TOP_LIST_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:top:tracks", name="Top tracks"),
-    models.Ref.directory(uri="spotify:top:albums", name="Top albums"),
     models.Ref.directory(uri="spotify:top:artists", name="Top artists"),
 ]
 
@@ -35,17 +34,6 @@ _PLAYLISTS_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:playlists:featured", name="Featured"),
 ]
 
-_TOPLIST_TYPES = {
-    "albums": spotify.ToplistType.ALBUMS,
-    "artists": spotify.ToplistType.ARTISTS,
-    "tracks": spotify.ToplistType.TRACKS,
-}
-
-_TOPLIST_REGIONS = {
-    "country": lambda session: session.user_country,
-    "everywhere": lambda session: spotify.ToplistRegion.EVERYWHERE,
-}
-
 
 def browse(*, config, session, web_client, uri):
     if uri == ROOT_DIR.uri:
@@ -56,22 +44,21 @@ def browse(*, config, session, web_client, uri):
         return _YOUR_MUSIC_DIR_CONTENTS
     elif uri == _PLAYLISTS_DIR.uri:
         return _PLAYLISTS_DIR_CONTENTS
-    elif uri.startswith("spotify:user:") or uri.startswith("spotify:playlist:"):
-        return _browse_playlist(session, web_client, uri, config)
+
+    if web_client is None or not web_client.logged_in:
+        return []
+
+    # TODO: Support for category browsing.
+    if uri.startswith("spotify:user:") or uri.startswith("spotify:playlist:"):
+        return _browse_playlist(web_client, uri)
     elif uri.startswith("spotify:album:"):
-        return _browse_album(session, uri, config)
+        return _browse_album(web_client, uri)
     elif uri.startswith("spotify:artist:"):
-        return _browse_artist(session, uri, config)
+        return _browse_artist(web_client, uri)
     elif uri.startswith("spotify:top:"):
         parts = uri.replace("spotify:top:", "").split(":")
         if len(parts) == 1:
-            return _browse_toplist_regions(variant=parts[0])
-        elif len(parts) == 2:
-            if parts[1] == "user":
-                return _browse_toplist_user(web_client, variant=parts[0])
-            return _browse_toplist(
-                config, session, variant=parts[0], region=parts[1]
-            )
+            return _browse_toplist_user(web_client, variant=parts[0])
         else:
             logger.info(f"Failed to browse {uri!r}: Toplist URI parsing failed")
             return []
@@ -88,66 +75,36 @@ def browse(*, config, session, web_client, uri):
     return []
 
 
-def _browse_playlist(session, web_client, uri, config):
-    return playlists.playlist_lookup(
-        session, web_client, uri, config["bitrate"], as_items=True
-    )
+def _browse_playlist(web_client, uri):
+    return playlists.playlist_lookup(web_client, uri, None, as_items=True)
 
 
-def _browse_album(session, uri, config):
-    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
+def _browse_album(web_client, uri):
+    try:
+        link = WebLink.from_uri(uri)
+    except ValueError as exc:
+        logger.info(f"Failed to browse {uri!r}: {exc}")
         return []
 
-    sp_album_browser = session.get_album(uri).browse()
-    sp_album_browser.load(config["timeout"])
-    return list(
-        translator.to_track_refs(
-            sp_album_browser.tracks, timeout=config["timeout"]
-        )
-    )
+    web_album = web_client.get_album(link)
+    web_tracks = web_album.get("tracks", {}).get("items", [])
+    return list(translator.web_to_track_refs(web_tracks))
 
 
-def _browse_artist(session, uri, config):
-    if session.connection.state is not spotify.ConnectionState.LOGGED_IN:
+def _browse_artist(web_client, uri):
+    try:
+        link = WebLink.from_uri(uri)
+    except ValueError as exc:
+        logger.info(f"Failed to browse {uri!r}: {exc}")
         return []
 
-    sp_artist_browser = session.get_artist(uri).browse(
-        type=spotify.ArtistBrowserType.NO_TRACKS
-    )
-    sp_artist_browser.load(config["timeout"])
-    top_tracks = list(
-        translator.to_track_refs(
-            sp_artist_browser.tophit_tracks, timeout=config["timeout"]
-        )
-    )
-    albums = list(
-        translator.to_album_refs(
-            sp_artist_browser.albums, timeout=config["timeout"]
-        )
-    )
+    web_top_tracks = web_client.get_artist_top_tracks(link)
+    top_tracks = list(translator.web_to_track_refs(web_top_tracks))
+
+    web_albums = web_client.get_artist_albums(link, all_tracks=False)
+    albums = list(translator.web_to_album_refs(web_albums))
+
     return top_tracks + albums
-
-
-def _browse_toplist_regions(variant):
-    dir_contents = [
-        models.Ref.directory(
-            uri=f"spotify:top:{variant}:country", name="Country"
-        ),
-        models.Ref.directory(
-            uri=f"spotify:top:{variant}:countries", name="Other countries"
-        ),
-        models.Ref.directory(
-            uri=f"spotify:top:{variant}:everywhere", name="Global"
-        ),
-    ]
-    if variant in ("tracks", "artists"):
-        dir_contents.insert(
-            0,
-            models.Ref.directory(
-                uri=f"spotify:top:{variant}:user", name="Personal"
-            ),
-        )
-    return dir_contents
 
 
 def _browse_toplist_user(web_client, variant):
@@ -171,55 +128,6 @@ def _browse_toplist_user(web_client, variant):
             )
         else:
             return list(translator.web_to_artist_refs(items))
-    else:
-        return []
-
-
-def _browse_toplist(config, session, variant, region):
-    if region == "countries":
-        codes = config["toplist_countries"]
-        if not codes:
-            codes = countries.COUNTRIES.keys()
-        return [
-            models.Ref.directory(
-                uri=f"spotify:top:{variant}:{code.lower()}",
-                name=countries.COUNTRIES.get(code.upper(), code.upper()),
-            )
-            for code in codes
-        ]
-
-    if region in ("country", "everywhere"):
-        sp_toplist = session.get_toplist(
-            type=_TOPLIST_TYPES[variant],
-            region=_TOPLIST_REGIONS[region](session),
-        )
-    elif len(region) == 2:
-        sp_toplist = session.get_toplist(
-            type=_TOPLIST_TYPES[variant], region=region.upper()
-        )
-    else:
-        return []
-
-    if session.connection.state is spotify.ConnectionState.LOGGED_IN:
-        sp_toplist.load(config["timeout"])
-
-    if not sp_toplist.is_loaded:
-        return []
-
-    if variant == "tracks":
-        return list(translator.to_track_refs(sp_toplist.tracks))
-    elif variant == "albums":
-        return list(
-            translator.to_album_refs(
-                sp_toplist.albums, timeout=config["timeout"]
-            )
-        )
-    elif variant == "artists":
-        return list(
-            translator.to_artist_refs(
-                sp_toplist.artists, timeout=config["timeout"]
-            )
-        )
     else:
         return []
 

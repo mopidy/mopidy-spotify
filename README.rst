@@ -21,28 +21,13 @@ Mopidy-Spotify
 Status  :warning:
 =================
 
-**Playback/streaming does not work for any version of mopidy-spotify https://github.com/mopidy/mopidy-spotify/issues/110** 
+Mopidy-Spotify currently has no support for the following:
 
-As `promised last month
-<https://developer.spotify.com/community/news/2022/04/12/libspotify-sunset>`_,
-**Spotify disabled access to libspotify on May 16 2022**. As of today, seven
-years after libspotify was deprecated, there is still no official replacement
-library available.
+- Seeking
 
-Mopidy-Spotify is dependent on ``pyspotify``, a wrapper for Spotify's
-``libspotify`` C library. ``libspotify`` was `deprecated in 2015
-<https://github.com/mopidy/mopidy-spotify/issues/110>`_ with no replacement. It
-is unmaintained, functionally limited, and also now unavailable from the
-`Spotify developer site <https://developer.spotify.com/technologies/>`_. Where
-possible we are `moving to use Spotify's Web API instead
-<https://github.com/mopidy/mopidy-spotify/issues/114>`_. However, native
-playback is still only possible using ``libspotify`` and there is no official
-way for us to provide some Spotify features.
+- Gapless playback
 
-Limitations and/or bugs in ``libspotify`` currently result in missing/broken
-Mopidy-Spotify support for the following:
-
-- Playback - unavailable as of 16/05/2022
+- Volume normalization
 
 - Saving items to My Music (`#108 <https://github.com/mopidy/mopidy-spotify/issues/108>`_) -
   possible via web API
@@ -104,20 +89,35 @@ Dependencies
   Settings > Security > App passwords > Generate app passwords, and generate one
   to use with Mopidy-Spotify.
 
-- ``libspotify`` 12. The official C library from our `Unofficial
-  libspotify archive <https://mopidy.github.io/libspotify-archive/>`_.
-  The package is available as ``libspotify12`` from
-  `apt.mopidy.com <http://apt.mopidy.com/>`__.
+- ``gst-plugins-spotify`` >= 0.10. The `GStreamer Rust Plugin
+  <https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs>`_ to stream Spotify
+  audio, based on `librespot <https://github.com/librespot-org/librespot/>`_.
+  This plugin is not yet available from apt.mopidy.com and must be built from
+  source (see below).
 
-- ``pyspotify`` >= 2.0.5. The ``libspotify`` Python wrapper. The package is
-  available as ``python3-spotify`` from apt.mopidy.com or ``pyspotify`` on PyPI.
-  See https://pyspotify.readthedocs.io/en/latest/installation/ for how to install
-  it and its dependencies on most platforms.
+- ``Mopidy`` >= 3.4. The music server that Mopidy-Spotify extends.
 
-- ``Mopidy`` >= 3.0. The music server that Mopidy-Spotify extends.
+Example build instructions for ``gst-plugins-spotify``::
 
-If you install Mopidy-Spotify from apt.mopidy.com, AUR, or Homebrew, these
-dependencies are installed automatically.
+1. `Install Rust <https://www.rust-lang.org/tools/install>`_::
+
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+2. Install the `GStreamer Rust bindings
+   <https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#installation>`_ dependencies::
+
+    sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev pkg-config git
+
+3. Download, build and install ``gst-plugins-spotify`` from source::
+
+    git clone --depth 1 https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs
+    cd gst-plugins-rs
+    cargo build --package gst-plugin-spotify --release
+    sudo install -m 644 target/release/libgstspotify.so $(pkg-config --variable=pluginsdir gstreamer-1.0)/
+
+4. Verify the spotify plugin is available::
+
+    gst-inspect-1.0 spotify
 
 
 Installation
@@ -169,9 +169,6 @@ The following configuration values are available:
 - ``spotify/allow_cache``: Whether to allow caching. The cache is stored in a
   "spotify" directory within Mopidy's ``core/cache_dir``. Defaults to ``true``.
 
-- ``spotify/allow_network``: Whether to allow network access or not. Defaults
-  to ``true``.
-
 - ``spotify/allow_playlists``: Whether or not playlists should be exposed.
   Defaults to ``true``.
 
@@ -183,16 +180,6 @@ The following configuration values are available:
 
 - ``spotify/search_track_count``: Maximum number of tracks returned in search
   results. Number between 0 and 50. Defaults to 50.
-
-- ``spotify/toplist_countries``: Comma separated list of two letter ISO country
-  codes to get toplists for. Defaults to blank, which is interpreted as all
-  countries that Spotify is available in.
-
-- ``spotify/private_session``: Whether to use a private Spotify session. Turn
-  on private session to disable sharing of played tracks with friends through
-  the Spotify activity feed, Last.fm scrobbling, and Facebook. This only
-  affects social sharing done by Spotify, not by other Mopidy extensions.
-  Defaults to ``false``.
 
 
 Project resources

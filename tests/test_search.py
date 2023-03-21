@@ -1,6 +1,5 @@
 from mopidy import models
 
-import spotify
 from mopidy_spotify import search
 
 
@@ -22,8 +21,8 @@ def test_search_with_empty_query_returns_nothing(provider, caplog):
     assert "Ignored search with empty query" in caplog.text
 
 
-def test_search_by_single_uri(session_mock, sp_track_mock, provider):
-    session_mock.get_link.return_value = sp_track_mock.link
+def test_search_by_single_uri(web_client_mock, web_track_mock, provider):
+    web_client_mock.get_track.return_value = web_track_mock
 
     result = provider.search({"uri": ["spotify:track:abc"]})
 
@@ -36,8 +35,8 @@ def test_search_by_single_uri(session_mock, sp_track_mock, provider):
     assert track.bitrate == 160
 
 
-def test_search_by_multiple_uris(session_mock, sp_track_mock, provider):
-    session_mock.get_link.return_value = sp_track_mock.link
+def test_search_by_multiple_uris(web_client_mock, web_track_mock, provider):
+    web_client_mock.get_track.return_value = web_track_mock
 
     result = provider.search(
         {"uri": ["spotify:track:abc", "spotify:track:abc"]}
@@ -52,8 +51,8 @@ def test_search_by_multiple_uris(session_mock, sp_track_mock, provider):
     assert track.bitrate == 160
 
 
-def test_search_when_offline_returns_nothing(session_mock, provider, caplog):
-    session_mock.connection.state = spotify.ConnectionState.OFFLINE
+def test_search_when_offline_returns_nothing(web_client_mock, provider, caplog):
+    web_client_mock.logged_in = False
 
     result = provider.search({"any": ["ABBA"]})
 
@@ -184,13 +183,12 @@ def test_sets_api_limit_to_track_count_when_max(
 
 
 def test_sets_types_parameter(
-    web_client_mock, web_search_mock_large, provider, config, session_mock
+    web_client_mock, web_search_mock_large, provider, config
 ):
     web_client_mock.get.return_value = web_search_mock_large
 
     search.search(
         config["spotify"],
-        session_mock,
         web_client_mock,
         {"any": ["ABBA"]},
         types=["album", "artist"],

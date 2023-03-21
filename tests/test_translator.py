@@ -3,61 +3,7 @@ from mopidy import models
 from unittest import mock
 from unittest.mock import patch, sentinel
 
-import spotify
 from mopidy_spotify import translator
-
-
-class TestToArtist:
-    def test_returns_none_if_unloaded(self, sp_artist_mock):
-        sp_artist_mock.is_loaded = False
-
-        artist = translator.to_artist(sp_artist_mock)
-
-        assert artist is None
-
-    def test_successful_translation(self, sp_artist_mock):
-        artist = translator.to_artist(sp_artist_mock)
-
-        assert artist.uri == "spotify:artist:abba"
-        assert artist.name == "ABBA"
-
-    def test_caches_results(self, sp_artist_mock):
-        artist1 = translator.to_artist(sp_artist_mock)
-        artist2 = translator.to_artist(sp_artist_mock)
-
-        assert artist1 is artist2
-
-    def test_does_not_cache_none_results(self, sp_artist_mock):
-        sp_artist_mock.is_loaded = False
-        artist1 = translator.to_artist(sp_artist_mock)
-
-        sp_artist_mock.is_loaded = True
-        artist2 = translator.to_artist(sp_artist_mock)
-
-        assert artist1 is None
-        assert artist2 is not None
-
-
-class TestToArtistRef:
-    def test_returns_none_if_unloaded(self, sp_artist_mock):
-        sp_artist_mock.is_loaded = False
-
-        ref = translator.to_artist_ref(sp_artist_mock)
-
-        assert ref is None
-
-    def test_successful_translation(self, sp_artist_mock):
-        ref = translator.to_artist_ref(sp_artist_mock)
-
-        assert ref.type == "artist"
-        assert ref.uri == "spotify:artist:abba"
-        assert ref.name == "ABBA"
-
-    def test_caches_results(self, sp_artist_mock):
-        ref1 = translator.to_artist_ref(sp_artist_mock)
-        ref2 = translator.to_artist_ref(sp_artist_mock)
-
-        assert ref1 is ref2
 
 
 class TestWebToArtistRef:
@@ -98,188 +44,6 @@ class TestWebToArtistRefs:
         assert refs[0].type == "artist"
         assert refs[0].uri == "spotify:artist:abba"
         assert refs[0].name == "ABBA"
-
-
-class TestToAlbum:
-    def test_returns_none_if_unloaded(self, sp_album_mock):
-        sp_album_mock.is_loaded = False
-
-        album = translator.to_album(sp_album_mock)
-
-        assert album is None
-
-    def test_successful_translation(self, sp_album_mock):
-        album = translator.to_album(sp_album_mock)
-
-        assert album.uri == "spotify:album:def"
-        assert album.name == "DEF 456"
-        assert list(album.artists) == [
-            models.Artist(uri="spotify:artist:abba", name="ABBA")
-        ]
-        assert album.date == "2001"
-
-    def test_returns_empty_artists_list_if_artist_is_none(self, sp_album_mock):
-        sp_album_mock.artist = None
-
-        album = translator.to_album(sp_album_mock)
-
-        assert list(album.artists) == []
-
-    def test_returns_unknown_date_if_year_is_none(self, sp_album_mock):
-        sp_album_mock.year = None
-
-        album = translator.to_album(sp_album_mock)
-
-        assert album.date is None
-
-    def test_returns_unknown_date_if_year_is_zero(self, sp_album_mock):
-        sp_album_mock.year = 0
-
-        album = translator.to_album(sp_album_mock)
-
-        assert album.date is None
-
-    def test_caches_results(self, sp_album_mock):
-        album1 = translator.to_album(sp_album_mock)
-        album2 = translator.to_album(sp_album_mock)
-
-        assert album1 is album2
-
-
-class TestToAlbumRef:
-    def test_returns_none_if_unloaded(self, sp_album_mock):
-        sp_album_mock.is_loaded = False
-
-        ref = translator.to_album_ref(sp_album_mock)
-
-        assert ref is None
-
-    def test_successful_translation(self, sp_album_mock):
-        ref = translator.to_album_ref(sp_album_mock)
-
-        assert ref.type == "album"
-        assert ref.uri == "spotify:album:def"
-        assert ref.name == "ABBA - DEF 456"
-
-    def test_if_artist_is_none(self, sp_album_mock):
-        sp_album_mock.artist = None
-
-        ref = translator.to_album_ref(sp_album_mock)
-
-        assert ref.name == "DEF 456"
-
-    def test_if_artist_is_not_loaded(self, sp_album_mock):
-        sp_album_mock.artist.is_loaded = False
-
-        ref = translator.to_album_ref(sp_album_mock)
-
-        assert ref.name == "DEF 456"
-
-    def test_caches_results(self, sp_album_mock):
-        ref1 = translator.to_album_ref(sp_album_mock)
-        ref2 = translator.to_album_ref(sp_album_mock)
-
-        assert ref1 is ref2
-
-
-class TestToTrack:
-    def test_returns_none_if_unloaded(self, sp_track_mock):
-        sp_track_mock.is_loaded = False
-
-        track = translator.to_track(sp_track_mock)
-
-        assert track is None
-
-    def test_returns_none_if_error(self, sp_track_mock, caplog):
-        sp_track_mock.error = spotify.ErrorType.OTHER_PERMANENT
-
-        track = translator.to_track(sp_track_mock)
-
-        assert track is None
-        assert (
-            "Error loading 'spotify:track:abc': <ErrorType.OTHER_PERMANENT: 10>"
-            in caplog.text
-        )
-
-    def test_returns_none_if_not_available(self, sp_track_mock):
-        sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
-
-        track = translator.to_track(sp_track_mock)
-
-        assert track is None
-
-    def test_successful_translation(self, sp_track_mock):
-        track = translator.to_track(sp_track_mock, bitrate=320)
-
-        assert track.uri == "spotify:track:abc"
-        assert track.name == "ABC 123"
-        assert list(track.artists) == [
-            models.Artist(uri="spotify:artist:abba", name="ABBA")
-        ]
-        assert track.album == models.Album(
-            uri="spotify:album:def",
-            name="DEF 456",
-            artists=[models.Artist(uri="spotify:artist:abba", name="ABBA")],
-            date="2001",
-        )
-        assert track.track_no == 7
-        assert track.disc_no == 1
-        assert track.date == "2001"
-        assert track.length == 174300
-        assert track.bitrate == 320
-
-    def test_filters_out_none_artists(self, sp_artist_mock, sp_track_mock):
-        sp_artist_mock.is_loaded = False
-
-        track = translator.to_track(sp_track_mock)
-
-        assert list(track.artists) == []
-
-    def test_caches_results(self, sp_track_mock):
-        track1 = translator.to_track(sp_track_mock)
-        track2 = translator.to_track(sp_track_mock)
-
-        assert track1 is track2
-
-
-class TestToTrackRef:
-    def test_returns_none_if_unloaded(self, sp_track_mock):
-        sp_track_mock.is_loaded = False
-
-        ref = translator.to_track_ref(sp_track_mock)
-
-        assert ref is None
-
-    def test_returns_none_if_error(self, sp_track_mock, caplog):
-        sp_track_mock.error = spotify.ErrorType.OTHER_PERMANENT
-
-        ref = translator.to_track_ref(sp_track_mock)
-
-        assert ref is None
-        assert (
-            "Error loading 'spotify:track:abc': <ErrorType.OTHER_PERMANENT: 10>"
-            in caplog.text
-        )
-
-    def test_returns_none_if_not_available(self, sp_track_mock):
-        sp_track_mock.availability = spotify.TrackAvailability.UNAVAILABLE
-
-        ref = translator.to_track_ref(sp_track_mock)
-
-        assert ref is None
-
-    def test_successful_translation(self, sp_track_mock):
-        ref = translator.to_track_ref(sp_track_mock)
-
-        assert ref.type == models.Ref.TRACK
-        assert ref.uri == "spotify:track:abc"
-        assert ref.name == "ABC 123"
-
-    def test_caches_results(self, sp_track_mock):
-        ref1 = translator.to_track_ref(sp_track_mock)
-        ref2 = translator.to_track_ref(sp_track_mock)
-
-        assert ref1 is ref2
 
 
 class TestValidWebData(object):
@@ -323,6 +87,13 @@ class TestWebToAlbumRef:
 
         assert ref.type == models.Ref.ALBUM
         assert ref.uri == "spotify:album:def"
+        assert ref.name == "ABBA - DEF 456"
+
+    def test_without_artists_uses_name(self, web_album_mock):
+        del web_album_mock["artists"]
+
+        ref = translator.web_to_album_ref(web_album_mock)
+
         assert ref.name == "DEF 456"
 
     def test_without_name_uses_uri(self, web_album_mock):
@@ -342,7 +113,7 @@ class TestWebToAlbumRefs:
 
         assert refs[0].type == models.Ref.ALBUM
         assert refs[0].uri == "spotify:album:def"
-        assert refs[0].name == "DEF 456"
+        assert refs[0].name == "ABBA - DEF 456"
 
     def test_returns_bare_albums(self, web_album_mock):
         web_albums = [web_album_mock] * 3
@@ -352,7 +123,7 @@ class TestWebToAlbumRefs:
 
         assert refs[0].type == models.Ref.ALBUM
         assert refs[0].uri == "spotify:album:def"
-        assert refs[0].name == "DEF 456"
+        assert refs[0].name == "ABBA - DEF 456"
 
     def test_bad_albums_filtered(self, web_album_mock, web_artist_mock):
         refs = list(
@@ -757,7 +528,7 @@ class TestWebToAlbum:
             ref_func_mock.assert_called_once_with(web_album_mock)
 
         assert album.uri == str(sentinel.uri)
-        assert album.name == str(sentinel.name)
+        assert album.name == "DEF 456"
 
     def test_returns_none_if_invalid_ref(self, web_album_mock):
         with patch.object(translator, "web_to_album_ref", return_value=None):
@@ -787,6 +558,57 @@ class TestWebToAlbum:
         assert album.uri == "spotify:album:def"
         assert album.name == "DEF 456"
         assert list(album.artists) == artists
+
+    def test_returns_empty_artists_list_if_artist_is_empty(
+        self, web_album_mock
+    ):
+        web_album_mock["artists"] = []
+
+        album = translator.web_to_album(web_album_mock)
+
+        assert list(album.artists) == []
+
+    def test_caches_results(self, web_album_mock):
+        album1 = translator.web_to_album(web_album_mock)
+        album2 = translator.web_to_album(web_album_mock)
+
+        assert album1 is album2
+
+    def test_web_to_album_tracks(self, web_album_mock):
+        tracks = translator.web_to_album_tracks(web_album_mock)
+
+        assert len(tracks) == 10
+        track = tracks[0]
+        assert track.album.name == "DEF 456"
+        assert track.album.artists == track.artists
+
+    def test_web_to_album_tracks_empty(self, web_album_mock):
+        web_album_mock["tracks"]["items"] = []
+
+        tracks = translator.web_to_album_tracks(web_album_mock)
+
+        assert len(tracks) == 0
+
+    def test_web_to_album_tracks_unplayable(self, web_album_mock):
+        web_album_mock["is_playable"] = False
+
+        tracks = translator.web_to_album_tracks(web_album_mock)
+
+        assert len(tracks) == 0
+
+    def test_web_to_album_tracks_nolist(self, web_album_mock):
+        web_album_mock["tracks"] = {"items": {}}
+
+        tracks = translator.web_to_album_tracks(web_album_mock)
+
+        assert isinstance(tracks, list)
+        assert len(tracks) == 0
+
+    def test_web_to_album_tracks_none(self):
+        tracks = translator.web_to_album_tracks(None)
+
+        assert isinstance(tracks, list)
+        assert len(tracks) == 0
 
 
 class TestWebToTrack:
@@ -827,6 +649,14 @@ class TestWebToTrack:
         track = translator.web_to_track(web_track_mock, bitrate=100)
 
         assert track.bitrate == 100
+
+    def test_sets_specified_album(self, web_track_mock):
+        alt_album = models.Album(uri="spotify:album:xyz", name="XYZ 789")
+
+        track = translator.web_to_track(web_track_mock, album=alt_album)
+
+        assert track.album.uri == "spotify:album:xyz"
+        assert track.album.name == "XYZ 789"
 
     def test_filters_out_none_artists(self, web_track_mock):
         web_track_mock["artists"].insert(0, {})

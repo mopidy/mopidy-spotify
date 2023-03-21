@@ -1,5 +1,4 @@
 import copy
-import email
 import logging
 import os
 import re
@@ -9,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 from typing import Optional
+from email.utils import parsedate_to_datetime
 
 import requests
 
@@ -44,7 +44,6 @@ class OAuthClient:
         retries=3,
         retry_statuses=(500, 502, 503, 429),
     ):
-
         if client_id and client_secret:
             self._auth = (client_id, client_secret)
         else:
@@ -98,7 +97,7 @@ class OAuthClient:
         if result is None or "error" in result:
             logger.error(
                 "Spotify Web API request failed: "
-                f"{result.get('error','Unknown')}"
+                f"{result.get('error','Unknown') if result else 'Unknown'}"
             )
             return WebResponse(None, None)
 
@@ -258,11 +257,12 @@ class OAuthClient:
         elif re.match(r"^\s*[0-9]+\s*$", value):
             seconds = int(value)
         else:
-            date_tuple = email.utils.parsedate(value)
-            if date_tuple is None:
+            now = datetime.utcnow()
+            try:
+                date_tuple = parsedate_to_datetime(value)
+                seconds = (date_tuple - now).total_seconds()
+            except Exception:
                 seconds = 0
-            else:
-                seconds = time.mktime(date_tuple) - time.time()
         return max(0, seconds)
 
 
@@ -386,7 +386,6 @@ class WebResponse(dict):
 
 
 class SpotifyOAuthClient(OAuthClient):
-
     TRACK_FIELDS = (
         "next,items(track(type,uri,name,duration_ms,disc_number,track_number,"
         "artists,album,is_playable,linked_from.uri))"
@@ -440,6 +439,30 @@ class SpotifyOAuthClient(OAuthClient):
         for page in pages:
             yield from page.get("items", [])
 
+    def _with_all_tracks(self, obj, params=None):
+        if params is None:
+            params = {}
+        tracks_path = obj.get("tracks", {}).get("next")
+        track_pages = self.get_all(
+            tracks_path,
+            params=params,
+            ignore_expiry=obj.status_unchanged,
+        )
+
+        more_tracks = []
+        for page in track_pages:
+            if "items" not in page:
+                return {}  # Return nothing on error, or what we have so far?
+            more_tracks += page["items"]
+
+        if more_tracks:
+            # Take a copy to avoid changing the cached response.
+            obj = copy.deepcopy(obj)
+            obj.setdefault("tracks", {}).setdefault("items", [])
+            obj["tracks"]["items"] += more_tracks
+
+        return obj
+
     def get_playlist(self, uri):
         try:
             parsed = WebLink.from_uri(uri)
@@ -455,26 +478,58 @@ class SpotifyOAuthClient(OAuthClient):
             f"playlists/{parsed.id}",
             params={"fields": self.PLAYLIST_FIELDS, "market": "from_token"},
         )
+        return self._with_all_tracks(playlist, {"fields": self.TRACK_FIELDS})
 
-        tracks_path = playlist.get("tracks", {}).get("next")
-        track_pages = self.get_all(
-            tracks_path,
-            params={"fields": self.TRACK_FIELDS, "market": "from_token"},
-            ignore_expiry=playlist.status_unchanged,
+    def get_album(self, web_link):
+        if web_link.type != LinkType.ALBUM:
+            logger.error("Expecting Spotify album URI")
+            return {}
+
+        album = self.get_one(
+            f"albums/{web_link.id}",
+            params={"market": "from_token"},
         )
+        return self._with_all_tracks(album)
 
-        more_tracks = []
-        for page in track_pages:
-            if "items" not in page:
-                return {}
-            more_tracks += page.get("items", [])
-        if more_tracks:
-            # Take a copy to avoid changing the cached response.
-            playlist = copy.deepcopy(playlist)
-            playlist.setdefault("tracks", {}).setdefault("items", [])
-            playlist["tracks"]["items"] += more_tracks
+    def get_artist_albums(self, web_link, all_tracks=True):
+        if web_link.type != LinkType.ARTIST:
+            logger.error("Expecting Spotify artist URI")
+            return []
 
-        return playlist
+        pages = self.get_all(
+            f"artists/{web_link.id}/albums",
+            params={"market": "from_token", "include_groups": "single,album"},
+        )
+        for page in pages:
+            for album in page["items"]:
+                if all_tracks:
+                    try:
+                        web_link = WebLink.from_uri(album.get("uri"))
+                    except ValueError as exc:
+                        logger.error(exc)
+                        continue
+                    yield self.get_album(web_link)
+                else:
+                    yield album
+
+    def get_artist_top_tracks(self, web_link):
+        if web_link.type != LinkType.ARTIST:
+            logger.error("Expecting Spotify artist URI")
+            return []
+
+        return self.get_one(
+            f"artists/{web_link.id}/top-tracks",
+            params={"market": "from_token"},
+        ).get("tracks")
+
+    def get_track(self, web_link):
+        if web_link.type != LinkType.TRACK:
+            logger.error("Expecting Spotify track URI")
+            return {}
+
+        return self.get_one(
+            f"tracks/{web_link.id}", params={"market": "from_token"}
+        )
 
     def clear_cache(self, extra_expiry=None):
         self._cache.clear()
@@ -531,3 +586,8 @@ class WebLink:
             return cls(uri, LinkType.PLAYLIST, parts[3], parts[1])
 
         raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
+
+
+class WebError(Exception):
+    def __init__(self, message):
+        super().__init__(message)

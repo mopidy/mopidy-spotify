@@ -3,8 +3,6 @@ import logging
 
 from mopidy import models
 
-import spotify
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,28 +24,7 @@ class memoized:  # noqa N801
             return value
 
 
-@memoized
-def to_artist(sp_artist):
-    if not sp_artist.is_loaded:
-        return
-
-    return models.Artist(uri=sp_artist.link.uri, name=sp_artist.name)
-
-
-@memoized
-def to_artist_ref(sp_artist):
-    if not sp_artist.is_loaded:
-        return
-
-    return models.Ref.artist(uri=sp_artist.link.uri, name=sp_artist.name)
-
-
-def to_artist_refs(sp_artists, timeout=None):
-    for sp_artist in sp_artists:
-        sp_artist.load(timeout)
-        ref = to_artist_ref(sp_artist)
-        if ref is not None:
-            yield ref
+# TODO: memoize web functions?
 
 
 def web_to_artist_ref(web_artist):
@@ -65,53 +42,20 @@ def web_to_artist_refs(web_artists):
             yield ref
 
 
-@memoized
-def to_album(sp_album):
-    if not sp_album.is_loaded:
-        return
-
-    if sp_album.artist is not None and sp_album.artist.is_loaded:
-        artists = [to_artist(sp_album.artist)]
-    else:
-        artists = []
-
-    if sp_album.year is not None and sp_album.year != 0:
-        date = f"{sp_album.year}"
-    else:
-        date = None
-
-    return models.Album(
-        uri=sp_album.link.uri, name=sp_album.name, artists=artists, date=date
-    )
-
-
-@memoized
-def to_album_ref(sp_album):
-    if not sp_album.is_loaded:
-        return
-
-    if sp_album.artist is None or not sp_album.artist.is_loaded:
-        name = sp_album.name
-    else:
-        name = f"{sp_album.artist.name} - {sp_album.name}"
-
-    return models.Ref.album(uri=sp_album.link.uri, name=name)
-
-
-def to_album_refs(sp_albums, timeout=None):
-    for sp_album in sp_albums:
-        sp_album.load(timeout)
-        ref = to_album_ref(sp_album)
-        if ref is not None:
-            yield ref
-
-
 def web_to_album_ref(web_album):
     if not valid_web_data(web_album, "album"):
         return
 
-    uri = web_album["uri"]
-    return models.Ref.album(uri=uri, name=web_album.get("name", uri))
+    if "name" in web_album:
+        artists = web_album.get("artists", [])
+        if artists and artists[0].get("name"):
+            name = f"{artists[0].get('name')} - {web_album['name']}"
+        else:
+            name = web_album["name"]
+    else:
+        name = web_album["uri"]
+
+    return models.Ref.album(uri=web_album["uri"], name=name)
 
 
 def web_to_album_refs(web_albums):
@@ -123,65 +67,12 @@ def web_to_album_refs(web_albums):
             yield ref
 
 
-@memoized
-def to_track(sp_track, bitrate=None):
-    if not sp_track.is_loaded:
-        return
-
-    if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(f"Error loading {sp_track.link.uri!r}: {sp_track.error!r}")
-        return
-
-    if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
-        return
-
-    artists = [to_artist(sp_artist) for sp_artist in sp_track.artists]
-    artists = [a for a in artists if a]
-
-    album = to_album(sp_track.album)
-
-    return models.Track(
-        uri=sp_track.link.uri,
-        name=sp_track.name,
-        artists=artists,
-        album=album,
-        date=album.date,
-        length=sp_track.duration,
-        disc_no=sp_track.disc,
-        track_no=sp_track.index,
-        bitrate=bitrate,
-    )
-
-
-@memoized
-def to_track_ref(sp_track):
-    if not sp_track.is_loaded:
-        return
-
-    if sp_track.error != spotify.ErrorType.OK:
-        logger.debug(f"Error loading {sp_track.link.uri!r}: {sp_track.error!r}")
-        return
-
-    if sp_track.availability != spotify.TrackAvailability.AVAILABLE:
-        return
-
-    return models.Ref.track(uri=sp_track.link.uri, name=sp_track.name)
-
-
 def valid_web_data(data, object_type):
     return (
         isinstance(data, dict)
         and data.get("type") == object_type
         and data.get("uri") is not None
     )
-
-
-def to_track_refs(sp_tracks, timeout=None):
-    for sp_track in sp_tracks:
-        sp_track.load(timeout)
-        ref = to_track_ref(sp_track)
-        if ref is not None:
-            yield ref
 
 
 def web_to_track_ref(web_track, *, check_playable=True):
@@ -270,7 +161,7 @@ def sp_search_query(query, exact=False):
 
     result = []
 
-    for (field, values) in query.items():
+    for field, values in query.items():
         field = SEARCH_FIELD_MAP.get(field, field)
         if field is None:
             continue
@@ -313,6 +204,24 @@ def web_to_artist(web_artist):
     return models.Artist(uri=ref.uri, name=ref.name)
 
 
+def web_to_album_tracks(web_album, bitrate=None):
+    album = web_to_album(web_album)
+    if album is None:
+        return []
+
+    if not web_album.get("is_playable", False):
+        return []
+
+    web_tracks = web_album.get("tracks", {}).get("items", [])
+    if not isinstance(web_tracks, list):
+        return []
+
+    tracks = [
+        web_to_track(web_track, bitrate, album) for web_track in web_tracks
+    ]
+    return [t for t in tracks if t]
+
+
 def web_to_album(web_album):
     ref = web_to_album_ref(web_album)
     if ref is None:
@@ -323,10 +232,11 @@ def web_to_album(web_album):
     ]
     artists = [a for a in artists if a]
 
-    return models.Album(uri=ref.uri, name=ref.name, artists=artists)
+    name = web_album.get("name", "Unknown album")
+    return models.Album(uri=ref.uri, name=name, artists=artists)
 
 
-def web_to_track(web_track, bitrate=None):
+def web_to_track(web_track, bitrate=None, album=None):
     ref = web_to_track_ref(web_track)
     if ref is None:
         return
@@ -336,7 +246,8 @@ def web_to_track(web_track, bitrate=None):
     ]
     artists = [a for a in artists if a]
 
-    album = web_to_album(web_track.get("album", {}))
+    if album is None:
+        album = web_to_album(web_track.get("album", {}))
 
     return models.Track(
         uri=ref.uri,
