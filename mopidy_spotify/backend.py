@@ -1,7 +1,7 @@
 import pykka
 from mopidy import backend
 
-from mopidy_spotify import Extension, library, playlists, web
+from mopidy_spotify import library, playback, playlists, web
 
 
 class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
@@ -14,7 +14,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self._web_client = None
 
         self.library = library.SpotifyLibraryProvider(backend=self)
-        self.playback = SpotifyPlaybackProvider(audio=audio, backend=self)
+        self.playback = playback.SpotifyPlaybackProvider(audio=audio, backend=self)
         if config["spotify"]["allow_playlists"]:
             self.playlists = playlists.SpotifyPlaylistsProvider(backend=self)
         else:
@@ -22,6 +22,8 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         self.uri_schemes = ["spotify"]
 
     def on_start(self):
+        self.playback.login()
+
         self._web_client = web.SpotifyOAuthClient(
             client_id=self._config["spotify"]["client_id"],
             client_secret=self._config["spotify"]["client_secret"],
@@ -32,16 +34,5 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         if self.playlists is not None:
             self.playlists.refresh()
 
-
-class SpotifyPlaybackProvider(backend.PlaybackProvider):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._cache_location = Extension().get_cache_dir(self.backend._config)
-        self._config = self.backend._config["spotify"]
-
-    def on_source_setup(self, source):
-        for prop in ["username", "password", "bitrate"]:
-            source.set_property(prop, str(self._config[prop]))
-        if self._config["allow_cache"]:
-            source.set_property("cache-credentials", self._cache_location)
-            source.set_property("cache-files", self._cache_location)
+    def on_stop(self):
+        self.playback.handle_shutdown()

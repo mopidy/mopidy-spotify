@@ -89,35 +89,7 @@ Dependencies
   Settings > Security > App passwords > Generate app passwords, and generate one
   to use with Mopidy-Spotify.
 
-- ``gst-plugins-spotify`` >= 0.10. The `GStreamer Rust Plugin
-  <https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs>`_ to stream Spotify
-  audio, based on `librespot <https://github.com/librespot-org/librespot/>`_.
-  This plugin is not yet available from apt.mopidy.com and must be built from
-  source (see below).
-
 - ``Mopidy`` >= 3.4. The music server that Mopidy-Spotify extends.
-
-Example build instructions for ``gst-plugins-spotify``::
-
-1. `Install Rust <https://www.rust-lang.org/tools/install>`_::
-
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-2. Install the `GStreamer Rust bindings
-   <https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#installation>`_ dependencies::
-
-    sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev pkg-config git
-
-3. Download, build and install ``gst-plugins-spotify`` from source::
-
-    git clone --depth 1 https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs
-    cd gst-plugins-rs
-    cargo build --package gst-plugin-spotify --release
-    sudo install -m 644 target/release/libgstspotify.so $(pkg-config --variable=pluginsdir gstreamer-1.0)/
-
-4. Verify the spotify plugin is available::
-
-    gst-inspect-1.0 spotify
 
 
 Installation
