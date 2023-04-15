@@ -28,6 +28,7 @@ def config(tmp_path):
             "volume_normalization": True,
             "timeout": 10,
             "allow_cache": True,
+            "cache_size": 8192,
             "allow_playlists": True,
             "search_album_count": 20,
             "search_artist_count": 10,
