@@ -42,6 +42,7 @@ def test_on_source_setup_sets_properties(config, provider):
         mock.call("bitrate", "160"),
         mock.call("cache-credentials", spotify_cache_dir),
         mock.call("cache-files", spotify_cache_dir),
+        mock.call("cache-max-size", "8192"),
     ]
 
 

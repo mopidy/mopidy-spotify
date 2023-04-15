@@ -169,7 +169,7 @@ The following configuration values are available:
 - ``spotify/allow_cache``: Whether to allow caching. The cache is stored in a
   "spotify" directory within Mopidy's ``core/cache_dir``. Defaults to ``true``.
 
-- ``spotify/cache_size``: maximum cache size in MiB. Defaults to ``8192``.
+- ``spotify/cache_size``: Maximum cache size in MiB. Set to ``0`` for unlimited. Defaults to ``8192``.
 
 - ``spotify/allow_playlists``: Whether or not playlists should be exposed.
   Defaults to ``true``.
