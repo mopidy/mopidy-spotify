@@ -26,6 +26,7 @@ def test_get_config_schema():
     assert "cache_dir" in schema
     assert "settings_dir" in schema
     assert "allow_cache" in schema
+    assert "cache_size" in schema
     assert "allow_playlists" in schema
     assert "search_album_count" in schema
     assert "search_artist_count" in schema

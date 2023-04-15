@@ -33,6 +33,8 @@ class Extension(ext.Extension):
         schema["settings_dir"] = config.Deprecated()  # since 2.0
 
         schema["allow_cache"] = config.Boolean()
+        schema["cache_size"] = config.Integer(minimum=0)
+
         schema["allow_network"] = config.Deprecated()  # since 5.0
         schema["allow_playlists"] = config.Boolean()
 
