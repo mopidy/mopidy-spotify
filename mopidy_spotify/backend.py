@@ -1,3 +1,5 @@
+import os
+
 import pykka
 from mopidy import backend
 
@@ -37,12 +39,17 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._cache_location = Extension().get_cache_dir(self.backend._config)
+        self._data_location = Extension().get_data_dir(self.backend._config)
         self._config = self.backend._config["spotify"]
 
     def on_source_setup(self, source):
         for prop in ["username", "password", "bitrate"]:
             source.set_property(prop, str(self._config[prop]))
-        source.set_property("cache-credentials", self._cache_location)
+        credentials_dir = os.path.join(self._data_location, "credentials-cache")
+        if not os.path.exists(credentials_dir):
+            os.makedirs(self._data_location, exist_ok=True)
+            os.mkdir(credentials_dir, 0o700)
+        source.set_property("cache-credentials", credentials_dir)
         if self._config["allow_cache"]:
             source.set_property("cache-files", self._cache_location)
             source.set_property(
