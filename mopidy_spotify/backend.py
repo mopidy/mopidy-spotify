@@ -42,8 +42,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def on_source_setup(self, source):
         for prop in ["username", "password", "bitrate"]:
             source.set_property(prop, str(self._config[prop]))
+        source.set_property("cache-credentials", self._cache_location)
         if self._config["allow_cache"]:
-            source.set_property("cache-credentials", self._cache_location)
             source.set_property("cache-files", self._cache_location)
             source.set_property(
                 "cache-max-size", self._config["cache_size"] * 1048576
