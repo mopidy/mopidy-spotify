@@ -106,7 +106,7 @@ Example build instructions for ``gst-plugins-spotify``::
 2. Install the `GStreamer Rust bindings
    <https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#installation>`_ dependencies::
 
-    sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev pkg-config git
+    sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gcc pkg-config git
 
 3. Download, build and install ``gst-plugins-spotify`` from source::
 
