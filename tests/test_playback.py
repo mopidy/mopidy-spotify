@@ -35,12 +35,14 @@ def test_on_source_setup_sets_properties(config, provider):
     mock_source = mock.MagicMock()
     provider.on_source_setup(mock_source)
     spotify_cache_dir = backend.Extension.get_cache_dir(config)
+    spotify_data_dir = backend.Extension.get_data_dir(config)
+    cred_dir = spotify_data_dir / "credentials-cache"
 
     assert mock_source.set_property.mock_calls == [
         mock.call("username", "alice"),
         mock.call("password", "password"),
         mock.call("bitrate", "160"),
-        mock.call("cache-credentials", spotify_cache_dir),
+        mock.call("cache-credentials", cred_dir),
         mock.call("cache-files", spotify_cache_dir),
         mock.call("cache-max-size", 8589934592),
     ]
@@ -50,11 +52,14 @@ def test_on_source_setup_without_caching(config, provider):
     config["spotify"]["allow_cache"] = False
     mock_source = mock.MagicMock()
     provider.on_source_setup(mock_source)
+    spotify_data_dir = backend.Extension.get_data_dir(config)
+    cred_dir = spotify_data_dir / "credentials-cache"
 
     assert mock_source.set_property.mock_calls == [
         mock.call("username", "alice"),
         mock.call("password", "password"),
         mock.call("bitrate", "160"),
+        mock.call("cache-credentials", cred_dir),
     ]
 
 
