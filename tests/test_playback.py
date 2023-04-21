@@ -1,5 +1,3 @@
-import os
-
 from unittest import mock
 
 import pytest
@@ -38,7 +36,7 @@ def test_on_source_setup_sets_properties(config, provider):
     provider.on_source_setup(mock_source)
     spotify_cache_dir = backend.Extension.get_cache_dir(config)
     spotify_data_dir = backend.Extension.get_data_dir(config)
-    cred_dir = os.path.join(spotify_data_dir, "credentials-cache")
+    cred_dir = spotify_data_dir / "credentials-cache"
 
     assert mock_source.set_property.mock_calls == [
         mock.call("username", "alice"),
@@ -55,7 +53,7 @@ def test_on_source_setup_without_caching(config, provider):
     mock_source = mock.MagicMock()
     provider.on_source_setup(mock_source)
     spotify_data_dir = backend.Extension.get_data_dir(config)
-    cred_dir = os.path.join(spotify_data_dir, "credentials-cache")
+    cred_dir = spotify_data_dir / "credentials-cache"
 
     assert mock_source.set_property.mock_calls == [
         mock.call("username", "alice"),
