@@ -630,7 +630,7 @@ def test_cache_expired_with_etag(
     skip_refresh_token,
     oauth_client,
     status,
-    expected,
+    expected_unchanged,
     caplog,
 ):
     cache = {"tracks/abc": web_response_mock_etag}
