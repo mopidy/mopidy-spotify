@@ -127,6 +127,27 @@ def test_get_track_images(web_client_mock, img_provider):
     assert image.width == 640
 
 
+def test_get_track_images_bad_album_uri(web_client_mock, img_provider):
+    uris = ["spotify:track:41shEpOKyyadtG6lDclooa"]
+
+    web_client_mock.get.return_value = {
+        "tracks": [
+            {
+                "id": "41shEpOKyyadtG6lDclooa",
+                "album": {
+                    "uri": "spotify:bad-data",
+                    "images": [
+                        {"height": 640, "url": "img://1/a", "width": 640}
+                    ],
+                },
+            }
+        ]
+    }
+
+    result = img_provider.get_images(uris)
+    assert result == {}
+
+
 def test_get_relinked_track_images(web_client_mock, img_provider):
     uris = ["spotify:track:4nqN0p0FjfH39G3hxeuKad"]
 
@@ -167,7 +188,7 @@ def test_get_relinked_track_images(web_client_mock, img_provider):
 
 
 def test_get_playlist_image(web_client_mock, img_provider):
-    uris = ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
+    uris = ["spotify:playlist:41shEpOKyyadtG6lDclooa", "foo:bar"]
 
     web_client_mock.get.return_value = {
         "id": "41shEpOKyyadtG6lDclooa",
@@ -181,7 +202,7 @@ def test_get_playlist_image(web_client_mock, img_provider):
     )
 
     assert len(result) == 1
-    assert sorted(result.keys()) == sorted(uris)
+    assert sorted(result.keys()) == ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
     assert len(result[uris[0]]) == 1
 
     image = result[uris[0]][0]
@@ -231,11 +252,11 @@ def test_max_50_ids_per_request(web_client_mock, img_provider):
     assert request_ids_2 == "50"
 
 
-def test_invalid_uri_fails(img_provider):
-    with pytest.raises(ValueError) as exc:
-        img_provider.get_images(["foo:bar"])
-
-    assert str(exc.value) == "Could not parse 'foo:bar' as a Spotify URI"
+def test_invalid_uri(img_provider, caplog):
+    with caplog.at_level(5):
+        result = img_provider.get_images(["foo:bar"])
+    assert result == {}
+    assert "Could not parse 'foo:bar' as a Spotify URI" in caplog.text
 
 
 def test_no_uris_gives_no_results(img_provider):
