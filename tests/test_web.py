@@ -620,9 +620,7 @@ def test_cache_normalised_query_string(
     assert "tracks/abc?b=bar&f=cat" in cache
 
 
-@pytest.mark.parametrize(
-    "status,unchanged", [(304, True), (200, False)]
-)
+@pytest.mark.parametrize("status,unchanged", [(304, True), (200, False)])
 @responses.activate
 def test_cache_expired_with_etag(
     web_response_mock_etag,
