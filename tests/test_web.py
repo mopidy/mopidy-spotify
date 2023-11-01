@@ -621,7 +621,7 @@ def test_cache_normalised_query_string(
 
 
 @pytest.mark.parametrize(
-    "status,expected_unchanged", [(304, True), (200, False)]
+    "status,unchanged", [(304, True), (200, False)]
 )
 @responses.activate
 def test_cache_expired_with_etag(
@@ -630,7 +630,7 @@ def test_cache_expired_with_etag(
     skip_refresh_token,
     oauth_client,
     status,
-    expected_unchanged,
+    unchanged,
     caplog,
 ):
     cache = {"tracks/abc": web_response_mock_etag}
@@ -646,8 +646,8 @@ def test_cache_expired_with_etag(
     assert len(responses.calls) == 1
     assert responses.calls[0].request.headers["If-None-Match"] == '"1234"'
     assert cache["tracks/abc"] == result
-    assert result.status_unchanged is expected_unchanged
-    assert (result.items() == web_response_mock_etag.items()) == expected_unchanged
+    assert result.status_unchanged is unchanged
+    assert (result.items() == web_response_mock_etag.items()) == unchanged
 
 
 @responses.activate
