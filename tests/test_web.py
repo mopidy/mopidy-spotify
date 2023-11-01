@@ -621,7 +621,7 @@ def test_cache_normalised_query_string(
 
 
 @pytest.mark.parametrize(
-    "status,json,expected", [(304, None, "spotify:track:abc"), (200, {"uri": "spotify:track:xyz"}, "spotify:track:xyz")]
+    "status,expected", [(304, "spotify:track:abc"), (200, None)]
 )
 @responses.activate
 def test_cache_expired_with_etag(
@@ -637,16 +637,15 @@ def test_cache_expired_with_etag(
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
-        json=json,
         status=status,
     )
-    mock_time.return_value = 1001
+    mock_time.return_value = web_response_mock_etag._expires + 1
     assert not cache["tracks/abc"].still_valid()
 
     result = oauth_client.get("tracks/abc", cache)
     assert len(responses.calls) == 1
     assert responses.calls[0].request.headers["If-None-Match"] == '"1234"'
-    assert result["uri"] == expected
+    assert result.get("uri") == expected
     assert cache["tracks/abc"] == result
 
 
