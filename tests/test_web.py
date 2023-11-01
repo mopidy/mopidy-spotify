@@ -621,7 +621,7 @@ def test_cache_normalised_query_string(
 
 
 @pytest.mark.parametrize(
-    "status,expected", [(304, "spotify:track:abc"), (200, "spotify:track:xyz")]
+    "status,json,expected", [(304, None, "spotify:track:abc"), (200, {"uri": "spotify:track:xyz"}, "spotify:track:xyz")]
 )
 @responses.activate
 def test_cache_expired_with_etag(
@@ -637,7 +637,7 @@ def test_cache_expired_with_etag(
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
-        json={"uri": "spotify:track:xyz hello"},
+        json=json,
         status=status,
     )
     mock_time.return_value = 1001
