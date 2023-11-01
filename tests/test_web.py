@@ -637,7 +637,7 @@ def test_cache_expired_with_etag(
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
-        json={"uri": "spotify:track:xyz"},
+        json={"uri": "spotify:track:xyz hello"},
         status=status,
     )
     mock_time.return_value = 1001
