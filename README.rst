@@ -125,7 +125,7 @@ Installation
 
 Install by running::
 
-    sudo python3 -m pip install https://github.com/mopidy/mopidy-spotify/archive/master.zip
+    sudo python3 -m pip install https://github.com/mopidy/mopidy-spotify/archive/main.zip
 
 See https://mopidy.com/ext/spotify/ for alternative installation methods.
 
