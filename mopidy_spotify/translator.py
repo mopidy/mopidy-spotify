@@ -110,7 +110,7 @@ def to_playlist(
     if ref is None or as_ref:
         return ref
 
-    web_tracks = web_playlist.get("tracks", {}).get("items", [])
+    web_tracks = web_playlist.get("tracks", {}).get("items") or []
     if as_items and not isinstance(web_tracks, list):
         return
 
