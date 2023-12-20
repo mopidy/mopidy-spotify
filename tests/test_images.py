@@ -271,3 +271,21 @@ def test_service_returns_empty_result(web_client_mock, img_provider):
     result = img_provider.get_images(["spotify:track:41shEpOKyyadtG6lDclooa"])
 
     assert result == {}
+
+
+def test_service_returns_none_result(web_client_mock, img_provider):
+    web_client_mock.get.return_value = {"tracks": None}
+
+    result = img_provider.get_images(["spotify:track:41shEpOKyyadtG6lDclooa"])
+
+    assert result == {}
+
+
+def test_service_returns_none_result_playlist(web_client_mock, img_provider):
+    web_client_mock.get.return_value = {"images": None}
+
+    result = img_provider.get_images(
+        ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
+    )
+
+    assert result == {"spotify:playlist:41shEpOKyyadtG6lDclooa": ()}
