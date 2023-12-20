@@ -391,7 +391,7 @@ class SpotifyOAuthClient(OAuthClient):
         "artists,album,is_playable,linked_from.uri))"
     )
     PLAYLIST_FIELDS = (
-        f"name,owner.id,type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
+        f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
     )
     DEFAULT_EXTRA_EXPIRY = 10
 
