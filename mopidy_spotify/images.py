@@ -4,6 +4,7 @@ import operator
 import urllib.parse
 
 from mopidy import models
+from mopidy_spotify.browse import BROWSE_DIR_URIS
 
 _API_MAX_IDS_PER_REQUEST = 50
 
@@ -34,24 +35,35 @@ def get_images(web_client, uris):
 
 
 def _parse_uri(uri):
+    if uri in BROWSE_DIR_URIS:
+        return  # These are internal to the extension.
     try:
         parsed_uri = urllib.parse.urlparse(uri)
         uri_type, uri_id = None, None
 
         if parsed_uri.scheme == "spotify":
+            fragments = parsed_uri.path.split(":")
+            if len(fragments) < 2:
+                raise ValueError("Too few fragments")
             uri_type, uri_id = parsed_uri.path.split(":")[:2]
         elif parsed_uri.scheme in ("http", "https"):
             if parsed_uri.netloc in ("open.spotify.com", "play.spotify.com"):
                 uri_type, uri_id = parsed_uri.path.split("/")[1:3]
 
         supported_types = ("track", "album", "artist", "playlist")
-        if uri_type and uri_type in supported_types and uri_id:
-            return {
-                "uri": uri,
-                "type": uri_type,
-                "id": uri_id,
-                "key": (uri_type, uri_id),
-            }
+        if uri_type:
+            if uri_type not in supported_types:
+                logger.warning(
+                    f"Unsupported image type '{uri_type}' in {repr(uri)}"
+                )
+                return
+            elif uri_id:
+                return {
+                    "uri": uri,
+                    "type": uri_type,
+                    "id": uri_id,
+                    "key": (uri_type, uri_id),
+                }
         raise ValueError("Unknown error")
     except Exception as e:
         logger.exception(f"Could not parse {repr(uri)} as a Spotify URI ({e})")
