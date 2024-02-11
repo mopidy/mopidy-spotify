@@ -391,7 +391,7 @@ class SpotifyOAuthClient(OAuthClient):
         "artists,album,is_playable,linked_from.uri))"
     )
     PLAYLIST_FIELDS = (
-        f"name,owner.id,type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
+        f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
     )
     DEFAULT_EXTRA_EXPIRY = 10
 
@@ -409,7 +409,7 @@ class SpotifyOAuthClient(OAuthClient):
 
     def get_one(self, path, *args, **kwargs):
         _trace(f"Fetching page {path!r}")
-        result = self.get(path, cache=self._cache, *args, **kwargs)
+        result = self.get(path, self._cache, *args, **kwargs)
         result.increase_expiry(self._extra_expiry)
         return result
 

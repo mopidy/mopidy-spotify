@@ -35,6 +35,16 @@ _PLAYLISTS_DIR_CONTENTS = [
 ]
 
 
+BROWSE_DIR_URIS = set(
+    u.uri
+    for u in [ROOT_DIR]
+    + _ROOT_DIR_CONTENTS
+    + _TOP_LIST_DIR_CONTENTS
+    + _YOUR_MUSIC_DIR_CONTENTS
+    + _PLAYLISTS_DIR_CONTENTS
+)
+
+
 def browse(*, config, session, web_client, uri):
     if uri == ROOT_DIR.uri:
         return _ROOT_DIR_CONTENTS

@@ -252,11 +252,49 @@ def test_max_50_ids_per_request(web_client_mock, img_provider):
     assert request_ids_2 == "50"
 
 
-def test_invalid_uri(img_provider, caplog):
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "foo:bar",
+        "spotify:baz",
+        "spotify:artist",
+        "spotify:album",
+        "spotify:user",
+        "spotify:playlist",
+    ],
+)
+def test_invalid_uri(img_provider, caplog, uri):
     with caplog.at_level(5):
-        result = img_provider.get_images(["foo:bar"])
+        result = img_provider.get_images([uri])
     assert result == {}
-    assert "Could not parse 'foo:bar' as a Spotify URI" in caplog.text
+    assert f"Could not parse '{uri}' as a Spotify URI" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "uri", ["spotify:dog:cat", "spotify:your:fish", "spotify:top:hat"]
+)
+def test_unsupported_image_type(img_provider, caplog, uri):
+    with caplog.at_level(5):
+        result = img_provider.get_images([uri])
+    assert result == {}
+    assert f"Unsupported image type '{uri.split(':')[1]}'" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "spotify:directory",
+        "spotify:your",
+        "spotify:top",
+        "spotify:your:albums",
+        "spotify:top:tracks",
+        "spotify:playlists:featured",
+    ],
+)
+def test_browse_internal_uris_no_result(img_provider, caplog, uri):
+    result = img_provider.get_images([uri])
+
+    assert result == {}
 
 
 def test_no_uris_gives_no_results(img_provider):
@@ -271,3 +309,21 @@ def test_service_returns_empty_result(web_client_mock, img_provider):
     result = img_provider.get_images(["spotify:track:41shEpOKyyadtG6lDclooa"])
 
     assert result == {}
+
+
+def test_service_returns_none_result(web_client_mock, img_provider):
+    web_client_mock.get.return_value = {"tracks": None}
+
+    result = img_provider.get_images(["spotify:track:41shEpOKyyadtG6lDclooa"])
+
+    assert result == {}
+
+
+def test_service_returns_none_result_playlist(web_client_mock, img_provider):
+    web_client_mock.get.return_value = {"images": None}
+
+    result = img_provider.get_images(
+        ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
+    )
+
+    assert result == {"spotify:playlist:41shEpOKyyadtG6lDclooa": ()}

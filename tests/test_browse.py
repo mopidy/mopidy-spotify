@@ -3,6 +3,8 @@ from unittest import mock
 import pytest
 from mopidy import models
 
+from mopidy_spotify.browse import BROWSE_DIR_URIS
+
 
 def test_has_a_root_directory(provider):
     assert provider.root_directory == models.Ref.directory(
@@ -22,6 +24,19 @@ def test_browse_root_directory(provider):
         models.Ref.directory(uri="spotify:playlists", name="Playlists")
         in results
     )
+
+
+def test_browse_dir_uris(provider):
+    assert provider.root_directory.uri in BROWSE_DIR_URIS
+    count = 1
+    for u1 in provider.browse(provider.root_directory.uri):
+        assert u1.uri in BROWSE_DIR_URIS
+        count = count + 1
+        for u2 in provider.browse(u1.uri):
+            assert u2.uri in BROWSE_DIR_URIS
+            count = count + 1
+
+    assert len(BROWSE_DIR_URIS) == count
 
 
 def test_browse_root_when_offline(web_client_mock, provider):
