@@ -236,6 +236,11 @@ def web_to_album(web_album):
     return models.Album(uri=ref.uri, name=name, artists=artists)
 
 
+def int_or_none(inp):
+    if inp is not None:
+        return int(float(inp))
+
+
 def web_to_track(web_track, bitrate=None, album=None):
     ref = web_to_track_ref(web_track)
     if ref is None:
@@ -254,8 +259,8 @@ def web_to_track(web_track, bitrate=None, album=None):
         name=ref.name,
         artists=artists,
         album=album,
-        length=web_track.get("duration_ms"),
-        disc_no=web_track.get("disc_number"),
-        track_no=web_track.get("track_number"),
+        length=int_or_none(web_track.get("duration_ms")),
+        disc_no=int_or_none(web_track.get("disc_number")),
+        track_no=int_or_none(web_track.get("track_number")),
         bitrate=bitrate,
     )
