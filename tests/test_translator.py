@@ -683,3 +683,29 @@ class TestWebToTrack:
 
         assert track.name == "ABC 123"
         assert track.album is None
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            (123),
+            (123.0),
+            ("123"),
+            ("123.0"),
+        ],
+    )
+    def test_int_or_none_number(self, data):
+        assert translator.int_or_none(data) == 123
+
+    def test_int_or_none_none(self):
+        assert translator.int_or_none(None) is None
+
+    def test_ints_might_be_floats(self, web_track_mock):
+        web_track_mock["duration_ms"] = 123.0
+        web_track_mock["disc_number"] = "456.0"
+        web_track_mock["track_number"] = 99.9
+
+        track = translator.web_to_track(web_track_mock)
+
+        assert track.length == 123
+        assert track.disc_no == 456
+        assert track.track_no == 99
