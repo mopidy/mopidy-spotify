@@ -3,8 +3,8 @@ import logging
 import operator
 import urllib.parse
 
-from mopidy import models
 from mopidy_spotify.browse import BROWSE_DIR_URIS
+from mopidy_spotify.translator import web_to_image
 
 _API_MAX_IDS_PER_REQUEST = 50
 
@@ -72,7 +72,7 @@ def _parse_uri(uri):
 def _process_uri(web_client, uri):
     data = web_client.get(f"{uri['type']}s/{uri['id']}")
     _cache[uri["key"]] = tuple(
-        _translate_image(i) for i in data.get("images") or []
+        web_to_image(i) for i in data.get("images") or []
     )
     return {uri["uri"]: _cache[uri["key"]]}
 
@@ -113,18 +113,14 @@ def _process_uris(web_client, uri_type, uris):
                 album_key = album["key"]
                 if album_key not in _cache:
                     _cache[album_key] = tuple(
-                        _translate_image(i)
+                        web_to_image(i)
                         for i in item["album"].get("images") or []
                     )
                 _cache[uri["key"]] = _cache[album_key]
             else:
                 _cache[uri["key"]] = tuple(
-                    _translate_image(i) for i in item.get("images") or []
+                    web_to_image(i) for i in item.get("images") or []
                 )
         result[uri["uri"]] = _cache[uri["key"]]
 
     return result
-
-
-def _translate_image(i):
-    return models.Image(uri=i["url"], height=i["height"], width=i["width"])
