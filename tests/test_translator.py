@@ -724,10 +724,24 @@ def test_web_to_image():
     assert image.width == 200
 
 
+def test_web_to_image_no_dimensions():
+    data = {"height": 640, "url": "img://1/a"}
+
+    image = translator.web_to_image(data)
+
+    assert isinstance(image, models.Image)
+    assert image.uri == "img://1/a"
+    assert image.height == 640
+    assert image.width is None
+
+
 @pytest.mark.parametrize(
     "height,width",
     [
         (600, 400),
+        (600.0, 400.0),
+        ("600", "400"),
+        ("600.0", "400.0"),
     ],
 )
 def test_web_to_image_ints_might_be_floats(height, width):
