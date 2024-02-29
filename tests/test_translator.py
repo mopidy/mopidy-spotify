@@ -684,21 +684,6 @@ class TestWebToTrack:
         assert track.name == "ABC 123"
         assert track.album is None
 
-    @pytest.mark.parametrize(
-        "data",
-        [
-            (123),
-            (123.0),
-            ("123"),
-            ("123.0"),
-        ],
-    )
-    def test_int_or_none_number(self, data):
-        assert translator.int_or_none(data) == 123
-
-    def test_int_or_none_none(self):
-        assert translator.int_or_none(None) is None
-
     def test_ints_might_be_floats(self, web_track_mock):
         web_track_mock["duration_ms"] = 123.0
         web_track_mock["disc_number"] = "456.0"
@@ -709,3 +694,61 @@ class TestWebToTrack:
         assert track.length == 123
         assert track.disc_no == 456
         assert track.track_no == 99
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        (123),
+        (123.0),
+        ("123"),
+        ("123.0"),
+    ],
+)
+def test_int_or_none_number(data):
+    assert translator.int_or_none(data) == 123
+
+
+def test_int_or_none_none():
+    assert translator.int_or_none(None) is None
+
+
+def test_web_to_image():
+    data = {"height": 640, "url": "img://1/a", "width": 200}
+
+    image = translator.web_to_image(data)
+
+    assert isinstance(image, models.Image)
+    assert image.uri == "img://1/a"
+    assert image.height == 640
+    assert image.width == 200
+
+
+def test_web_to_image_no_dimensions():
+    data = {"height": 640, "url": "img://1/a"}
+
+    image = translator.web_to_image(data)
+
+    assert isinstance(image, models.Image)
+    assert image.uri == "img://1/a"
+    assert image.height == 640
+    assert image.width is None
+
+
+@pytest.mark.parametrize(
+    "height,width",
+    [
+        (600, 400),
+        (600.0, 400.0),
+        ("600", "400"),
+        ("600.0", "400.0"),
+    ],
+)
+def test_web_to_image_ints_might_be_floats(height, width):
+    data = {"height": height, "url": "img://1/a", "width": width}
+
+    image = translator.web_to_image(data)
+
+    assert isinstance(image, models.Image)
+    assert image.height == 600
+    assert image.width == 400

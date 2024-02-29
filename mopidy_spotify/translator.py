@@ -264,3 +264,11 @@ def web_to_track(web_track, bitrate=None, album=None):
         track_no=int_or_none(web_track.get("track_number")),
         bitrate=bitrate,
     )
+
+
+def web_to_image(web_image):
+    return models.Image(
+        uri=web_image["url"],
+        height=int_or_none(web_image.get("height")),
+        width=int_or_none(web_image.get("width")),
+    )
