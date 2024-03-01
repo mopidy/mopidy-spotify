@@ -5,7 +5,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Mopidy-Spotify"
-version = "5.0.0a1"
 description = "Mopidy extension for playing music from Spotify"
 readme = "README.rst"
 requires-python = ">= 3.11"
@@ -21,6 +20,7 @@ classifiers = [
 	"Programming Language :: Python :: 3.12",
 	"Topic :: Multimedia :: Sound/Audio :: Players",
 ]
+dynamic = ["version"]
 dependencies = [
 	"mopidy >= 3.4.0",
 	"pykka >= 4.0",
