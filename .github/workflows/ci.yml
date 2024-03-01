@@ -12,21 +12,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Test: Python 3.9"
-            python: "3.9"
-            tox: py39
-          - name: "Test: Python 3.10"
-            python: "3.10"
-            tox: py310
           - name: "Test: Python 3.11"
             python: "3.11"
             tox: py311
+          - name: "Test: Python 3.12"
+            python: "3.12"
+            tox: py312
             coverage: true
           - name: "Lint: check-manifest"
-            python: "3.11"
+            python: "3.12"
             tox: check-manifest
           - name: "Lint: flake8"
-            python: "3.11"
+            python: "3.12"
             tox: flake8
 
     name: ${{ matrix.name }}
