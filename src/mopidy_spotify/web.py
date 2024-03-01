@@ -327,7 +327,7 @@ class WebResponse(dict):
             etag = re.match(r'^(W/)?("[!#-~]+")$', value)
             if etag and len(etag.groups()) == 2:  # noqa: PLR2004
                 return etag.groups()[1]
-            return None
+
         return None
 
     def still_valid(self, *, ignore_expiry=False):
@@ -571,7 +571,7 @@ class WebLink:
             case [type, id] if type in ("track", "album", "artist", "playlist"):
                 return cls(uri, LinkType(type), id, None)
             case ["your", _]:
-                return cls(uri, LinkType("your"))
+                return cls(uri, LinkType.YOUR)
             case ["user", owner, "starred"]:
                 if parsed_uri.scheme == "spotify":
                     return cls(uri, LinkType.PLAYLIST, None, owner)
