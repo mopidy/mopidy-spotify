@@ -721,7 +721,7 @@ def test_web_to_image_no_dimensions():
 
 
 @pytest.mark.parametrize(
-    "height,width",
+    ("height", "width"),
     [
         (600, 400),
         (600.0, 400.0),

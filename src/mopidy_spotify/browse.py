@@ -35,14 +35,16 @@ _PLAYLISTS_DIR_CONTENTS = [
 ]
 
 
-BROWSE_DIR_URIS = set(
+BROWSE_DIR_URIS = {
     u.uri
-    for u in [ROOT_DIR]
-    + _ROOT_DIR_CONTENTS
-    + _TOP_LIST_DIR_CONTENTS
-    + _YOUR_MUSIC_DIR_CONTENTS
-    + _PLAYLISTS_DIR_CONTENTS
-)
+    for u in [
+        ROOT_DIR,
+        *_ROOT_DIR_CONTENTS,
+        *_TOP_LIST_DIR_CONTENTS,
+        *_YOUR_MUSIC_DIR_CONTENTS,
+        *_PLAYLISTS_DIR_CONTENTS,
+    ]
+}
 
 
 def browse(*, config, session, web_client, uri):
@@ -59,7 +61,7 @@ def browse(*, config, session, web_client, uri):
         return []
 
     # TODO: Support for category browsing.
-    if uri.startswith("spotify:user:") or uri.startswith("spotify:playlist:"):
+    if uri.startswith(("spotify:user:", "spotify:playlist:")):
         return _browse_playlist(web_client, uri)
     elif uri.startswith("spotify:album:"):
         return _browse_album(web_client, uri)
@@ -155,8 +157,7 @@ def _load_your_music(web_client, variant):
         if not page:
             continue
         items = page.get("items", [])
-        for item in items:
-            yield item
+        yield from items
 
 
 def _browse_your_music(web_client, variant):

@@ -8,8 +8,7 @@ from mopidy_spotify import backend
 
 @pytest.fixture()
 def audio_mock():
-    audio_mock = mock.Mock(spec=audio.Audio)
-    return audio_mock
+    return mock.Mock(spec=audio.Audio)
 
 
 @pytest.fixture()

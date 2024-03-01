@@ -86,7 +86,7 @@ class OAuthClient:
             if self._should_refresh_token():
                 self._refresh_token()
         except OAuthTokenRefreshError as e:
-            logger.error(e)
+            logger.error(e)  # noqa: TRY400
             return WebResponse(None, None)
 
         # Make sure our headers always override user supplied ones.
@@ -282,7 +282,7 @@ class WebResponse(dict):
             return response.json()
         except ValueError as e:
             url = response.request.url
-            logger.error(f"JSON decoding {url} failed: {e}")
+            logger.error(f"JSON decoding {url} failed: {e}")  # noqa: TRY400
             return None
 
     @staticmethod
@@ -294,10 +294,7 @@ class WebResponse(dict):
             seconds = 0
         else:
             max_age = re.match(r".*max-age=\s*([0-9]+)\s*", value)
-            if not max_age:
-                seconds = 0
-            else:
-                seconds = int(max_age.groups()[0])
+            seconds = 0 if not max_age else int(max_age.groups()[0])
         return time.time() + seconds
 
     @staticmethod
@@ -313,6 +310,8 @@ class WebResponse(dict):
             etag = re.match(r'^(W/)?("[!#-~]+")$', value)
             if etag and len(etag.groups()) == 2:
                 return etag.groups()[1]
+            return None
+        return None
 
     def still_valid(self, ignore_expiry=False):
         if ignore_expiry:
@@ -455,7 +454,7 @@ class SpotifyOAuthClient(OAuthClient):
             if parsed.type != LinkType.PLAYLIST:
                 raise ValueError(f"Could not parse {uri!r} as a Spotify playlist URI")
         except ValueError as exc:
-            logger.error(exc)
+            logger.error(exc)  # noqa: TRY400
             return {}
 
         playlist = self.get_one(
@@ -490,7 +489,7 @@ class SpotifyOAuthClient(OAuthClient):
                     try:
                         web_link = WebLink.from_uri(album.get("uri"))
                     except ValueError as exc:
-                        logger.error(exc)
+                        logger.error(exc)  # noqa: TRY400
                         continue
                     yield self.get_album(web_link)
                 else:

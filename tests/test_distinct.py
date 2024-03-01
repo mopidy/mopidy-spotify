@@ -46,7 +46,7 @@ def test_get_distinct_unsupported_field_types_returns_nothing(provider, field):
 
 
 @pytest.mark.parametrize(
-    "field,expected",
+    ("field", "expected"),
     [
         ("artist", {"ABBA"}),
         ("albumartist", {"ABBA"}),
@@ -87,7 +87,7 @@ def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
 
 
 @pytest.mark.parametrize(
-    "field,query,expected,types",
+    ("field", "query", "expected", "types"),
     [
         (
             "artist",

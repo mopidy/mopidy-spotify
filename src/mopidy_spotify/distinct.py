@@ -108,5 +108,4 @@ def _get_playlist_tracks(config, playlists, web_client):
     for playlist_ref in playlists.as_list():
         playlist = playlists.lookup(playlist_ref.uri)
         if playlist:
-            for track in playlist.tracks:
-                yield track
+            yield from playlist.tracks

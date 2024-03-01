@@ -230,6 +230,7 @@ def web_to_album(web_album):
 def int_or_none(inp):
     if inp is not None:
         return int(float(inp))
+    return None
 
 
 def web_to_track(web_track, bitrate=None, album=None):

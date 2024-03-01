@@ -72,7 +72,7 @@ def test_user_agent(oauth_client):
 
 
 @pytest.mark.parametrize(
-    "header,expected",
+    ("header", "expected"),
     [
         (None, 0),
         ("", 0),
@@ -284,7 +284,7 @@ def test_auth_wrong_token_type(web_oauth_mock, oauth_client, caplog):
 
 
 @pytest.mark.parametrize(
-    "header,expected",
+    ("header", "expected"),
     [
         ("no-store", 100),
         ("max-age=1", 101),
@@ -304,7 +304,7 @@ def test_parse_cache_control(mock_time, header, expected):
 
 
 @pytest.mark.parametrize(
-    "header,expected",
+    ("header", "expected"),
     [
         ("", None),
         ('" "', None),
@@ -325,7 +325,7 @@ def test_parse_etag(header, expected):
 
 
 @pytest.mark.parametrize(
-    "status_code,expected", [(200, True), (301, True), (400, False)]
+    ("status_code", "expected"), [(200, True), (301, True), (400, False)]
 )
 def test_web_response_status_ok(status_code, expected):
     response = web.WebResponse("https://foo.com", {}, status_code=status_code)
@@ -333,7 +333,7 @@ def test_web_response_status_ok(status_code, expected):
 
 
 @pytest.mark.parametrize(
-    "status_code,expected",
+    ("status_code", "expected"),
     [(200, False), (301, False), (304, True), (400, False)],
 )
 def test_web_response_status_unchanged(status_code, expected):
@@ -357,7 +357,7 @@ def test_web_response_status_unchanged_from_cache():
 
 
 @pytest.mark.parametrize(
-    "etag,expected",
+    ("etag", "expected"),
     [
         ('"1234"', {"If-None-Match": '"1234"'}),
         ("fish", {"If-None-Match": "fish"}),
@@ -370,7 +370,7 @@ def test_web_response_etag_headers(etag, expected):
 
 
 @pytest.mark.parametrize(
-    "etag,status,expected,expected_etag,expected_msg",
+    ("etag", "status", "expected", "expected_etag", "expected_msg"),
     [
         ("abcd", 200, False, "abcd", "ETag mismatch"),
         ("abcd", 404, False, "abcd", "ETag mismatch"),
@@ -397,7 +397,7 @@ def test_web_response_etag_updated_different(web_response_mock_etag, caplog):
 
 
 @pytest.mark.parametrize(
-    "cache,ok,expected",
+    ("cache", "ok", "expected"),
     [
         (None, False, False),
         (None, True, False),
@@ -412,7 +412,7 @@ def test_should_cache_response(oauth_client, cache, ok, expected):
 
 
 @pytest.mark.parametrize(
-    "path,params,expected",
+    ("path", "params", "expected"),
     [
         ("tracks/abc?foo=bar&foo=5", None, "tracks/abc?foo=5"),
         ("tracks/abc?foo=bar&bar=9", None, "tracks/abc?bar=9&foo=bar"),
@@ -583,7 +583,7 @@ def test_cache_normalised_query_string(mock_time, skip_refresh_token, oauth_clie
     assert "tracks/abc?b=bar&f=cat" in cache
 
 
-@pytest.mark.parametrize("status,unchanged", [(304, True), (200, False)])
+@pytest.mark.parametrize(("status", "unchanged"), [(304, True), (200, False)])
 @responses.activate
 def test_cache_expired_with_etag(
     web_response_mock_etag,
@@ -802,7 +802,7 @@ class TestSpotifyOAuthClient:
 
     @pytest.mark.parametrize(
         "field",
-        [("name"), ("type"), ("uri"), ("name"), ("snapshot_id"), ("tracks")],
+        [("name"), ("type"), ("uri"), ("snapshot_id"), ("tracks")],
     )
     def test_playlist_required_fields(self, field):
         assert field in web.SpotifyOAuthClient.PLAYLIST_FIELDS
@@ -1026,7 +1026,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     @pytest.mark.parametrize(
-        "uri,success",
+        ("uri", "success"),
         [
             ("spotify:user:alice:playlist:bar", True),
             ("spotify:user:alice:playlist:fake", False),
@@ -1122,7 +1122,7 @@ class TestSpotifyOAuthClient:
         assert result["tracks"]["items"] == [1, 2, 3, 4, 5]
 
     @pytest.mark.parametrize(
-        "uri,msg",
+        ("uri", "msg"),
         [
             ("spotify:artist:foo", "Spotify playlist"),
             ("my-bad-uri", "Spotify"),
@@ -1139,7 +1139,7 @@ class TestSpotifyOAuthClient:
 
         assert {} == spotify_client._cache
 
-    @pytest.mark.parametrize("user_id,expected", [("alice", True), (None, False)])
+    @pytest.mark.parametrize(("user_id", "expected"), [("alice", True), (None, False)])
     def test_logged_in(self, spotify_client, user_id, expected):
         spotify_client.user_id = user_id
 
@@ -1296,7 +1296,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     @pytest.mark.parametrize(
-        "uri,success",
+        ("uri", "success"),
         [
             ("spotify:track:abc", True),
             ("spotify:track:xyz", False),
@@ -1360,7 +1360,7 @@ class TestSpotifyOAuthClient:
 
 
 @pytest.mark.parametrize(
-    "uri,type_,id_",
+    ("uri", "type_", "id_"),
     [
         ("spotify:playlist:foo", web.LinkType.PLAYLIST, "foo"),
         ("spotify:track:bar", web.LinkType.TRACK, "bar"),
@@ -1379,7 +1379,7 @@ def test_weblink_from_uri_spotify_uri(uri, type_, id_):
 
 
 @pytest.mark.parametrize(
-    "uri,id_,owner",
+    ("uri", "id_", "owner"),
     [
         ("spotify:user:alice:playlist:foo", "foo", "alice"),
         ("spotify:user:alice:starred", None, "alice"),
