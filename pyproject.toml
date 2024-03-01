@@ -10,6 +10,7 @@ readme = "README.rst"
 requires-python = ">= 3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Stein Magnus Jodal", email = "stein.magnus@jodal.no" }]
+maintainers = [{ name = "Nick Steel", email = "nick@nsteel.co.uk" }]
 classifiers = [
 	"Environment :: No Input/Output (Daemon)",
 	"Intended Audience :: End Users/Desktop",
