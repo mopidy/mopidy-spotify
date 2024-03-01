@@ -90,7 +90,7 @@ Installation
 
 Install by running::
 
-    sudo python3 -m pip install --break-system-packages https://github.com/mopidy/mopidy-spotify/archive/main.zip
+    sudo python3 -m pip install --break-system-packages https://github.com/mopidy/mopidy-spotify/archive/refs/tags/v5.0.0a1.zip
 
 This is currently the only supported installation method.
 
