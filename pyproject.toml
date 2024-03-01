@@ -29,14 +29,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-lint = [
-	"black",
-	"flake8",
-	"flake8-black",
-	"flake8-bugbear",
-	"flake8-isort",
-	"isort",
-]
+lint = ["ruff"]
 test = ["pytest", "pytest-cov", "responses"]
 typing = []
 dev = ["mopidy-spotify[lint,test,typing]", "tox"]
@@ -49,19 +42,70 @@ Issues = "https://github.com/mopidy/mopidy-spotify/issues"
 spotify = "mopidy_spotify:Extension"
 
 
-[tool.black]
-target-version = ["py311", "py312"]
-line-length = 80
+[tool.ruff]
+target-version = "py311"
 
+[tool.ruff.lint]
+select = [
+	"A",   # flake8-builtins
+	"ANN", # flake8-annotations
+	"ARG", # flake8-unused-arguments
+	"B",   # flake8-bugbear
+	"C4",  # flake8-comprehensions
+	"C90", # mccabe
+	"D",   # pydocstyle
+	"DTZ", # flake8-datetimez
+	"E",   # pycodestyle
+	"ERA", # eradicate
+	"F",   # pyflakes
+	"FBT", # flake8-boolean-trap
+	"I",   # isort
+	"INP", # flake8-no-pep420
+	"ISC", # flake8-implicit-str-concat
+	"N",   # pep8-naming
+	"PGH", # pygrep-hooks
+	"PIE", # flake8-pie
+	"PLC", # pylint convention
+	"PLE", # pylint error
+	"PLR", # pylint refactor
+	"PLW", # pylint warning
+	"PT",  # flake8-pytest-style
+	"PTH", # flake8-use-pathlib
+	"Q",   # flake8-quotes
+	"RET", # flake8-return
+	"RSE", # flake8-raise
+	"RUF", # ruff
+	"SIM", # flake8-simplify
+	"SLF", # flake8-self
+	"T20", # flake8-print
+	"TCH", # flake8-type-checking
+	"TID", # flake8-tidy-imports
+	"TRY", # tryceratops
+	"UP",  # pyupgrade
+	"W",   # pycodestyle
+]
+ignore = [
+	"ANN",    # flake8-annotations  # TODO: Add types
+	"ANN101", # missing-type-self
+	"ANN102", # missing-type-cls
+	"ANN401", # any-type
+	"D",      # pydocstyle
+	"ISC001", # single-line-implicit-string-concatenation
+	"TRY003", # raise-vanilla-args
+]
 
-[tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 88
-known_tests = "tests"
-sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,TESTS,LOCALFOLDER"
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+	"ANN",     # flake8-annotations
+	"ARG",     # flake8-unused-arguments
+	"D",       # pydocstyle
+	"FBT",     # flake8-boolean-trap
+	"PLR0913", # too-many-arguments
+	"PLR2004", # magic-value-comparison
+	"PT027",   # pytest-unittest-raises-assertion
+	"SLF001",  # private-member-access
+	"TRY002",  # raise-vanilla-class
+]
 
 
 [tool.setuptools_scm]

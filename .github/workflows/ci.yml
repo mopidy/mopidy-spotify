@@ -19,9 +19,12 @@ jobs:
             python: "3.12"
             tox: py312
             coverage: true
-          - name: "Lint: flake8"
+          - name: "Lint: ruff lint"
             python: "3.12"
-            tox: flake8
+            tox: ruff-lint
+          - name: "Lint: ruff format"
+            python: "3.12"
+            tox: ruff-format
 
     name: ${{ matrix.name }}
     runs-on: ubuntu-22.04
