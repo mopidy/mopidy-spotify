@@ -33,8 +33,7 @@ def test_lookup_of_unhandled_uri(provider, caplog):
     assert len(results) == 0
     assert (
         "Failed to lookup 'spotify:invalid:something': "
-        "Could not parse 'spotify:invalid:something' as a Spotify URI"
-        in caplog.text
+        "Could not parse 'spotify:invalid:something' as a Spotify URI" in caplog.text
     )
 
 
@@ -140,9 +139,7 @@ def test_lookup_of_artist_uri_ignores_compilations(
 def test_lookup_of_artist_uri_ignores_various_artists_albums(
     web_client_mock, web_album_mock, provider
 ):
-    web_album_mock["artists"][0][
-        "uri"
-    ] = "spotify:artist:0LyfQWJT6nXafLPZqxe9Of"
+    web_album_mock["artists"][0]["uri"] = "spotify:artist:0LyfQWJT6nXafLPZqxe9Of"
     web_client_mock.get_artist_albums.return_value = [web_album_mock]
 
     results = provider.lookup("spotify:artist:abba")
@@ -155,9 +152,7 @@ def test_lookup_of_playlist_uri(web_client_mock, web_playlist_mock, provider):
 
     results = provider.lookup("spotify:playlist:alice:foo")
 
-    web_client_mock.get_playlist.assert_called_once_with(
-        "spotify:playlist:alice:foo"
-    )
+    web_client_mock.get_playlist.assert_called_once_with("spotify:playlist:alice:foo")
 
     assert len(results) == 1
     track = results[0]
@@ -166,9 +161,7 @@ def test_lookup_of_playlist_uri(web_client_mock, web_playlist_mock, provider):
     assert track.bitrate == 160
 
 
-def test_lookup_of_playlist_uri_empty_response(
-    web_client_mock, provider, caplog
-):
+def test_lookup_of_playlist_uri_empty_response(web_client_mock, provider, caplog):
     web_client_mock.get_playlist.return_value = None
 
     results = provider.lookup("spotify:playlist:alice:foo")
@@ -232,6 +225,5 @@ def test_lookup_of_invalid_your_uri(provider, caplog):
 
     assert len(results) == 0
     assert (
-        "Failed to lookup 'spotify:your:tracks:invalid': Could not parse"
-        in caplog.text
+        "Failed to lookup 'spotify:your:tracks:invalid': Could not parse" in caplog.text
     )

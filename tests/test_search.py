@@ -38,9 +38,7 @@ def test_search_by_single_uri(web_client_mock, web_track_mock, provider):
 def test_search_by_multiple_uris(web_client_mock, web_track_mock, provider):
     web_client_mock.get_track.return_value = web_track_mock
 
-    result = provider.search(
-        {"uri": ["spotify:track:abc", "spotify:track:abc"]}
-    )
+    result = provider.search({"uri": ["spotify:track:abc", "spotify:track:abc"]})
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == "spotify:search"
@@ -182,9 +180,7 @@ def test_sets_api_limit_to_track_count_when_max(
     assert len(result.tracks) == 6
 
 
-def test_sets_types_parameter(
-    web_client_mock, web_search_mock_large, provider, config
-):
+def test_sets_types_parameter(web_client_mock, web_search_mock_large, provider, config):
     web_client_mock.get.return_value = web_search_mock_large
 
     search.search(
@@ -205,9 +201,7 @@ def test_sets_types_parameter(
     )
 
 
-def test_sets_market_parameter(
-    web_client_mock, web_search_mock_large, provider
-):
+def test_sets_market_parameter(web_client_mock, web_search_mock_large, provider):
     web_client_mock.get.return_value = web_search_mock_large
 
     provider.search({"any": ["ABBA"]})

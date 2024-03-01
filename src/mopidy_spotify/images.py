@@ -53,9 +53,7 @@ def _parse_uri(uri):
         supported_types = ("track", "album", "artist", "playlist")
         if uri_type:
             if uri_type not in supported_types:
-                logger.warning(
-                    f"Unsupported image type '{uri_type}' in {repr(uri)}"
-                )
+                logger.warning(f"Unsupported image type '{uri_type}' in {repr(uri)}")
                 return
             elif uri_id:
                 return {
@@ -71,9 +69,7 @@ def _parse_uri(uri):
 
 def _process_uri(web_client, uri):
     data = web_client.get(f"{uri['type']}s/{uri['id']}")
-    _cache[uri["key"]] = tuple(
-        web_to_image(i) for i in data.get("images") or []
-    )
+    _cache[uri["key"]] = tuple(web_to_image(i) for i in data.get("images") or [])
     return {uri["uri"]: _cache[uri["key"]]}
 
 
@@ -113,8 +109,7 @@ def _process_uris(web_client, uri_type, uris):
                 album_key = album["key"]
                 if album_key not in _cache:
                     _cache[album_key] = tuple(
-                        web_to_image(i)
-                        for i in item["album"].get("images") or []
+                        web_to_image(i) for i in item["album"].get("images") or []
                     )
                 _cache[uri["key"]] = _cache[album_key]
             else:

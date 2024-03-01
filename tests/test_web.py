@@ -109,10 +109,7 @@ def test_request_exception(oauth_client, caplog):
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "Fetching https://auth.mopidy.com/spotify/token failed: foo"
-        in caplog.text
-    )
+    assert "Fetching https://auth.mopidy.com/spotify/token failed: foo" in caplog.text
 
 
 @responses.activate
@@ -134,17 +131,10 @@ def test_get_uses_new_access_token(
     result = oauth_client.get("tracks/abc")
 
     assert len(responses.calls) == 2
+    assert responses.calls[0].request.url == "https://auth.mopidy.com/spotify/token"
+    assert responses.calls[1].request.url == "https://api.spotify.com/v1/tracks/abc"
     assert (
-        responses.calls[0].request.url
-        == "https://auth.mopidy.com/spotify/token"
-    )
-    assert (
-        responses.calls[1].request.url
-        == "https://api.spotify.com/v1/tracks/abc"
-    )
-    assert (
-        responses.calls[1].request.headers["Authorization"]
-        == "Bearer NgCXRK...MzYjw"
+        responses.calls[1].request.headers["Authorization"] == "Bearer NgCXRK...MzYjw"
     )
 
     assert oauth_client._headers["Authorization"] == "Bearer NgCXRK...MzYjw"
@@ -174,14 +164,8 @@ def test_get_uses_existing_access_token(
     result = oauth_client.get("tracks/abc")
 
     assert len(responses.calls) == 1
-    assert (
-        responses.calls[0].request.url
-        == "https://api.spotify.com/v1/tracks/abc"
-    )
-    assert (
-        responses.calls[0].request.headers["Authorization"]
-        == "Bearer 01234...abcde"
-    )
+    assert responses.calls[0].request.url == "https://api.spotify.com/v1/tracks/abc"
+    assert responses.calls[0].request.headers["Authorization"] == "Bearer 01234...abcde"
 
     assert oauth_client._headers["Authorization"] == "Bearer 01234...abcde"
     assert result["uri"] == "spotify:track:abc"
@@ -207,32 +191,22 @@ def test_bad_client_credentials(oauth_client):
 
 @responses.activate
 def test_auth_returns_invalid_json(oauth_client, caplog):
-    responses.add(
-        responses.POST, "https://auth.mopidy.com/spotify/token", body="scope"
-    )
+    responses.add(responses.POST, "https://auth.mopidy.com/spotify/token", body="scope")
 
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "JSON decoding https://auth.mopidy.com/spotify/token failed"
-        in caplog.text
-    )
+    assert "JSON decoding https://auth.mopidy.com/spotify/token failed" in caplog.text
 
 
 @responses.activate
 def test_spotify_returns_invalid_json(skip_refresh_token, oauth_client, caplog):
-    responses.add(
-        responses.GET, "https://api.spotify.com/v1/tracks/abc", body="abc"
-    )
+    responses.add(responses.GET, "https://api.spotify.com/v1/tracks/abc", body="abc")
 
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "JSON decoding https://api.spotify.com/v1/tracks/abc failed"
-        in caplog.text
-    )
+    assert "JSON decoding https://api.spotify.com/v1/tracks/abc failed" in caplog.text
 
 
 @responses.activate
@@ -247,9 +221,7 @@ def test_auth_offline(oauth_client, caplog):
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "Fetching https://auth.mopidy.com/spotify/token failed" in caplog.text
-    )
+    assert "Fetching https://auth.mopidy.com/spotify/token failed" in caplog.text
 
 
 @responses.activate
@@ -269,9 +241,7 @@ def test_spotify_offline(web_oauth_mock, oauth_client, caplog):
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "Fetching https://api.spotify.com/v1/tracks/abc failed" in caplog.text
-    )
+    assert "Fetching https://api.spotify.com/v1/tracks/abc failed" in caplog.text
 
 
 @responses.activate
@@ -458,9 +428,7 @@ def test_normalise_query_string(oauth_client, path, params, expected):
 
 
 @responses.activate
-def test_web_response(
-    web_track_mock, mock_time, skip_refresh_token, oauth_client
-):
+def test_web_response(web_track_mock, mock_time, skip_refresh_token, oauth_client):
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
@@ -556,9 +524,7 @@ def test_cache_response_ignore_expiry(
 
 
 @responses.activate
-def test_dont_cache_bad_status(
-    web_track_mock, skip_refresh_token, oauth_client
-):
+def test_dont_cache_bad_status(web_track_mock, skip_refresh_token, oauth_client):
     cache = {}
     responses.add(
         responses.GET,
@@ -589,9 +555,7 @@ def test_cache_key_uses_path(web_track_mock, skip_refresh_token, oauth_client):
 
 
 @responses.activate
-def test_cache_normalised_query_string(
-    mock_time, skip_refresh_token, oauth_client
-):
+def test_cache_normalised_query_string(mock_time, skip_refresh_token, oauth_client):
     cache = {}
     url = "https://api.spotify.com/v1/tracks/abc"
     responses.add(
@@ -649,9 +613,7 @@ def test_cache_expired_with_etag(
 
 
 @responses.activate
-def test_cache_miss_no_etag(
-    web_response_mock_etag, skip_refresh_token, oauth_client
-):
+def test_cache_miss_no_etag(web_response_mock_etag, skip_refresh_token, oauth_client):
     cache = {"tracks/abc": web_response_mock_etag}
     responses.add(
         responses.GET,
@@ -872,10 +834,7 @@ class TestSpotifyOAuthClient:
 
     def test_configures_urls(self, spotify_client):
         assert spotify_client._base_url == "https://api.spotify.com/v1"
-        assert (
-            spotify_client._refresh_url
-            == "https://auth.mopidy.com/spotify/token"
-        )
+        assert spotify_client._refresh_url == "https://auth.mopidy.com/spotify/token"
 
     @responses.activate
     def test_login_alice(self, spotify_client, caplog):
@@ -941,15 +900,12 @@ class TestSpotifyOAuthClient:
 
         assert result == {}
         assert (
-            "Retrying https://api.spotify.com/v1/foo in 66.000 seconds."
-            in caplog.text
+            "Retrying https://api.spotify.com/v1/foo in 66.000 seconds." in caplog.text
         )
 
     @responses.activate
     def test_get_all(self, spotify_client):
-        responses.add(
-            responses.GET, url("page1"), json={"n": 1, "next": "page2"}
-        )
+        responses.add(responses.GET, url("page1"), json={"n": 1, "next": "page2"})
         responses.add(responses.GET, url("page2"), json={"n": 2})
 
         results = list(spotify_client.get_all("page1"))
@@ -1012,9 +968,7 @@ class TestSpotifyOAuthClient:
         assert [f"playlist{i}" for i in range(6)] == results
 
     @responses.activate
-    def test_with_all_tracks_error(
-        self, spotify_client, foo_album_response, caplog
-    ):
+    def test_with_all_tracks_error(self, spotify_client, foo_album_response, caplog):
         responses.add(
             responses.GET,
             foo_album_response["tracks"]["next"],
@@ -1186,9 +1140,7 @@ class TestSpotifyOAuthClient:
 
         assert {} == spotify_client._cache
 
-    @pytest.mark.parametrize(
-        "user_id,expected", [("alice", True), (None, False)]
-    )
+    @pytest.mark.parametrize("user_id,expected", [("alice", True), (None, False)])
     def test_logged_in(self, spotify_client, user_id, expected):
         spotify_client.user_id = user_id
 
@@ -1259,9 +1211,7 @@ class TestSpotifyOAuthClient:
         )
 
         link = web.WebLink.from_uri("spotify:artist:abba")
-        results = list(
-            spotify_client.get_artist_albums(link, all_tracks=all_tracks)
-        )
+        results = list(spotify_client.get_artist_albums(link, all_tracks=all_tracks))
 
         if all_tracks:
             assert len(responses.calls) == 3
