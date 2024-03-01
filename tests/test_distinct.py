@@ -2,11 +2,10 @@ from unittest import mock
 
 import pytest
 from mopidy import models
+from mopidy_spotify import distinct, playlists, search
 
-from mopidy_spotify import distinct, search, playlists
 
-
-@pytest.fixture
+@pytest.fixture()
 def web_client_mock_with_playlists(
     web_client_mock,
     web_playlist_mock,
@@ -20,7 +19,7 @@ def web_client_mock_with_playlists(
     return web_client_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def search_mock(mopidy_album_mock, mopidy_artist_mock):
     patcher = mock.patch.object(distinct, "search", spec=search)
     search_mock = patcher.start()
@@ -47,14 +46,13 @@ def test_get_distinct_unsupported_field_types_returns_nothing(provider, field):
 
 
 @pytest.mark.parametrize(
-    "field,expected",
+    ("field", "expected"),
     [
         ("artist", {"ABBA"}),
         ("albumartist", {"ABBA"}),
         ("album", {"DEF 456"}),
     ],
 )
-# ("date", {"2001"}),
 def test_get_distinct_without_query_when_playlists_enabled(
     web_client_mock_with_playlists, provider, field, expected
 ):
@@ -88,7 +86,7 @@ def test_get_distinct_without_query_returns_nothing_when_playlists_disabled(
 
 
 @pytest.mark.parametrize(
-    "field,query,expected,types",
+    ("field", "query", "expected", "types"),
     [
         (
             "artist",
@@ -128,5 +126,8 @@ def test_get_distinct_with_query(
 ):
     assert provider.get_distinct(field, query) == expected
     search_mock.search.assert_called_once_with(
-        mock.ANY, mock.ANY, query, types=types
+        mock.ANY,
+        mock.ANY,
+        query=query,
+        types=types,
     )

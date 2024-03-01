@@ -3,28 +3,24 @@ from unittest import mock
 import pytest
 from mopidy import audio
 from mopidy import backend as backend_api
-
 from mopidy_spotify import backend
 
 
-@pytest.fixture
+@pytest.fixture()
 def audio_mock():
-    audio_mock = mock.Mock(spec=audio.Audio)
-    return audio_mock
+    return mock.Mock(spec=audio.Audio)
 
 
-@pytest.fixture
+@pytest.fixture()
 def backend_mock(config):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
     return backend_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def provider(audio_mock, backend_mock):
-    return backend.SpotifyPlaybackProvider(
-        audio=audio_mock, backend=backend_mock
-    )
+    return backend.SpotifyPlaybackProvider(audio=audio_mock, backend=backend_mock)
 
 
 def test_is_a_playback_provider(provider):

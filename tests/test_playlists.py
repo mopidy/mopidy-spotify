@@ -3,11 +3,10 @@ from unittest import mock
 import pytest
 from mopidy import backend as backend_api
 from mopidy.models import Ref
-
 from mopidy_spotify import playlists
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_client_mock(web_client_mock, web_track_mock):
     web_playlist1 = {
         "owner": {"id": "alice"},
@@ -40,7 +39,7 @@ def web_client_mock(web_client_mock, web_track_mock):
     return web_client_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def provider(backend_mock, web_client_mock):
     backend_mock._web_client = web_client_mock
     provider = playlists.SpotifyPlaylistsProvider(backend_mock)
@@ -81,9 +80,7 @@ def test_as_list_when_playlist_wont_translate(provider):
 
     assert len(result) == 2
 
-    assert result[0] == Ref.playlist(
-        uri="spotify:user:alice:playlist:foo", name="Foo"
-    )
+    assert result[0] == Ref.playlist(uri="spotify:user:alice:playlist:foo", name="Foo")
     assert result[1] == Ref.playlist(
         uri="spotify:user:bob:playlist:baz", name="Baz (by bob)"
     )
@@ -223,17 +220,14 @@ def test_lookup_of_playlist_with_other_owner(provider):
     assert playlist.name == "Baz (by bob)"
 
 
-def test_playlist_lookup_when_link_invalid(
-    web_client_mock, web_playlist_mock, caplog
-):
+def test_playlist_lookup_when_link_invalid(web_client_mock, web_playlist_mock, caplog):
     web_client_mock.get_playlist.return_value = web_playlist_mock
 
     playlist = playlists.playlist_lookup(
-        web_client_mock, "spotify:in:valid", None
+        web_client_mock,
+        "spotify:in:valid",
+        bitrate=None,
     )
 
     assert playlist is None
-    assert (
-        "Failed to lookup Spotify playlist URI 'spotify:in:valid'"
-        in caplog.text
-    )
+    assert "Failed to lookup Spotify playlist URI 'spotify:in:valid'" in caplog.text

@@ -1,10 +1,9 @@
 import pytest
 from mopidy import models
-
 from mopidy_spotify import images
 
 
-@pytest.fixture
+@pytest.fixture()
 def img_provider(provider):
     images._cache = {}
     return provider
@@ -102,9 +101,7 @@ def test_get_track_images(web_client_mock, img_provider):
                 "id": "41shEpOKyyadtG6lDclooa",
                 "album": {
                     "uri": "spotify:album:1utFPuvgBHXzLJdqhCDOkg",
-                    "images": [
-                        {"height": 640, "url": "img://1/a", "width": 640}
-                    ],
+                    "images": [{"height": 640, "url": "img://1/a", "width": 640}],
                 },
             }
         ]
@@ -136,9 +133,7 @@ def test_get_track_images_bad_album_uri(web_client_mock, img_provider):
                 "id": "41shEpOKyyadtG6lDclooa",
                 "album": {
                     "uri": "spotify:bad-data",
-                    "images": [
-                        {"height": 640, "url": "img://1/a", "width": 640}
-                    ],
+                    "images": [{"height": 640, "url": "img://1/a", "width": 640}],
                 },
             }
         ]
@@ -162,9 +157,7 @@ def test_get_relinked_track_images(web_client_mock, img_provider):
                 },
                 "album": {
                     "uri": "spotify:album:1utFPuvgBHXzLJdqhCDOkg",
-                    "images": [
-                        {"height": 640, "url": "img://1/a", "width": 640}
-                    ],
+                    "images": [{"height": 640, "url": "img://1/a", "width": 640}],
                 },
             }
         ]
@@ -197,9 +190,7 @@ def test_get_playlist_image(web_client_mock, img_provider):
 
     result = img_provider.get_images(uris)
 
-    web_client_mock.get.assert_called_once_with(
-        "playlists/41shEpOKyyadtG6lDclooa"
-    )
+    web_client_mock.get.assert_called_once_with("playlists/41shEpOKyyadtG6lDclooa")
 
     assert len(result) == 1
     assert sorted(result.keys()) == ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
@@ -221,9 +212,7 @@ def test_results_are_cached(web_client_mock, img_provider):
                 "id": "41shEpOKyyadtG6lDclooa",
                 "album": {
                     "uri": "spotify:album:1utFPuvgBHXzLJdqhCDOkg",
-                    "images": [
-                        {"height": 640, "url": "img://1/a", "width": 640}
-                    ],
+                    "images": [{"height": 640, "url": "img://1/a", "width": 640}],
                 },
             }
         ]
@@ -322,8 +311,6 @@ def test_service_returns_none_result(web_client_mock, img_provider):
 def test_service_returns_none_result_playlist(web_client_mock, img_provider):
     web_client_mock.get.return_value = {"images": None}
 
-    result = img_provider.get_images(
-        ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
-    )
+    result = img_provider.get_images(["spotify:playlist:41shEpOKyyadtG6lDclooa"])
 
     assert result == {"spotify:playlist:41shEpOKyyadtG6lDclooa": ()}

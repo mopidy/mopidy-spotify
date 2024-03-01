@@ -1,17 +1,16 @@
 import urllib
+from datetime import UTC, datetime
 from unittest import mock
 
-from datetime import datetime
+import mopidy_spotify
 import pytest
 import requests
 import responses
+from mopidy_spotify import web
 from responses import matchers
 
-import mopidy_spotify
-from mopidy_spotify import web
 
-
-@pytest.fixture
+@pytest.fixture()
 def oauth_client(config):
     return web.OAuthClient(
         base_url="https://api.spotify.com/v1",
@@ -23,7 +22,7 @@ def oauth_client(config):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_time():
     patcher = mock.patch.object(web.time, "time")
     mock_time = patcher.start()
@@ -31,17 +30,17 @@ def mock_time():
     patcher.stop()
 
 
-@pytest.fixture
-def mock_utcnow():
+@pytest.fixture()
+def mock_now():
     patcher = mock.patch("mopidy_spotify.web.datetime")
     mock_datetime = patcher.start()
-    mock_datetime.utcnow = mock.Mock()
-    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-    yield mock_datetime.utcnow
+    mock_datetime.now = mock.Mock()
+    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw, tzinfo=UTC)
+    yield mock_datetime.now
     patcher.stop()
 
 
-@pytest.fixture
+@pytest.fixture()
 def skip_refresh_token():
     patcher = mock.patch.object(
         web.OAuthClient, "_should_refresh_token", return_value=False
@@ -73,7 +72,7 @@ def test_user_agent(oauth_client):
 
 
 @pytest.mark.parametrize(
-    "header,expected",
+    ("header", "expected"),
     [
         (None, 0),
         ("", 0),
@@ -89,8 +88,8 @@ def test_user_agent(oauth_client):
         ("foobar", 0),
     ],
 )
-def test_parse_retry_after(oauth_client, mock_utcnow, header, expected):
-    mock_utcnow.return_value = datetime(2022, 12, 7, 11, 27, 26, 0)
+def test_parse_retry_after(oauth_client, mock_now, header, expected):
+    mock_now.return_value = datetime(2022, 12, 7, 11, 27, 26, 0, tzinfo=UTC)
     mock_response = mock.Mock(headers={"Retry-After": header})
     result = oauth_client._parse_retry_after(mock_response)
 
@@ -109,10 +108,7 @@ def test_request_exception(oauth_client, caplog):
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "Fetching https://auth.mopidy.com/spotify/token failed: foo"
-        in caplog.text
-    )
+    assert "Fetching https://auth.mopidy.com/spotify/token failed: foo" in caplog.text
 
 
 @responses.activate
@@ -134,17 +130,10 @@ def test_get_uses_new_access_token(
     result = oauth_client.get("tracks/abc")
 
     assert len(responses.calls) == 2
+    assert responses.calls[0].request.url == "https://auth.mopidy.com/spotify/token"
+    assert responses.calls[1].request.url == "https://api.spotify.com/v1/tracks/abc"
     assert (
-        responses.calls[0].request.url
-        == "https://auth.mopidy.com/spotify/token"
-    )
-    assert (
-        responses.calls[1].request.url
-        == "https://api.spotify.com/v1/tracks/abc"
-    )
-    assert (
-        responses.calls[1].request.headers["Authorization"]
-        == "Bearer NgCXRK...MzYjw"
+        responses.calls[1].request.headers["Authorization"] == "Bearer NgCXRK...MzYjw"
     )
 
     assert oauth_client._headers["Authorization"] == "Bearer NgCXRK...MzYjw"
@@ -174,14 +163,8 @@ def test_get_uses_existing_access_token(
     result = oauth_client.get("tracks/abc")
 
     assert len(responses.calls) == 1
-    assert (
-        responses.calls[0].request.url
-        == "https://api.spotify.com/v1/tracks/abc"
-    )
-    assert (
-        responses.calls[0].request.headers["Authorization"]
-        == "Bearer 01234...abcde"
-    )
+    assert responses.calls[0].request.url == "https://api.spotify.com/v1/tracks/abc"
+    assert responses.calls[0].request.headers["Authorization"] == "Bearer 01234...abcde"
 
     assert oauth_client._headers["Authorization"] == "Bearer 01234...abcde"
     assert result["uri"] == "spotify:track:abc"
@@ -207,32 +190,22 @@ def test_bad_client_credentials(oauth_client):
 
 @responses.activate
 def test_auth_returns_invalid_json(oauth_client, caplog):
-    responses.add(
-        responses.POST, "https://auth.mopidy.com/spotify/token", body="scope"
-    )
+    responses.add(responses.POST, "https://auth.mopidy.com/spotify/token", body="scope")
 
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "JSON decoding https://auth.mopidy.com/spotify/token failed"
-        in caplog.text
-    )
+    assert "JSON decoding https://auth.mopidy.com/spotify/token failed" in caplog.text
 
 
 @responses.activate
 def test_spotify_returns_invalid_json(skip_refresh_token, oauth_client, caplog):
-    responses.add(
-        responses.GET, "https://api.spotify.com/v1/tracks/abc", body="abc"
-    )
+    responses.add(responses.GET, "https://api.spotify.com/v1/tracks/abc", body="abc")
 
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "JSON decoding https://api.spotify.com/v1/tracks/abc failed"
-        in caplog.text
-    )
+    assert "JSON decoding https://api.spotify.com/v1/tracks/abc failed" in caplog.text
 
 
 @responses.activate
@@ -247,9 +220,7 @@ def test_auth_offline(oauth_client, caplog):
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "Fetching https://auth.mopidy.com/spotify/token failed" in caplog.text
-    )
+    assert "Fetching https://auth.mopidy.com/spotify/token failed" in caplog.text
 
 
 @responses.activate
@@ -269,9 +240,7 @@ def test_spotify_offline(web_oauth_mock, oauth_client, caplog):
     result = oauth_client.get("tracks/abc")
 
     assert result == {}
-    assert (
-        "Fetching https://api.spotify.com/v1/tracks/abc failed" in caplog.text
-    )
+    assert "Fetching https://api.spotify.com/v1/tracks/abc failed" in caplog.text
 
 
 @responses.activate
@@ -315,7 +284,7 @@ def test_auth_wrong_token_type(web_oauth_mock, oauth_client, caplog):
 
 
 @pytest.mark.parametrize(
-    "header,expected",
+    ("header", "expected"),
     [
         ("no-store", 100),
         ("max-age=1", 101),
@@ -335,7 +304,7 @@ def test_parse_cache_control(mock_time, header, expected):
 
 
 @pytest.mark.parametrize(
-    "header,expected",
+    ("header", "expected"),
     [
         ("", None),
         ('" "', None),
@@ -356,7 +325,7 @@ def test_parse_etag(header, expected):
 
 
 @pytest.mark.parametrize(
-    "status_code,expected", [(200, True), (301, True), (400, False)]
+    ("status_code", "expected"), [(200, True), (301, True), (400, False)]
 )
 def test_web_response_status_ok(status_code, expected):
     response = web.WebResponse("https://foo.com", {}, status_code=status_code)
@@ -364,7 +333,7 @@ def test_web_response_status_ok(status_code, expected):
 
 
 @pytest.mark.parametrize(
-    "status_code,expected",
+    ("status_code", "expected"),
     [(200, False), (301, False), (304, True), (400, False)],
 )
 def test_web_response_status_unchanged(status_code, expected):
@@ -388,7 +357,7 @@ def test_web_response_status_unchanged_from_cache():
 
 
 @pytest.mark.parametrize(
-    "etag,expected",
+    ("etag", "expected"),
     [
         ('"1234"', {"If-None-Match": '"1234"'}),
         ("fish", {"If-None-Match": "fish"}),
@@ -401,7 +370,7 @@ def test_web_response_etag_headers(etag, expected):
 
 
 @pytest.mark.parametrize(
-    "etag,status,expected,expected_etag,expected_msg",
+    ("etag", "status", "expected", "expected_etag", "expected_msg"),
     [
         ("abcd", 200, False, "abcd", "ETag mismatch"),
         ("abcd", 404, False, "abcd", "ETag mismatch"),
@@ -428,7 +397,7 @@ def test_web_response_etag_updated_different(web_response_mock_etag, caplog):
 
 
 @pytest.mark.parametrize(
-    "cache,ok,expected",
+    ("cache", "ok", "expected"),
     [
         (None, False, False),
         (None, True, False),
@@ -443,7 +412,7 @@ def test_should_cache_response(oauth_client, cache, ok, expected):
 
 
 @pytest.mark.parametrize(
-    "path,params,expected",
+    ("path", "params", "expected"),
     [
         ("tracks/abc?foo=bar&foo=5", None, "tracks/abc?foo=5"),
         ("tracks/abc?foo=bar&bar=9", None, "tracks/abc?bar=9&foo=bar"),
@@ -458,9 +427,7 @@ def test_normalise_query_string(oauth_client, path, params, expected):
 
 
 @responses.activate
-def test_web_response(
-    web_track_mock, mock_time, skip_refresh_token, oauth_client
-):
+def test_web_response(web_track_mock, mock_time, skip_refresh_token, oauth_client):
     responses.add(
         responses.GET,
         "https://api.spotify.com/v1/tracks/abc",
@@ -545,7 +512,7 @@ def test_cache_response_ignore_expiry(
     mock_time.return_value = 9999
 
     assert not web_response_mock.still_valid()
-    assert web_response_mock.still_valid(True)
+    assert web_response_mock.still_valid(ignore_expiry=True)
     assert "Cached data forced for" in caplog.text
 
     result = oauth_client.get(
@@ -556,9 +523,7 @@ def test_cache_response_ignore_expiry(
 
 
 @responses.activate
-def test_dont_cache_bad_status(
-    web_track_mock, skip_refresh_token, oauth_client
-):
+def test_dont_cache_bad_status(web_track_mock, skip_refresh_token, oauth_client):
     cache = {}
     responses.add(
         responses.GET,
@@ -589,16 +554,13 @@ def test_cache_key_uses_path(web_track_mock, skip_refresh_token, oauth_client):
 
 
 @responses.activate
-def test_cache_normalised_query_string(
-    mock_time, skip_refresh_token, oauth_client
-):
+def test_cache_normalised_query_string(mock_time, skip_refresh_token, oauth_client):
     cache = {}
     url = "https://api.spotify.com/v1/tracks/abc"
     responses.add(
         responses.GET,
         url,
         json={"uri": "foobar"},
-        # match_querystring=True,
         match=[matchers.query_string_matcher("b=bar&f=foo")],
     )
     responses.add(
@@ -620,7 +582,7 @@ def test_cache_normalised_query_string(
     assert "tracks/abc?b=bar&f=cat" in cache
 
 
-@pytest.mark.parametrize("status,unchanged", [(304, True), (200, False)])
+@pytest.mark.parametrize(("status", "unchanged"), [(304, True), (200, False)])
 @responses.activate
 def test_cache_expired_with_etag(
     web_response_mock_etag,
@@ -649,9 +611,7 @@ def test_cache_expired_with_etag(
 
 
 @responses.activate
-def test_cache_miss_no_etag(
-    web_response_mock_etag, skip_refresh_token, oauth_client
-):
+def test_cache_miss_no_etag(web_response_mock_etag, skip_refresh_token, oauth_client):
     cache = {"tracks/abc": web_response_mock_etag}
     responses.add(
         responses.GET,
@@ -726,7 +686,7 @@ def test_updated_responses_changed(web_response_mock, oauth_client, mock_time):
     assert not result.status_unchanged
 
 
-@pytest.fixture
+@pytest.fixture()
 def spotify_client(config):
     client = web.SpotifyOAuthClient(
         client_id=config["spotify"]["client_id"],
@@ -758,7 +718,7 @@ def playlist_tracks_parms():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def bar_playlist(playlist_parms):
     return {
         "href": url(f"playlists/bar?{playlist_parms}"),
@@ -766,7 +726,7 @@ def bar_playlist(playlist_parms):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_playlist_tracks(playlist_tracks_parms):
     return {
         "href": url(f"playlists/foo/tracks?{playlist_tracks_parms}"),
@@ -774,7 +734,7 @@ def foo_playlist_tracks(playlist_tracks_parms):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_playlist(playlist_parms, foo_playlist_tracks):
     return {
         "href": url(f"playlists/foo?{playlist_parms}"),
@@ -782,7 +742,7 @@ def foo_playlist(playlist_parms, foo_playlist_tracks):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_album_next_tracks():
     params = urllib.parse.urlencode({"market": "from_token", "offset": 3})
     return {
@@ -792,7 +752,7 @@ def foo_album_next_tracks():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_album(foo_album_next_tracks):
     params = urllib.parse.urlencode({"market": "from_token"})
     return {
@@ -805,12 +765,12 @@ def foo_album(foo_album_next_tracks):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_album_response(foo_album):
     return web.WebResponse(foo_album["href"], foo_album)
 
 
-@pytest.fixture
+@pytest.fixture()
 def artist_albums_mock(web_album_mock_base, web_album_mock_base2):
     params = urllib.parse.urlencode(
         {"market": "from_token", "include_groups": "single,album"}
@@ -841,7 +801,7 @@ class TestSpotifyOAuthClient:
 
     @pytest.mark.parametrize(
         "field",
-        [("name"), ("type"), ("uri"), ("name"), ("snapshot_id"), ("tracks")],
+        [("name"), ("type"), ("uri"), ("snapshot_id"), ("tracks")],
     )
     def test_playlist_required_fields(self, field):
         assert field in web.SpotifyOAuthClient.PLAYLIST_FIELDS
@@ -872,10 +832,7 @@ class TestSpotifyOAuthClient:
 
     def test_configures_urls(self, spotify_client):
         assert spotify_client._base_url == "https://api.spotify.com/v1"
-        assert (
-            spotify_client._refresh_url
-            == "https://auth.mopidy.com/spotify/token"
-        )
+        assert spotify_client._refresh_url == "https://auth.mopidy.com/spotify/token"
 
     @responses.activate
     def test_login_alice(self, spotify_client, caplog):
@@ -925,7 +882,7 @@ class TestSpotifyOAuthClient:
 
         result = spotify_client.get_one("foo")
 
-        assert 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY == result._expires
+        assert result._expires == 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY
 
     @responses.activate
     def test_get_one_retry_header(self, spotify_client, caplog):
@@ -941,15 +898,12 @@ class TestSpotifyOAuthClient:
 
         assert result == {}
         assert (
-            "Retrying https://api.spotify.com/v1/foo in 66.000 seconds."
-            in caplog.text
+            "Retrying https://api.spotify.com/v1/foo in 66.000 seconds." in caplog.text
         )
 
     @responses.activate
     def test_get_all(self, spotify_client):
-        responses.add(
-            responses.GET, url("page1"), json={"n": 1, "next": "page2"}
-        )
+        responses.add(responses.GET, url("page1"), json={"n": 1, "next": "page2"})
         responses.add(responses.GET, url("page2"), json={"n": 2})
 
         results = list(spotify_client.get_all("page1"))
@@ -1012,9 +966,7 @@ class TestSpotifyOAuthClient:
         assert [f"playlist{i}" for i in range(6)] == results
 
     @responses.activate
-    def test_with_all_tracks_error(
-        self, spotify_client, foo_album_response, caplog
-    ):
+    def test_with_all_tracks_error(self, spotify_client, foo_album_response, caplog):
         responses.add(
             responses.GET,
             foo_album_response["tracks"]["next"],
@@ -1073,7 +1025,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     @pytest.mark.parametrize(
-        "uri,success",
+        ("uri", "success"),
         [
             ("spotify:user:alice:playlist:bar", True),
             ("spotify:user:alice:playlist:fake", False),
@@ -1169,7 +1121,7 @@ class TestSpotifyOAuthClient:
         assert result["tracks"]["items"] == [1, 2, 3, 4, 5]
 
     @pytest.mark.parametrize(
-        "uri,msg",
+        ("uri", "msg"),
         [
             ("spotify:artist:foo", "Spotify playlist"),
             ("my-bad-uri", "Spotify"),
@@ -1186,9 +1138,7 @@ class TestSpotifyOAuthClient:
 
         assert {} == spotify_client._cache
 
-    @pytest.mark.parametrize(
-        "user_id,expected", [("alice", True), (None, False)]
-    )
+    @pytest.mark.parametrize(("user_id", "expected"), [("alice", True), (None, False)])
     def test_logged_in(self, spotify_client, user_id, expected):
         spotify_client.user_id = user_id
 
@@ -1259,9 +1209,7 @@ class TestSpotifyOAuthClient:
         )
 
         link = web.WebLink.from_uri("spotify:artist:abba")
-        results = list(
-            spotify_client.get_artist_albums(link, all_tracks=all_tracks)
-        )
+        results = list(spotify_client.get_artist_albums(link, all_tracks=all_tracks))
 
         if all_tracks:
             assert len(responses.calls) == 3
@@ -1347,7 +1295,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     @pytest.mark.parametrize(
-        "uri,success",
+        ("uri", "success"),
         [
             ("spotify:track:abc", True),
             ("spotify:track:xyz", False),
@@ -1411,7 +1359,7 @@ class TestSpotifyOAuthClient:
 
 
 @pytest.mark.parametrize(
-    "uri,type_,id_",
+    ("uri", "type_", "id_"),
     [
         ("spotify:playlist:foo", web.LinkType.PLAYLIST, "foo"),
         ("spotify:track:bar", web.LinkType.TRACK, "bar"),
@@ -1430,7 +1378,7 @@ def test_weblink_from_uri_spotify_uri(uri, type_, id_):
 
 
 @pytest.mark.parametrize(
-    "uri,id_,owner",
+    ("uri", "id_", "owner"),
     [
         ("spotify:user:alice:playlist:foo", "foo", "alice"),
         ("spotify:user:alice:starred", None, "alice"),
@@ -1462,8 +1410,7 @@ def test_weblink_from_uri_playlist(uri, id_, owner):
     ],
 )
 def test_weblink_from_uri_raises(uri):
-    with pytest.raises(ValueError) as excinfo:
-        result = web.WebLink.from_uri(uri)
-        assert result is None
+    with pytest.raises(ValueError, match=r"^Could not parse.*") as excinfo:
+        web.WebLink.from_uri(uri)
 
     assert f"Could not parse {uri!r} as a Spotify URI" in str(excinfo.value)

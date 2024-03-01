@@ -5,10 +5,10 @@ import re
 import time
 import urllib.parse
 from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum, unique
-from typing import Optional
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from enum import Enum, unique
+from http import HTTPStatus
 
 import requests
 
@@ -32,8 +32,9 @@ class OAuthClientError(Exception):
 
 
 class OAuthClient:
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
+        *,
         base_url,
         refresh_url,
         client_id=None,
@@ -77,7 +78,7 @@ class OAuthClient:
         ignore_expiry = kwargs.pop("ignore_expiry", False)
         if cache is not None and path in cache:
             cached_result = cache.get(path)
-            if cached_result.still_valid(ignore_expiry):
+            if cached_result.still_valid(ignore_expiry=ignore_expiry):
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
@@ -87,7 +88,7 @@ class OAuthClient:
             if self._should_refresh_token():
                 self._refresh_token()
         except OAuthTokenRefreshError as e:
-            logger.error(e)
+            logger.error(e)  # noqa: TRY400
             return WebResponse(None, None)
 
         # Make sure our headers always override user supplied ones.
@@ -126,13 +127,13 @@ class OAuthClient:
 
         if result is None:
             raise OAuthTokenRefreshError("Unknown error.")
-        elif result.get("error"):
+        if result.get("error"):
             raise OAuthTokenRefreshError(
                 f"{result['error']} {result.get('error_description', '')}"
             )
-        elif not result.get("access_token"):
+        if not result.get("access_token"):
             raise OAuthTokenRefreshError("missing access_token")
-        elif result.get("token_type") != "Bearer":
+        if result.get("token_type") != "Bearer":
             raise OAuthTokenRefreshError(
                 f"wrong token_type: {result.get('token_type')}"
             )
@@ -154,6 +155,7 @@ class OAuthClient:
 
         try_until = time.time() + self._timeout
 
+        status_code = None
         result = None
         backoff_time = 0
 
@@ -163,7 +165,7 @@ class OAuthClient:
             # Give up if we don't have any timeout left after sleeping.
             if backoff_time > remaining_timeout:
                 break
-            elif backoff_time > 0:
+            if backoff_time > 0:
                 time.sleep(backoff_time)
 
             try:
@@ -180,10 +182,8 @@ class OAuthClient:
                 backoff_time = self._parse_retry_after(response)
                 result = WebResponse.from_requests(prepared_request, response)
 
-            if status_code and 400 <= status_code < 600:
-                logger.debug(
-                    f"Fetching {prepared_request.url} failed: {status_code}"
-                )
+            if status_code and 400 <= status_code < 600:  # noqa: PLR2004
+                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
 
             # Filter out cases where we should not retry.
             if status_code and status_code not in self._retry_statuses:
@@ -197,11 +197,10 @@ class OAuthClient:
             # Decide how long to sleep in the next iteration.
             backoff_time = backoff_time or (2**i * self._backoff_factor)
             logger.error(
-                f"Retrying {prepared_request.url} in {backoff_time:.3f} "
-                "seconds."
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} " "seconds."
             )
 
-        if status_code == 401:
+        if status_code == HTTPStatus.UNAUTHORIZED:
             self._authorization_failed = True
             logger.error(
                 "Authorization failed, not attempting Spotify API "
@@ -221,19 +220,15 @@ class OAuthClient:
             query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
         else:
             scheme, netloc = b.scheme, b.netloc
-            path = os.path.normpath(os.path.join(b.path, u.path))
+            path = os.path.normpath(os.path.join(b.path, u.path))  # noqa: PTH118
             query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(
-                urllib.parse.parse_qsl(u.query, keep_blank_values=True)
-            )
+            query.extend(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
 
         for key, value in kwargs.items():
             query.append((key, value))
 
         encoded_query = urllib.parse.urlencode(dict(query))
-        return urllib.parse.urlunsplit(
-            (scheme, netloc, path, encoded_query, "")
-        )
+        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _normalise_query_string(self, url, params=None):
         u = urllib.parse.urlsplit(url)
@@ -244,9 +239,7 @@ class OAuthClient:
             query.update(params)
         sorted_unique_query = sorted(query.items())
         encoded_query = urllib.parse.urlencode(sorted_unique_query)
-        return urllib.parse.urlunsplit(
-            (scheme, netloc, path, encoded_query, "")
-        )
+        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _parse_retry_after(self, response):
         """Parse Retry-After header from response if it is set."""
@@ -257,7 +250,7 @@ class OAuthClient:
         elif re.match(r"^\s*[0-9]+\s*$", value):
             seconds = int(value)
         else:
-            now = datetime.utcnow()
+            now = datetime.now(tz=UTC).replace(tzinfo=None)
             try:
                 date_tuple = parsedate_to_datetime(value)
                 seconds = (date_tuple - now).total_seconds()
@@ -267,7 +260,15 @@ class OAuthClient:
 
 
 class WebResponse(dict):
-    def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
+    def __init__(  # noqa: PLR0913
+        self,
+        url,
+        data,
+        *,
+        expires=0.0,
+        etag=None,
+        status_code=400,
+    ):
         self._from_cache = False
         self.url = url
         self._expires = expires
@@ -281,7 +282,13 @@ class WebResponse(dict):
         expires = cls._parse_cache_control(response)
         etag = cls._parse_etag(response)
         json = cls._decode(response)
-        return cls(request.url, json, expires, etag, response.status_code)
+        return cls(
+            request.url,
+            json,
+            expires=expires,
+            etag=etag,
+            status_code=response.status_code,
+        )
 
     @staticmethod
     def _decode(response):
@@ -292,7 +299,7 @@ class WebResponse(dict):
             return response.json()
         except ValueError as e:
             url = response.request.url
-            logger.error(f"JSON decoding {url} failed: {e}")
+            logger.error(f"JSON decoding {url} failed: {e}")  # noqa: TRY400
             return None
 
     @staticmethod
@@ -304,10 +311,7 @@ class WebResponse(dict):
             seconds = 0
         else:
             max_age = re.match(r".*max-age=\s*([0-9]+)\s*", value)
-            if not max_age:
-                seconds = 0
-            else:
-                seconds = int(max_age.groups()[0])
+            seconds = 0 if not max_age else int(max_age.groups()[0])
         return time.time() + seconds
 
     @staticmethod
@@ -321,10 +325,12 @@ class WebResponse(dict):
             # Format is string of ASCII characters placed between double quotes
             # but can seemingly also include hyphen characters.
             etag = re.match(r'^(W/)?("[!#-~]+")$', value)
-            if etag and len(etag.groups()) == 2:
+            if etag and len(etag.groups()) == 2:  # noqa: PLR2004
                 return etag.groups()[1]
 
-    def still_valid(self, ignore_expiry=False):
+        return None
+
+    def still_valid(self, *, ignore_expiry=False):
         if ignore_expiry:
             result = True
             status = "forced"
@@ -340,30 +346,29 @@ class WebResponse(dict):
 
     @property
     def status_unchanged(self):
-        return self._from_cache or 304 == self._status_code
+        return self._from_cache or self._status_code == HTTPStatus.NOT_MODIFIED
 
     @property
     def status_ok(self):
-        return self._status_code >= 200 and self._status_code < 400
+        return self._status_code >= 200 and self._status_code < 400  # noqa: PLR2004
 
     @property
     def etag_headers(self):
-        if self._etag is not None:
-            return {"If-None-Match": self._etag}
-        else:
+        if self._etag is None:
             return {}
+        return {"If-None-Match": self._etag}
 
     def updated(self, response):
         self._from_cache = False
         if self._etag is None:
             return False
-        elif self.url != response.url:
+        if self.url != response.url:
             logger.error(f"ETag mismatch (different URI) for {self} {response}")
             return False
-        elif not response.status_ok:
+        if not response.status_ok:
             logger.debug(f"ETag mismatch (bad response) for {self} {response}")
             return False
-        elif response._status_code != 304:
+        if response._status_code != HTTPStatus.NOT_MODIFIED:
             _trace(f"ETag mismatch for {self} {response}")
             return False
 
@@ -376,7 +381,7 @@ class WebResponse(dict):
     def __str__(self):
         return (
             f"URL: {self.url} "
-            f"expires at: {datetime.fromtimestamp(self._expires)} "
+            f"expires at: {datetime.fromtimestamp(self._expires, tz=UTC)} "
             f"[ETag: {self._etag}]"
         )
 
@@ -390,9 +395,7 @@ class SpotifyOAuthClient(OAuthClient):
         "next,items(track(type,uri,name,duration_ms,disc_number,track_number,"
         "artists,album,is_playable,linked_from.uri))"
     )
-    PLAYLIST_FIELDS = (
-        f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
-    )
+    PLAYLIST_FIELDS = f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
     DEFAULT_EXTRA_EXPIRY = 10
 
     def __init__(self, *, client_id, client_secret, proxy_config):
@@ -424,18 +427,15 @@ class SpotifyOAuthClient(OAuthClient):
         if self.user_id is None:
             logger.error("Failed to load Spotify user profile")
             return False
-        else:
-            logger.info(f"Logged into Spotify Web API as {self.user_id}")
-            return True
+        logger.info(f"Logged into Spotify Web API as {self.user_id}")
+        return True
 
     @property
     def logged_in(self):
         return self.user_id is not None
 
     def get_user_playlists(self):
-        pages = self.get_all(
-            f"users/{self.user_id}/playlists", params={"limit": 50}
-        )
+        pages = self.get_all(f"users/{self.user_id}/playlists", params={"limit": 50})
         for page in pages:
             yield from page.get("items", [])
 
@@ -467,11 +467,9 @@ class SpotifyOAuthClient(OAuthClient):
         try:
             parsed = WebLink.from_uri(uri)
             if parsed.type != LinkType.PLAYLIST:
-                raise ValueError(
-                    f"Could not parse {uri!r} as a Spotify playlist URI"
-                )
+                raise ValueError(f"Could not parse {uri!r} as a Spotify playlist URI")  # noqa: TRY301
         except ValueError as exc:
-            logger.error(exc)
+            logger.error(exc)  # noqa: TRY400
             return {}
 
         playlist = self.get_one(
@@ -491,7 +489,7 @@ class SpotifyOAuthClient(OAuthClient):
         )
         return self._with_all_tracks(album)
 
-    def get_artist_albums(self, web_link, all_tracks=True):
+    def get_artist_albums(self, web_link, *, all_tracks=True):
         if web_link.type != LinkType.ARTIST:
             logger.error("Expecting Spotify artist URI")
             return []
@@ -506,7 +504,7 @@ class SpotifyOAuthClient(OAuthClient):
                     try:
                         web_link = WebLink.from_uri(album.get("uri"))
                     except ValueError as exc:
-                        logger.error(exc)
+                        logger.error(exc)  # noqa: TRY400
                         continue
                     yield self.get_album(web_link)
                 else:
@@ -527,11 +525,12 @@ class SpotifyOAuthClient(OAuthClient):
             logger.error("Expecting Spotify track URI")
             return {}
 
-        return self.get_one(
-            f"tracks/{web_link.id}", params={"market": "from_token"}
-        )
+        return self.get_one(f"tracks/{web_link.id}", params={"market": "from_token"})
 
-    def clear_cache(self, extra_expiry=None):
+    def clear_cache(
+        self,
+        extra_expiry=None,  # noqa: ARG002
+    ):
         self._cache.clear()
 
 
@@ -548,8 +547,8 @@ class LinkType(Enum):
 class WebLink:
     uri: str
     type: LinkType
-    id: Optional[str] = None
-    owner: Optional[str] = None
+    id: str | None = None
+    owner: str | None = None
 
     @classmethod
     def from_uri(cls, uri):
@@ -568,22 +567,18 @@ class WebLink:
         # Strip out empty parts to ensure we are strict about URI parsing.
         parts = [p for p in parts if p.strip()]
 
-        if len(parts) == 2 and parts[0] in (
-            "track",
-            "album",
-            "artist",
-            "playlist",
-        ):
-            return cls(uri, LinkType(parts[0]), parts[1], None)
-        elif len(parts) == 2 and parts[0] == "your":
-            return cls(uri, LinkType(parts[0]))
-        elif len(parts) == 3 and parts[0] == "user" and parts[2] == "starred":
-            if parsed_uri.scheme == "spotify":
-                return cls(uri, LinkType.PLAYLIST, None, parts[1])
-        elif len(parts) == 3 and parts[0] == "playlist":
-            return cls(uri, LinkType.PLAYLIST, parts[2], parts[1])
-        elif len(parts) == 4 and parts[0] == "user" and parts[2] == "playlist":
-            return cls(uri, LinkType.PLAYLIST, parts[3], parts[1])
+        match parts:
+            case [type, id] if type in ("track", "album", "artist", "playlist"):
+                return cls(uri, LinkType(type), id, None)
+            case ["your", _]:
+                return cls(uri, LinkType.YOUR)
+            case ["user", owner, "starred"]:
+                if parsed_uri.scheme == "spotify":
+                    return cls(uri, LinkType.PLAYLIST, None, owner)
+            case ["playlist", owner, id]:
+                return cls(uri, LinkType.PLAYLIST, id, owner)
+            case ["user", owner, "playlist", id]:
+                return cls(uri, LinkType.PLAYLIST, id, owner)
 
         raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
 

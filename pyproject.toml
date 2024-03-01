@@ -1,17 +1,112 @@
 [build-system]
-requires = ["setuptools >= 30.3.0", "wheel"]
+requires = ["setuptools >= 66", "setuptools-scm >= 7.1"]
+build-backend = "setuptools.build_meta"
 
 
-[tool.black]
-target-version = ["py39", "py310", "py311"]
-line-length = 80
+[project]
+name = "Mopidy-Spotify"
+description = "Mopidy extension for playing music from Spotify"
+readme = "README.rst"
+requires-python = ">= 3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Stein Magnus Jodal", email = "stein.magnus@jodal.no" }]
+maintainers = [{ name = "Nick Steel", email = "nick@nsteel.co.uk" }]
+classifiers = [
+	"Environment :: No Input/Output (Daemon)",
+	"Intended Audience :: End Users/Desktop",
+	"License :: OSI Approved :: Apache Software License",
+	"Operating System :: OS Independent",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Topic :: Multimedia :: Sound/Audio :: Players",
+]
+dynamic = ["version"]
+dependencies = [
+	"mopidy >= 3.4.0",
+	"pykka >= 4.0",
+	"requests >= 2.20.0",
+	"setuptools >= 66",
+]
+
+[project.optional-dependencies]
+lint = ["ruff"]
+test = ["pytest", "pytest-cov", "responses"]
+typing = []
+dev = ["mopidy-spotify[lint,test,typing]", "tox"]
+
+[project.urls]
+Source = "https://github.com/mopidy/mopidy-spotify"
+Issues = "https://github.com/mopidy/mopidy-spotify/issues"
+
+[project.entry-points."mopidy.ext"]
+spotify = "mopidy_spotify:Extension"
 
 
-[tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 88
-known_tests = "tests"
-sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,TESTS,LOCALFOLDER"
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+	"A",   # flake8-builtins
+	"ANN", # flake8-annotations
+	"ARG", # flake8-unused-arguments
+	"B",   # flake8-bugbear
+	"C4",  # flake8-comprehensions
+	"C90", # mccabe
+	"D",   # pydocstyle
+	"DTZ", # flake8-datetimez
+	"E",   # pycodestyle
+	"ERA", # eradicate
+	"F",   # pyflakes
+	"FBT", # flake8-boolean-trap
+	"I",   # isort
+	"INP", # flake8-no-pep420
+	"ISC", # flake8-implicit-str-concat
+	"N",   # pep8-naming
+	"PGH", # pygrep-hooks
+	"PIE", # flake8-pie
+	"PLC", # pylint convention
+	"PLE", # pylint error
+	"PLR", # pylint refactor
+	"PLW", # pylint warning
+	"PT",  # flake8-pytest-style
+	"PTH", # flake8-use-pathlib
+	"Q",   # flake8-quotes
+	"RET", # flake8-return
+	"RSE", # flake8-raise
+	"RUF", # ruff
+	"SIM", # flake8-simplify
+	"SLF", # flake8-self
+	"T20", # flake8-print
+	"TCH", # flake8-type-checking
+	"TID", # flake8-tidy-imports
+	"TRY", # tryceratops
+	"UP",  # pyupgrade
+	"W",   # pycodestyle
+]
+ignore = [
+	"ANN",    # flake8-annotations  # TODO: Add types
+	"ANN101", # missing-type-self
+	"ANN102", # missing-type-cls
+	"ANN401", # any-type
+	"D",      # pydocstyle
+	"ISC001", # single-line-implicit-string-concatenation
+	"SLF001", # private-member-access
+	"TRY003", # raise-vanilla-args
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+	"ANN",     # flake8-annotations
+	"ARG",     # flake8-unused-arguments
+	"D",       # pydocstyle
+	"FBT",     # flake8-boolean-trap
+	"PLR0913", # too-many-arguments
+	"PLR2004", # magic-value-comparison
+	"PT027",   # pytest-unittest-raises-assertion
+	"TRY002",  # raise-vanilla-class
+]
+
+
+[tool.setuptools_scm]

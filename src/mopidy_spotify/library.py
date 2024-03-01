@@ -37,11 +37,16 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def lookup(self, uri):
         return lookup.lookup(self._config, self._backend._web_client, uri)
 
-    def search(self, query=None, uris=None, exact=False):
+    def search(
+        self,
+        query=None,
+        uris=None,
+        exact=False,  # noqa: FBT002
+    ):
         return search.search(
             self._config,
             self._backend._web_client,
-            query,
-            uris,
-            exact,
+            query=query,
+            uris=uris,
+            exact=exact,
         )

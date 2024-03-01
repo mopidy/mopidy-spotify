@@ -2,7 +2,6 @@ from unittest import mock
 
 import pytest
 from mopidy import models
-
 from mopidy_spotify.browse import BROWSE_DIR_URIS
 
 
@@ -17,13 +16,8 @@ def test_browse_root_directory(provider):
 
     assert len(results) == 3
     assert models.Ref.directory(uri="spotify:top", name="Top lists") in results
-    assert (
-        models.Ref.directory(uri="spotify:your", name="Your music") in results
-    )
-    assert (
-        models.Ref.directory(uri="spotify:playlists", name="Playlists")
-        in results
-    )
+    assert models.Ref.directory(uri="spotify:your", name="Your music") in results
+    assert models.Ref.directory(uri="spotify:playlists", name="Playlists") in results
 
 
 def test_browse_dir_uris(provider):
@@ -51,13 +45,9 @@ def test_browse_top_lists_directory(provider):
     results = provider.browse("spotify:top")
 
     assert len(results) == 2
+    assert models.Ref.directory(uri="spotify:top:tracks", name="Top tracks") in results
     assert (
-        models.Ref.directory(uri="spotify:top:tracks", name="Top tracks")
-        in results
-    )
-    assert (
-        models.Ref.directory(uri="spotify:top:artists", name="Top artists")
-        in results
+        models.Ref.directory(uri="spotify:top:artists", name="Top artists") in results
     )
 
 
@@ -66,12 +56,10 @@ def test_browse_your_music_directory(provider):
 
     assert len(results) == 2
     assert (
-        models.Ref.directory(uri="spotify:your:tracks", name="Your tracks")
-        in results
+        models.Ref.directory(uri="spotify:your:tracks", name="Your tracks") in results
     )
     assert (
-        models.Ref.directory(uri="spotify:your:albums", name="Your albums")
-        in results
+        models.Ref.directory(uri="spotify:your:albums", name="Your albums") in results
     )
 
 
@@ -94,9 +82,7 @@ def test_browse_playlist(web_client_mock, web_playlist_mock, provider):
         "spotify:user:alice:playlist:foo"
     )
     assert len(results) == 1
-    assert results[0] == models.Ref.track(
-        uri="spotify:track:abc", name="ABC 123"
-    )
+    assert results[0] == models.Ref.track(uri="spotify:track:abc", name="ABC 123")
 
 
 @pytest.mark.parametrize(
@@ -125,14 +111,10 @@ def test_browse_album(web_client_mock, web_album_mock, provider):
     results = provider.browse("spotify:album:def")
 
     assert len(results) == 10
-    assert results[0] == models.Ref.track(
-        uri="spotify:track:abc", name="ABC 123"
-    )
+    assert results[0] == models.Ref.track(uri="spotify:track:abc", name="ABC 123")
 
 
-def test_browse_album_bad_uri(
-    web_client_mock, web_album_mock, provider, caplog
-):
+def test_browse_album_bad_uri(web_client_mock, web_album_mock, provider, caplog):
     web_client_mock.get_album.return_value = web_album_mock
 
     results = provider.browse("spotify:album:def:xyz")
@@ -160,9 +142,7 @@ def test_browse_artist(
         mock.ANY, all_tracks=False
     )
     assert len(results) == 4
-    assert results[0] == models.Ref.track(
-        uri="spotify:track:abc", name="ABC 123"
-    )
+    assert results[0] == models.Ref.track(uri="spotify:track:abc", name="ABC 123")
     assert results[3] == models.Ref.album(
         uri="spotify:album:def", name="ABBA - DEF 456"
     )
@@ -226,14 +206,10 @@ def test_browse_personal_top_tracks(web_client_mock, web_track_mock, provider):
         "me/top/tracks", params={"limit": 50}
     )
     assert len(results) == 4
-    assert results[0] == models.Ref.track(
-        uri="spotify:track:abc", name="ABC 123"
-    )
+    assert results[0] == models.Ref.track(uri="spotify:track:abc", name="ABC 123")
 
 
-def test_browse_personal_top_artists(
-    web_client_mock, web_artist_mock, provider
-):
+def test_browse_personal_top_artists(web_client_mock, web_artist_mock, provider):
     web_client_mock.get_all.return_value = [
         {"items": [web_artist_mock, web_artist_mock]},
         {"items": [web_artist_mock, web_artist_mock]},
@@ -245,9 +221,7 @@ def test_browse_personal_top_artists(
         "me/top/artists", params={"limit": 50}
     )
     assert len(results) == 4
-    assert results[0] == models.Ref.artist(
-        uri="spotify:artist:abba", name="ABBA"
-    )
+    assert results[0] == models.Ref.artist(uri="spotify:artist:abba", name="ABBA")
 
 
 def test_browse_your_music_when_offline_web(web_client_mock, provider):
@@ -269,8 +243,7 @@ def test_browse_your_music_tracks_unknown(provider, caplog):
 
     assert len(results) == 0
     assert (
-        "Failed to browse 'spotify:your:tracks:foobar': Unknown URI type"
-        in caplog.text
+        "Failed to browse 'spotify:your:tracks:foobar': Unknown URI type" in caplog.text
     )
 
 
@@ -295,9 +268,7 @@ def test_browse_your_music_tracks(web_client_mock, web_track_mock, provider):
         "me/tracks", params={"market": "from_token", "limit": 50}
     )
     assert results == [results[0]] * 4
-    assert results[0] == models.Ref.track(
-        uri="spotify:track:abc", name="ABC 123"
-    )
+    assert results[0] == models.Ref.track(uri="spotify:track:abc", name="ABC 123")
 
 
 def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
@@ -318,9 +289,7 @@ def test_browse_your_music_albums(web_client_mock, web_album_mock, provider):
     )
 
 
-def test_browse_playlists_featured(
-    web_client_mock, web_playlist_mock, provider
-):
+def test_browse_playlists_featured(web_client_mock, web_playlist_mock, provider):
     web_client_mock.get_all.return_value = [
         {"playlists": {"items": [web_playlist_mock]}},
         {"playlists": {"items": [web_playlist_mock]}},

@@ -10,11 +10,12 @@ _SEARCH_TYPES = ["album", "artist", "track"]
 logger = logging.getLogger(__name__)
 
 
-def search(
+def search(  # noqa: PLR0913
     config,
     web_client,
+    *,
     query=None,
-    uris=None,
+    uris=None,  # noqa: ARG001
     exact=False,
     types=_SEARCH_TYPES,
 ):
@@ -27,7 +28,7 @@ def search(
     if "uri" in query:
         return _search_by_uri(config, web_client, query)
 
-    sp_query = translator.sp_search_query(query, exact)
+    sp_query = translator.sp_search_query(query, exact=exact)
     if not sp_query:
         logger.debug("Ignored search with empty query")
         return models.SearchResult(uri="spotify:search")
@@ -45,7 +46,7 @@ def search(
         config["search_track_count"],
     )
 
-    if search_count > 50:
+    if search_count > 50:  # noqa: PLR2004
         logger.warning(
             "Spotify currently allows maximum 50 search results of each type. "
             "Please set the config values spotify/search_album_count, "
@@ -67,9 +68,7 @@ def search(
     albums = (
         [
             translator.web_to_album(web_album)
-            for web_album in result["albums"]["items"][
-                : config["search_album_count"]
-            ]
+            for web_album in result["albums"]["items"][: config["search_album_count"]]
         ]
         if "albums" in result
         else []
@@ -91,18 +90,14 @@ def search(
     tracks = (
         [
             translator.web_to_track(web_track)
-            for web_track in result["tracks"]["items"][
-                : config["search_track_count"]
-            ]
+            for web_track in result["tracks"]["items"][: config["search_track_count"]]
         ]
         if "tracks" in result
         else []
     )
     tracks = [x for x in tracks if x]
 
-    return models.SearchResult(
-        uri=uri, albums=albums, artists=artists, tracks=tracks
-    )
+    return models.SearchResult(uri=uri, albums=albums, artists=artists, tracks=tracks)
 
 
 def _search_by_uri(config, web_client, query):
