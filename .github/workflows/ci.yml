@@ -19,9 +19,6 @@ jobs:
             python: "3.12"
             tox: py312
             coverage: true
-          - name: "Lint: check-manifest"
-            python: "3.12"
-            tox: check-manifest
           - name: "Lint: flake8"
             python: "3.12"
             tox: flake8
@@ -38,7 +35,6 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: pip
-          cache-dependency-path: setup.cfg
       - run: python -m pip install pygobject tox
       - run: python -m tox -e ${{ matrix.tox }}
         if: ${{ ! matrix.coverage }}

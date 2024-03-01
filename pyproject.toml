@@ -1,5 +1,52 @@
 [build-system]
-requires = ["setuptools >= 30.3.0", "wheel"]
+requires = ["setuptools >= 66", "setuptools-scm >= 7.1"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "Mopidy-Spotify"
+version = "5.0.0a1"
+description = "Mopidy extension for playing music from Spotify"
+readme = "README.rst"
+requires-python = ">= 3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Stein Magnus Jodal", email = "stein.magnus@jodal.no" }]
+classifiers = [
+	"Environment :: No Input/Output (Daemon)",
+	"Intended Audience :: End Users/Desktop",
+	"License :: OSI Approved :: Apache Software License",
+	"Operating System :: OS Independent",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Topic :: Multimedia :: Sound/Audio :: Players",
+]
+dependencies = [
+	"mopidy >= 3.4.0",
+	"pykka >= 4.0",
+	"requests >= 2.20.0",
+	"setuptools >= 66",
+]
+
+[project.optional-dependencies]
+lint = [
+	"black",
+	"flake8",
+	"flake8-black",
+	"flake8-bugbear",
+	"flake8-isort",
+	"isort",
+]
+test = ["pytest", "pytest-cov", "responses"]
+typing = []
+dev = ["mopidy-spotify[lint,test,typing]", "tox"]
+
+[project.urls]
+Source = "https://github.com/mopidy/mopidy-spotify"
+Issues = "https://github.com/mopidy/mopidy-spotify/issues"
+
+[project.entry-points."mopidy.ext"]
+spotify = "mopidy_spotify:Extension"
 
 
 [tool.black]
@@ -15,3 +62,6 @@ use_parentheses = true
 line_length = 88
 known_tests = "tests"
 sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,TESTS,LOCALFOLDER"
+
+
+[tool.setuptools_scm]
