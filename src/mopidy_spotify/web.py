@@ -6,9 +6,8 @@ import time
 import urllib.parse
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum, unique
-from typing import Optional
 from email.utils import parsedate_to_datetime
+from enum import Enum, unique
 
 import requests
 
@@ -331,7 +330,7 @@ class WebResponse(dict):
 
     @property
     def status_unchanged(self):
-        return self._from_cache or 304 == self._status_code
+        return self._from_cache or self._status_code == 304
 
     @property
     def status_ok(self):
@@ -531,8 +530,8 @@ class LinkType(Enum):
 class WebLink:
     uri: str
     type: LinkType
-    id: Optional[str] = None
-    owner: Optional[str] = None
+    id: str | None = None
+    owner: str | None = None
 
     @classmethod
     def from_uri(cls, uri):

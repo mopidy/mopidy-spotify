@@ -1,7 +1,7 @@
 import logging
 
 from mopidy_spotify import browse, playlists, translator, utils
-from mopidy_spotify.web import LinkType, WebLink, WebError
+from mopidy_spotify.web import LinkType, WebError, WebLink
 
 logger = logging.getLogger(__name__)
 

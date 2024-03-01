@@ -3,11 +3,10 @@ from unittest import mock
 import pytest
 from mopidy import backend as backend_api
 from mopidy.models import Ref
-
 from mopidy_spotify import playlists
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_client_mock(web_client_mock, web_track_mock):
     web_playlist1 = {
         "owner": {"id": "alice"},
@@ -40,7 +39,7 @@ def web_client_mock(web_client_mock, web_track_mock):
     return web_client_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def provider(backend_mock, web_client_mock):
     backend_mock._web_client = web_client_mock
     provider = playlists.SpotifyPlaylistsProvider(backend_mock)

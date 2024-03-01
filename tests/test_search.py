@@ -1,5 +1,4 @@
 from mopidy import models
-
 from mopidy_spotify import search
 
 

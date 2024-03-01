@@ -1,8 +1,8 @@
-import pytest
-from mopidy import models
 from unittest import mock
 from unittest.mock import patch, sentinel
 
+import pytest
+from mopidy import models
 from mopidy_spotify import translator
 
 
@@ -46,7 +46,7 @@ class TestWebToArtistRefs:
         assert refs[0].name == "ABBA"
 
 
-class TestValidWebData(object):
+class TestValidWebData:
     def test_returns_false_if_none(self):
         assert translator.valid_web_data(None, "track") is False
 

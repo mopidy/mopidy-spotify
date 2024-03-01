@@ -1,17 +1,16 @@
 import urllib
+from datetime import datetime
 from unittest import mock
 
-from datetime import datetime
+import mopidy_spotify
 import pytest
 import requests
 import responses
+from mopidy_spotify import web
 from responses import matchers
 
-import mopidy_spotify
-from mopidy_spotify import web
 
-
-@pytest.fixture
+@pytest.fixture()
 def oauth_client(config):
     return web.OAuthClient(
         base_url="https://api.spotify.com/v1",
@@ -23,7 +22,7 @@ def oauth_client(config):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_time():
     patcher = mock.patch.object(web.time, "time")
     mock_time = patcher.start()
@@ -31,7 +30,7 @@ def mock_time():
     patcher.stop()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_utcnow():
     patcher = mock.patch("mopidy_spotify.web.datetime")
     mock_datetime = patcher.start()
@@ -41,7 +40,7 @@ def mock_utcnow():
     patcher.stop()
 
 
-@pytest.fixture
+@pytest.fixture()
 def skip_refresh_token():
     patcher = mock.patch.object(
         web.OAuthClient, "_should_refresh_token", return_value=False
@@ -688,7 +687,7 @@ def test_updated_responses_changed(web_response_mock, oauth_client, mock_time):
     assert not result.status_unchanged
 
 
-@pytest.fixture
+@pytest.fixture()
 def spotify_client(config):
     client = web.SpotifyOAuthClient(
         client_id=config["spotify"]["client_id"],
@@ -720,7 +719,7 @@ def playlist_tracks_parms():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def bar_playlist(playlist_parms):
     return {
         "href": url(f"playlists/bar?{playlist_parms}"),
@@ -728,7 +727,7 @@ def bar_playlist(playlist_parms):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_playlist_tracks(playlist_tracks_parms):
     return {
         "href": url(f"playlists/foo/tracks?{playlist_tracks_parms}"),
@@ -736,7 +735,7 @@ def foo_playlist_tracks(playlist_tracks_parms):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_playlist(playlist_parms, foo_playlist_tracks):
     return {
         "href": url(f"playlists/foo?{playlist_parms}"),
@@ -744,7 +743,7 @@ def foo_playlist(playlist_parms, foo_playlist_tracks):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_album_next_tracks():
     params = urllib.parse.urlencode({"market": "from_token", "offset": 3})
     return {
@@ -754,7 +753,7 @@ def foo_album_next_tracks():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_album(foo_album_next_tracks):
     params = urllib.parse.urlencode({"market": "from_token"})
     return {
@@ -767,12 +766,12 @@ def foo_album(foo_album_next_tracks):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def foo_album_response(foo_album):
     return web.WebResponse(foo_album["href"], foo_album)
 
 
-@pytest.fixture
+@pytest.fixture()
 def artist_albums_mock(web_album_mock_base, web_album_mock_base2):
     params = urllib.parse.urlencode(
         {"market": "from_token", "include_groups": "single,album"}
@@ -884,7 +883,7 @@ class TestSpotifyOAuthClient:
 
         result = spotify_client.get_one("foo")
 
-        assert 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY == result._expires
+        assert result._expires == 1000 + spotify_client.DEFAULT_EXTRA_EXPIRY
 
     @responses.activate
     def test_get_one_retry_header(self, spotify_client, caplog):

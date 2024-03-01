@@ -29,7 +29,7 @@ class memoized:  # noqa N801
 
 def web_to_artist_ref(web_artist):
     if not valid_web_data(web_artist, "artist"):
-        return
+        return None
 
     uri = web_artist["uri"]
     return models.Ref.artist(uri=uri, name=web_artist.get("name", uri))
@@ -44,7 +44,7 @@ def web_to_artist_refs(web_artists):
 
 def web_to_album_ref(web_album):
     if not valid_web_data(web_album, "album"):
-        return
+        return None
 
     if "name" in web_album:
         artists = web_album.get("artists", [])
@@ -77,7 +77,7 @@ def valid_web_data(data, object_type):
 
 def web_to_track_ref(web_track, *, check_playable=True):
     if not valid_web_data(web_track, "track"):
-        return
+        return None
 
     # Web API track relinking guide says to use original URI.
     # libspotfy will handle any relinking when track is loaded for playback.
@@ -85,7 +85,7 @@ def web_to_track_ref(web_track, *, check_playable=True):
 
     if check_playable and not web_track.get("is_playable", False):
         logger.debug(f"{uri!r} is not playable")
-        return
+        return None
 
     return models.Ref.track(uri=uri, name=web_track.get("name", uri))
 
@@ -112,7 +112,7 @@ def to_playlist(
 
     web_tracks = web_playlist.get("tracks", {}).get("items") or []
     if as_items and not isinstance(web_tracks, list):
-        return
+        return None
 
     if as_items:
         return list(web_to_track_refs(web_tracks))
@@ -128,7 +128,7 @@ def to_playlist(
 
 def to_playlist_ref(web_playlist, username=None):
     if not valid_web_data(web_playlist, "playlist"):
-        return
+        return None
 
     name = web_playlist.get("name", web_playlist["uri"])
 
@@ -176,11 +176,10 @@ def sp_search_query(query, exact=False):
                     result.append(f'"{value}"')
                 else:
                     result.append(value)
+            elif exact:
+                result.append(f'{field}:"{value}"')
             else:
-                if exact:
-                    result.append(f'{field}:"{value}"')
-                else:
-                    result.append(" ".join(f"{field}:{word}" for word in value.split()))
+                result.append(" ".join(f"{field}:{word}" for word in value.split()))
 
     return " ".join(result)
 
@@ -195,7 +194,7 @@ def _transform_year(date):
 def web_to_artist(web_artist):
     ref = web_to_artist_ref(web_artist)
     if ref is None:
-        return
+        return None
 
     return models.Artist(uri=ref.uri, name=ref.name)
 
@@ -219,7 +218,7 @@ def web_to_album_tracks(web_album, bitrate=None):
 def web_to_album(web_album):
     ref = web_to_album_ref(web_album)
     if ref is None:
-        return
+        return None
 
     artists = [web_to_artist(web_artist) for web_artist in web_album.get("artists", [])]
     artists = [a for a in artists if a]
@@ -236,7 +235,7 @@ def int_or_none(inp):
 def web_to_track(web_track, bitrate=None, album=None):
     ref = web_to_track_ref(web_track)
     if ref is None:
-        return
+        return None
 
     artists = [web_to_artist(web_artist) for web_artist in web_track.get("artists", [])]
     artists = [a for a in artists if a]

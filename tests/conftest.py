@@ -3,17 +3,16 @@ from unittest import mock
 import pytest
 from mopidy import backend as backend_api
 from mopidy import models
-
 from mopidy_spotify import backend, library, utils, web
 
 
-@pytest.fixture
+@pytest.fixture()
 def caplog(caplog):
     caplog.set_level(utils.TRACE)
     return caplog
 
 
-@pytest.fixture
+@pytest.fixture()
 def config(tmp_path):
     return {
         "core": {
@@ -39,14 +38,14 @@ def config(tmp_path):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_mock():
     patcher = mock.patch.object(backend, "web", spec=web)
     yield patcher.start()
     patcher.stop()
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_search_mock(web_album_mock_base, web_artist_mock, web_track_mock):
     return {
         "albums": {"items": [web_album_mock_base]},
@@ -55,7 +54,7 @@ def web_search_mock(web_album_mock_base, web_artist_mock, web_track_mock):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_search_mock_large(web_album_mock, web_artist_mock, web_track_mock):
     return {
         "albums": {"items": [web_album_mock] * 10},
@@ -64,12 +63,12 @@ def web_search_mock_large(web_album_mock, web_artist_mock, web_track_mock):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_artist_mock():
     return {"name": "ABBA", "uri": "spotify:artist:abba", "type": "artist"}
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_track_mock_base(web_artist_mock):
     return {
         "artists": [web_artist_mock],
@@ -83,7 +82,7 @@ def web_track_mock_base(web_artist_mock):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_album_mock_base(web_artist_mock):
     return {
         "name": "DEF 456",
@@ -94,16 +93,16 @@ def web_album_mock_base(web_artist_mock):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_album_mock(web_album_mock_base, web_track_mock_base):
     return {
         **web_album_mock_base,
-        **{"tracks": {"items": [web_track_mock_base] * 10}},
+        "tracks": {"items": [web_track_mock_base] * 10},
         "is_playable": True,
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_album_mock_base2(web_artist_mock):
     return {
         "name": "XYZ 789",
@@ -114,24 +113,24 @@ def web_album_mock_base2(web_artist_mock):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_album_mock2(web_album_mock_base2, web_track_mock_base):
     return {
         **web_album_mock_base2,
-        **{"tracks": {"items": [web_track_mock_base] * 2}},
+        "tracks": {"items": [web_track_mock_base] * 2},
         "is_playable": True,
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_track_mock(web_track_mock_base, web_album_mock_base):
     return {
         **web_track_mock_base,
-        **{"album": web_album_mock_base},
+        "album": web_album_mock_base,
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_response_mock(web_track_mock):
     return web.WebResponse(
         "https://api.spotify.com/v1/tracks/abc",
@@ -141,13 +140,13 @@ def web_response_mock(web_track_mock):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_response_mock_etag(web_response_mock):
     web_response_mock._etag = '"1234"'
     return web_response_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_oauth_mock():
     return {
         "access_token": "NgCXRK...MzYjw",
@@ -157,7 +156,7 @@ def web_oauth_mock():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_playlist_mock(web_track_mock):
     return {
         "owner": {"id": "alice"},
@@ -169,12 +168,12 @@ def web_playlist_mock(web_track_mock):
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def mopidy_artist_mock():
     return models.Artist(name="ABBA", uri="spotify:artist:abba")
 
 
-@pytest.fixture
+@pytest.fixture()
 def mopidy_album_mock(mopidy_artist_mock):
     return models.Album(
         artists=[mopidy_artist_mock],
@@ -184,7 +183,7 @@ def mopidy_album_mock(mopidy_artist_mock):
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def web_client_mock():
     web_client_mock = mock.MagicMock(spec=web.SpotifyOAuthClient)
     web_client_mock.user_id = "alice"
@@ -192,7 +191,7 @@ def web_client_mock():
     return web_client_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def backend_mock(config, web_client_mock):
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
@@ -201,7 +200,7 @@ def backend_mock(config, web_client_mock):
     return backend_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def backend_listener_mock():
     patcher = mock.patch.object(
         backend_api, "BackendListener", spec=backend_api.BackendListener
@@ -210,6 +209,6 @@ def backend_listener_mock():
     patcher.stop()
 
 
-@pytest.fixture
+@pytest.fixture()
 def provider(backend_mock):
     return library.SpotifyLibraryProvider(backend_mock)

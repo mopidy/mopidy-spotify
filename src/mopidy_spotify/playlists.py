@@ -4,7 +4,6 @@ from mopidy import backend
 
 from mopidy_spotify import translator, utils
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -74,14 +73,14 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
 def playlist_lookup(web_client, uri, bitrate, as_items=False):
     if web_client is None or not web_client.logged_in:
-        return
+        return None
 
     logger.debug(f'Fetching Spotify playlist "{uri!r}"')
     web_playlist = web_client.get_playlist(uri)
 
     if web_playlist == {}:
         logger.error(f"Failed to lookup Spotify playlist URI {uri!r}")
-        return
+        return None
 
     playlist = translator.to_playlist(
         web_playlist,
@@ -91,6 +90,6 @@ def playlist_lookup(web_client, uri, bitrate, as_items=False):
     )
     # TODO: cache the Mopidy tracks? And handle as_items here instead of translator
     if playlist is None:
-        return
+        return None
 
     return playlist

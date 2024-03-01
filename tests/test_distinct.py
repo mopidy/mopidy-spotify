@@ -2,11 +2,10 @@ from unittest import mock
 
 import pytest
 from mopidy import models
+from mopidy_spotify import distinct, playlists, search
 
-from mopidy_spotify import distinct, search, playlists
 
-
-@pytest.fixture
+@pytest.fixture()
 def web_client_mock_with_playlists(
     web_client_mock,
     web_playlist_mock,
@@ -20,7 +19,7 @@ def web_client_mock_with_playlists(
     return web_client_mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def search_mock(mopidy_album_mock, mopidy_artist_mock):
     patcher = mock.patch.object(distinct, "search", spec=search)
     search_mock = patcher.start()

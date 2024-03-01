@@ -3,8 +3,8 @@ import logging
 from mopidy import models
 
 from mopidy_spotify import playlists, translator
-from mopidy_spotify.web import WebLink
 from mopidy_spotify.utils import flatten
+from mopidy_spotify.web import WebLink
 
 logger = logging.getLogger(__name__)
 

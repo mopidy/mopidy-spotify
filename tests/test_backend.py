@@ -1,8 +1,6 @@
-from unittest import mock
-from unittest import skip
+from unittest import mock, skip
 
 from mopidy import backend as backend_api
-
 from mopidy_spotify import backend, library, playlists
 from mopidy_spotify.backend import SpotifyPlaybackProvider
 

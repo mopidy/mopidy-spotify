@@ -1,10 +1,9 @@
 import pytest
 from mopidy import models
-
 from mopidy_spotify import images
 
 
-@pytest.fixture
+@pytest.fixture()
 def img_provider(provider):
     images._cache = {}
     return provider

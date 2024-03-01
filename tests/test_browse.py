@@ -2,7 +2,6 @@ from unittest import mock
 
 import pytest
 from mopidy import models
-
 from mopidy_spotify.browse import BROWSE_DIR_URIS
 
 

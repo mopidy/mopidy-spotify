@@ -36,7 +36,7 @@ def get_images(web_client, uris):
 
 def _parse_uri(uri):
     if uri in BROWSE_DIR_URIS:
-        return  # These are internal to the extension.
+        return None  # These are internal to the extension.
     try:
         parsed_uri = urllib.parse.urlparse(uri)
         uri_type, uri_id = None, None
@@ -53,8 +53,8 @@ def _parse_uri(uri):
         supported_types = ("track", "album", "artist", "playlist")
         if uri_type:
             if uri_type not in supported_types:
-                logger.warning(f"Unsupported image type '{uri_type}' in {repr(uri)}")
-                return
+                logger.warning(f"Unsupported image type '{uri_type}' in {uri!r}")
+                return None
             elif uri_id:
                 return {
                     "uri": uri,
@@ -64,7 +64,7 @@ def _parse_uri(uri):
                 }
         raise ValueError("Unknown error")
     except Exception as e:
-        logger.exception(f"Could not parse {repr(uri)} as a Spotify URI ({e})")
+        logger.exception(f"Could not parse {uri!r} as a Spotify URI ({e})")
 
 
 def _process_uri(web_client, uri):
