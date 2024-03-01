@@ -185,7 +185,7 @@ def test_sets_types_parameter(web_client_mock, web_search_mock_large, provider, 
     search.search(
         config["spotify"],
         web_client_mock,
-        {"any": ["ABBA"]},
+        query={"any": ["ABBA"]},
         types=["album", "artist"],
     )
 

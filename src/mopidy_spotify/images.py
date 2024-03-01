@@ -41,30 +41,32 @@ def _parse_uri(uri):
         parsed_uri = urllib.parse.urlparse(uri)
         uri_type, uri_id = None, None
 
-        if parsed_uri.scheme == "spotify":
-            fragments = parsed_uri.path.split(":")
-            if len(fragments) < 2:
-                raise ValueError("Too few fragments")
-            uri_type, uri_id = parsed_uri.path.split(":")[:2]
-        elif parsed_uri.scheme in ("http", "https"):
-            if parsed_uri.netloc in ("open.spotify.com", "play.spotify.com"):
-                uri_type, uri_id = parsed_uri.path.split("/")[1:3]
+        match parsed_uri.scheme:
+            case "spotify":
+                match parsed_uri.path.split(":"):
+                    case uri_type, uri_id, *_:
+                        pass
+                    case _:
+                        raise ValueError("Too few arguments")  # noqa: TRY301
+            case "http" | "https":
+                if parsed_uri.netloc in ("open.spotify.com", "play.spotify.com"):
+                    uri_type, uri_id = parsed_uri.path.split("/")[1:3]
 
         supported_types = ("track", "album", "artist", "playlist")
         if uri_type:
             if uri_type not in supported_types:
                 logger.warning(f"Unsupported image type '{uri_type}' in {uri!r}")
                 return None
-            elif uri_id:
+            if uri_id:
                 return {
                     "uri": uri,
                     "type": uri_type,
                     "id": uri_id,
                     "key": (uri_type, uri_id),
                 }
-        raise ValueError("Unknown error")
+        raise ValueError("Unknown error")  # noqa: TRY301
     except Exception as e:
-        logger.exception(f"Could not parse {uri!r} as a Spotify URI ({e})")
+        logger.exception(f"Could not parse {uri!r} as a Spotify URI ({e!s})")  # noqa: TRY401
 
 
 def _process_uri(web_client, uri):
@@ -73,7 +75,11 @@ def _process_uri(web_client, uri):
     return {uri["uri"]: _cache[uri["key"]]}
 
 
-def _process_uris(web_client, uri_type, uris):
+def _process_uris(  # noqa: C901
+    web_client,
+    uri_type,
+    uris,
+):
     result = {}
     ids = [u["id"] for u in uris]
     ids_to_uris = {u["id"]: u for u in uris}

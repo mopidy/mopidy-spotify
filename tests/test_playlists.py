@@ -223,7 +223,11 @@ def test_lookup_of_playlist_with_other_owner(provider):
 def test_playlist_lookup_when_link_invalid(web_client_mock, web_playlist_mock, caplog):
     web_client_mock.get_playlist.return_value = web_playlist_mock
 
-    playlist = playlists.playlist_lookup(web_client_mock, "spotify:in:valid", None)
+    playlist = playlists.playlist_lookup(
+        web_client_mock,
+        "spotify:in:valid",
+        bitrate=None,
+    )
 
     assert playlist is None
     assert "Failed to lookup Spotify playlist URI 'spotify:in:valid'" in caplog.text

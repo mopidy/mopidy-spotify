@@ -91,6 +91,7 @@ ignore = [
 	"ANN401", # any-type
 	"D",      # pydocstyle
 	"ISC001", # single-line-implicit-string-concatenation
+	"SLF001", # private-member-access
 	"TRY003", # raise-vanilla-args
 ]
 
@@ -103,7 +104,6 @@ ignore = [
 	"PLR0913", # too-many-arguments
 	"PLR2004", # magic-value-comparison
 	"PT027",   # pytest-unittest-raises-assertion
-	"SLF001",  # private-member-access
 	"TRY002",  # raise-vanilla-class
 ]
 

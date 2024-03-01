@@ -53,7 +53,6 @@ def test_get_distinct_unsupported_field_types_returns_nothing(provider, field):
         ("album", {"DEF 456"}),
     ],
 )
-# ("date", {"2001"}),
 def test_get_distinct_without_query_when_playlists_enabled(
     web_client_mock_with_playlists, provider, field, expected
 ):
@@ -126,4 +125,9 @@ def test_get_distinct_with_query(
     types,
 ):
     assert provider.get_distinct(field, query) == expected
-    search_mock.search.assert_called_once_with(mock.ANY, mock.ANY, query, types=types)
+    search_mock.search.assert_called_once_with(
+        mock.ANY,
+        mock.ANY,
+        query=query,
+        types=types,
+    )

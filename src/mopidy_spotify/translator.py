@@ -1,27 +1,26 @@
-import collections
 import logging
+from collections.abc import Hashable
 
 from mopidy import models
 
 logger = logging.getLogger(__name__)
 
 
-class memoized:  # noqa N801
+class memoized:  # noqa: N801
     def __init__(self, func):
         self.func = func
         self.cache = {}
 
     def __call__(self, *args, **kwargs):
         # NOTE Only args, not kwargs, are part of the memoization key.
-        if not isinstance(args, collections.abc.Hashable):
+        if not isinstance(args, Hashable):
             return self.func(*args, **kwargs)
         if args in self.cache:
             return self.cache[args]
-        else:
-            value = self.func(*args, **kwargs)
-            if value is not None:
-                self.cache[args] = value
-            return value
+        value = self.func(*args, **kwargs)
+        if value is not None:
+            self.cache[args] = value
+        return value
 
 
 # TODO: memoize web functions?
@@ -60,9 +59,10 @@ def web_to_album_ref(web_album):
 
 def web_to_album_refs(web_albums):
     for web_album in web_albums:
-        # The extra level here is to also support "saved album objects".
-        web_album = web_album.get("album", web_album)
-        ref = web_to_album_ref(web_album)
+        ref = web_to_album_ref(
+            # The extra level here is to also support "saved album objects".
+            web_album.get("album", web_album),
+        )
         if ref is not None:
             yield ref
 
@@ -92,15 +92,18 @@ def web_to_track_ref(web_track, *, check_playable=True):
 
 def web_to_track_refs(web_tracks, *, check_playable=True):
     for web_track in web_tracks:
-        # The extra level here is to also support "saved track objects".
-        web_track = web_track.get("track", web_track)
-        ref = web_to_track_ref(web_track, check_playable=check_playable)
+        ref = web_to_track_ref(
+            # The extra level here is to also support "saved track objects".
+            web_track.get("track", web_track),
+            check_playable=check_playable,
+        )
         if ref is not None:
             yield ref
 
 
 def to_playlist(
     web_playlist,
+    *,
     username=None,
     bitrate=None,
     as_ref=False,
@@ -156,19 +159,19 @@ SEARCH_FIELD_MAP = {
 }
 
 
-def sp_search_query(query, exact=False):
+def sp_search_query(query, *, exact=False):
     """Translate a Mopidy search query to a Spotify search query"""
 
     result = []
 
     for field, values in query.items():
-        field = SEARCH_FIELD_MAP.get(field, field)
+        field = SEARCH_FIELD_MAP.get(field, field)  # noqa: PLW2901
         if field is None:
             continue
 
         for value in values:
             if field == "year":
-                value = _transform_year(value)
+                value = _transform_year(value)  # noqa: PLW2901
                 if value is not None:
                     result.append(f"{field}:{value}")
             elif field == "any":

@@ -1,5 +1,5 @@
 import urllib
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest import mock
 
 import mopidy_spotify
@@ -31,12 +31,12 @@ def mock_time():
 
 
 @pytest.fixture()
-def mock_utcnow():
+def mock_now():
     patcher = mock.patch("mopidy_spotify.web.datetime")
     mock_datetime = patcher.start()
-    mock_datetime.utcnow = mock.Mock()
-    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-    yield mock_datetime.utcnow
+    mock_datetime.now = mock.Mock()
+    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw, tzinfo=UTC)
+    yield mock_datetime.now
     patcher.stop()
 
 
@@ -88,8 +88,8 @@ def test_user_agent(oauth_client):
         ("foobar", 0),
     ],
 )
-def test_parse_retry_after(oauth_client, mock_utcnow, header, expected):
-    mock_utcnow.return_value = datetime(2022, 12, 7, 11, 27, 26, 0)
+def test_parse_retry_after(oauth_client, mock_now, header, expected):
+    mock_now.return_value = datetime(2022, 12, 7, 11, 27, 26, 0, tzinfo=UTC)
     mock_response = mock.Mock(headers={"Retry-After": header})
     result = oauth_client._parse_retry_after(mock_response)
 
@@ -512,7 +512,7 @@ def test_cache_response_ignore_expiry(
     mock_time.return_value = 9999
 
     assert not web_response_mock.still_valid()
-    assert web_response_mock.still_valid(True)
+    assert web_response_mock.still_valid(ignore_expiry=True)
     assert "Cached data forced for" in caplog.text
 
     result = oauth_client.get(
@@ -561,7 +561,6 @@ def test_cache_normalised_query_string(mock_time, skip_refresh_token, oauth_clie
         responses.GET,
         url,
         json={"uri": "foobar"},
-        # match_querystring=True,
         match=[matchers.query_string_matcher("b=bar&f=foo")],
     )
     responses.add(
@@ -1411,8 +1410,7 @@ def test_weblink_from_uri_playlist(uri, id_, owner):
     ],
 )
 def test_weblink_from_uri_raises(uri):
-    with pytest.raises(ValueError) as excinfo:
-        result = web.WebLink.from_uri(uri)
-        assert result is None
+    with pytest.raises(ValueError, match=r"^Could not parse.*") as excinfo:
+        web.WebLink.from_uri(uri)
 
     assert f"Could not parse {uri!r} as a Spotify URI" in str(excinfo.value)
