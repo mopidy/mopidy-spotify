@@ -73,29 +73,14 @@ Dependencies
 - ``gst-plugins-spotify`` >= 0.10. The `GStreamer Rust Plugin
   <https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs>`_ to stream Spotify
   audio, based on `librespot <https://github.com/librespot-org/librespot/>`_.
-  This plugin is not yet available from apt.mopidy.com. It must be either built
-  from source (see below), or Debian packages are available `here
-  <https://github.com/kingosticks/gst-plugins-rs-build/releases/latest>`_.
+  **This plugin is not yet available from apt.mopidy.com**. It must be either
+  `built from source
+  <https://github.com/kingosticks/gst-plugins-rs-build/tree/main?tab=readme-ov-file#native-compile>`_
+  or `Debian packages are available
+  <https://github.com/kingosticks/gst-plugins-rs-build/releases/latest>`_
+  for some platforms.
 
-Example build instructions for ``gst-plugins-spotify``::
-
-1. `Install Rust <https://www.rust-lang.org/tools/install>`_::
-
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-2. Install the `GStreamer Rust bindings
-   <https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#installation>`_ dependencies::
-
-    sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gcc pkg-config git
-
-3. Download, build and install ``gst-plugins-spotify`` from source::
-
-    git clone --depth 1 https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs
-    cd gst-plugins-rs
-    cargo build --package gst-plugin-spotify --release
-    sudo install -m 644 target/release/libgstspotify.so $(pkg-config --variable=pluginsdir gstreamer-1.0)/
-
-4. Verify the spotify plugin is available::
+Verify the GStreamer spotify plugin is correctly installed:: 
 
     gst-inspect-1.0 spotify
 
@@ -107,7 +92,7 @@ Install by running::
 
     sudo python3 -m pip install --break-system-packages https://github.com/mopidy/mopidy-spotify/archive/main.zip
 
-See https://mopidy.com/ext/spotify/ for alternative installation methods.
+This is currently the only supported installation method.
 
 
 Configuration
