@@ -11,6 +11,7 @@ from email.utils import parsedate_to_datetime
 from enum import Enum, unique
 from typing import Optional
 
+
 import requests
 
 from mopidy_spotify import utils

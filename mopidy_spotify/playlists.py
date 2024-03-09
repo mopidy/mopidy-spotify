@@ -76,34 +76,22 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if not self._refresh_mutex.locked():
             logger.error("Lock must be held before calling this method")
             return []
-        with utils.time_logger("playlists._refresh_tracks()", logging.DEBUG):
-            refreshed = [uri for uri in playlist_uris if self.lookup(uri)]
-            logger.info(f"Refreshed {len(refreshed)} Spotify playlists")
+        try:
+            with utils.time_logger(
+                "playlists._refresh_tracks()", logging.DEBUG
+            ):
+                refreshed = [uri for uri in playlist_uris if self.lookup(uri)]
+                logger.info(f"Refreshed {len(refreshed)} Spotify playlists")
 
-        logger.info("Refreshing Spotify playlists")
-
-        def refresher():
-            try:
-                with utils.time_logger("playlists.refresh()", logging.DEBUG):
-                    self._backend._web_client.clear_cache()
-                    count = 0
-                    for playlist_ref in self._get_flattened_playlist_refs():
-                        self._get_playlist(playlist_ref.uri)
-                        count += 1
-                    logger.info(f"Refreshed {count} Spotify playlists")
-
-                listener.CoreListener.send("playlists_loaded")
-                self._loaded = True
-            except Exception:
-                logger.exception(
-                    "An error occurred while refreshing Spotify playlists"
-                )
-            finally:
-                self._refreshing = False
-
-        thread = threading.Thread(target=refresher)
-        thread.daemon = True
-        thread.start()
+            listener.CoreListener.send("playlists_loaded")
+        except Exception:
+            logger.exception(
+                "Error occurred while refreshing Spotify playlists tracks"
+            )
+        else:
+            return refreshed  # For test
+        finally:
+            self._refresh_mutex.release()
 
     def create(self, name):
         pass  # TODO
