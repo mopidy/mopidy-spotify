@@ -2,7 +2,7 @@ import threading
 
 
 class ThreadJoiner:
-    def __init__(self, timeout: int):
+    def __init__(self, timeout: int = 1):
         self.timeout = timeout
 
     def __enter__(self):

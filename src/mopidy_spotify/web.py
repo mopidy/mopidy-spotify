@@ -2,6 +2,7 @@ import copy
 import logging
 import os
 import re
+import threading
 import time
 import urllib.parse
 from dataclasses import dataclass
@@ -9,7 +10,6 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from enum import Enum, unique
 from http import HTTPStatus
-from threading import Lock
 
 import requests
 
@@ -65,8 +65,9 @@ class OAuthClient:
 
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
-        self._cache_mutex = Lock()
-        self._refresh_mutex = Lock()
+        # TODO: Move _cache_mutex to the object it actually protects.
+        self._cache_mutex = threading.Lock()  # Protects get() cache param.
+        self._refresh_mutex = threading.Lock()  # Protects _headers and _expires.
 
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
@@ -78,10 +79,10 @@ class OAuthClient:
 
         _trace(f"Get '{path}'")
 
-        ignore_expiry = kwargs.pop("ignore_expiry", False)
+        expiry_strategy = kwargs.pop("expiry_strategy", None)
         if cache is not None and path in cache:
             cached_result = cache.get(path)
-            if cached_result.still_valid(ignore_expiry=ignore_expiry):
+            if cached_result.still_valid(expiry_strategy=expiry_strategy):
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
@@ -120,10 +121,15 @@ class OAuthClient:
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
+        if not self._refresh_mutex.locked():
+            raise OAuthTokenRefreshError("Lock must be held before calling.")
         return not self._auth or time.time() > self._expires - self._margin
 
     def _refresh_token(self):
         logger.debug(f"Fetching OAuth token from {self._refresh_url}")
+
+        if not self._refresh_mutex.locked():
+            raise OAuthTokenRefreshError("Lock must be held before calling.")
 
         data = {"grant_type": "client_credentials"}
         result = self._request_with_retries(
@@ -264,6 +270,12 @@ class OAuthClient:
         return max(0, seconds)
 
 
+@unique
+class ExpiryStrategy(Enum):
+    FORCE_FRESH = "force-fresh"
+    FORCE_EXPIRED = "force-expired"
+
+
 class WebResponse(dict):
     def __init__(  # noqa: PLR0913
         self,
@@ -335,19 +347,20 @@ class WebResponse(dict):
 
         return None
 
-    def still_valid(self, *, ignore_expiry=False):
-        if ignore_expiry:
-            result = True
-            status = "forced"
-        elif self._expires >= time.time():
-            result = True
-            status = "fresh"
+    def still_valid(self, *, expiry_strategy=None):
+        if expiry_strategy is None:
+            if self._expires >= time.time():
+                valid = True
+                status = "fresh"
+            else:
+                valid = False
+                status = "expired"
         else:
-            result = False
-            status = "expired"
-        self._from_cache = result
+            valid = expiry_strategy is ExpiryStrategy.FORCE_FRESH
+            status = expiry_strategy.value
+        self._from_cache = valid
         _trace("Cached data %s for %s", status, self)
-        return result
+        return valid
 
     @property
     def status_unchanged(self):
@@ -439,8 +452,13 @@ class SpotifyOAuthClient(OAuthClient):
     def logged_in(self):
         return self.user_id is not None
 
-    def get_user_playlists(self):
-        pages = self.get_all(f"users/{self.user_id}/playlists", params={"limit": 50})
+    def get_user_playlists(self, *, refresh=False):
+        expiry_strategy = ExpiryStrategy.FORCE_EXPIRED if refresh else None
+        pages = self.get_all(
+            f"users/{self.user_id}/playlists",
+            params={"limit": 50},
+            expiry_strategy=expiry_strategy,
+        )
         for page in pages:
             yield from page.get("items", [])
 
@@ -451,7 +469,9 @@ class SpotifyOAuthClient(OAuthClient):
         track_pages = self.get_all(
             tracks_path,
             params=params,
-            ignore_expiry=obj.status_unchanged,
+            expiry_strategy=(
+                ExpiryStrategy.FORCE_FRESH if obj.status_unchanged else None
+            ),
         )
 
         more_tracks = []
@@ -531,12 +551,6 @@ class SpotifyOAuthClient(OAuthClient):
             return {}
 
         return self.get_one(f"tracks/{web_link.id}", params={"market": "from_token"})
-
-    def clear_cache(
-        self,
-        extra_expiry=None,  # noqa: ARG002
-    ):
-        self._cache.clear()
 
 
 @unique

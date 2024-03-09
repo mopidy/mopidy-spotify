@@ -13,22 +13,17 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     def __init__(self, backend):
         self._backend = backend
         self._timeout = self._backend._config["spotify"]["timeout"]
-        self._loaded = False
-
-        self._refreshing = False
+        self._refresh_mutex = threading.Lock()
 
     def as_list(self):
         with utils.time_logger("playlists.as_list()", logging.DEBUG):
-            if not self._loaded:
-                return []
-
             return list(self._get_flattened_playlist_refs())
 
-    def _get_flattened_playlist_refs(self):
+    def _get_flattened_playlist_refs(self, *, refresh=False):
         if not self._backend._web_client.logged_in:
             return []
 
-        user_playlists = self._backend._web_client.get_user_playlists()
+        user_playlists = self._backend._web_client.get_user_playlists(refresh=refresh)
         return translator.to_playlist_refs(
             user_playlists, self._backend._web_client.user_id
         )
@@ -50,33 +45,39 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         )
 
     def refresh(self):
-        if not self._backend._web_client.logged_in or self._refreshing:
+        if not self._backend._web_client.logged_in:
             return
+        if not self._refresh_mutex.acquire(blocking=False):
+            logger.info("Refreshing Spotify playlists already in progress")
+            return
+        try:
+            uris = [ref.uri for ref in self._get_flattened_playlist_refs(refresh=True)]
+            logger.info(f"Refreshing {len(uris)} Spotify playlists in background")
+            threading.Thread(
+                target=self._refresh_tracks,
+                args=(uris,),
+                daemon=True,
+            ).start()
+        except Exception:
+            logger.exception("Error occurred while refreshing Spotify playlists")
+            self._refresh_mutex.release()
 
-        self._refreshing = True
+    def _refresh_tracks(self, playlist_uris):
+        if not self._refresh_mutex.locked():
+            logger.error("Lock must be held before calling this method")
+            return []
+        try:
+            with utils.time_logger("playlists._refresh_tracks()", logging.DEBUG):
+                refreshed = [uri for uri in playlist_uris if self.lookup(uri)]
+                logger.info(f"Refreshed {len(refreshed)} Spotify playlists")
 
-        logger.info("Refreshing Spotify playlists")
-
-        def refresher():
-            try:
-                with utils.time_logger("playlists.refresh()", logging.DEBUG):
-                    self._backend._web_client.clear_cache()
-                    count = 0
-                    for playlist_ref in self._get_flattened_playlist_refs():
-                        self._get_playlist(playlist_ref.uri)
-                        count += 1
-                    logger.info(f"Refreshed {count} Spotify playlists")
-
-                listener.CoreListener.send("playlists_loaded")
-                self._loaded = True
-            except Exception:
-                logger.exception("An error occurred while refreshing Spotify playlists")
-            finally:
-                self._refreshing = False
-
-        thread = threading.Thread(target=refresher)
-        thread.daemon = True
-        thread.start()
+            listener.CoreListener.send("playlists_loaded")
+        except Exception:
+            logger.exception("Error occurred while refreshing Spotify playlists tracks")
+        else:
+            return refreshed  # For test
+        finally:
+            self._refresh_mutex.release()
 
     def create(self, name):
         pass  # TODO

@@ -1,3 +1,4 @@
+import logging
 from unittest import mock
 
 import pytest
@@ -44,9 +45,7 @@ def web_client_mock(web_client_mock, web_track_mock):
 @pytest.fixture()
 def provider(backend_mock, web_client_mock):
     backend_mock._web_client = web_client_mock
-    provider = playlists.SpotifyPlaylistsProvider(backend_mock)
-    provider._loaded = True
-    return provider
+    return playlists.SpotifyPlaylistsProvider(backend_mock)
 
 
 def test_is_a_playlists_provider(provider):
@@ -63,14 +62,6 @@ def test_as_list_when_not_logged_in(web_client_mock, provider):
 
 def test_as_list_when_offline(web_client_mock, provider):
     web_client_mock.get_user_playlists.return_value = {}
-
-    result = provider.as_list()
-
-    assert len(result) == 0
-
-
-def test_as_list_when_not_loaded(provider):
-    provider._loaded = False
 
     result = provider.as_list()
 
@@ -119,15 +110,6 @@ def test_get_items_when_offline(web_client_mock, provider, caplog):
     )
 
 
-def test_get_items_when_not_loaded(provider):
-    provider._loaded = False
-
-    result = provider.get_items("spotify:user:alice:playlist:foo")
-
-    assert len(result) == 1
-    assert result[0] == Ref.track(uri="spotify:track:abc", name="ABC 123")
-
-
 def test_get_items_when_playlist_wont_translate(provider):
     assert provider.get_items("spotify:user:alice:playlist:malformed") is None
 
@@ -141,7 +123,7 @@ def test_get_items_when_playlist_is_unknown(provider, caplog):
 
 
 def test_refresh_loads_all_playlists(provider, web_client_mock):
-    with ThreadJoiner(timeout=1.0):
+    with ThreadJoiner():
         provider.refresh()
 
     web_client_mock.get_user_playlists.assert_called_once()
@@ -154,40 +136,89 @@ def test_refresh_loads_all_playlists(provider, web_client_mock):
 
 
 def test_refresh_when_not_logged_in(provider, web_client_mock):
-    provider._loaded = False
     web_client_mock.logged_in = False
 
-    with ThreadJoiner(timeout=1.0):
+    with ThreadJoiner():
         provider.refresh()
 
     web_client_mock.get_user_playlists.assert_not_called()
     web_client_mock.get_playlist.assert_not_called()
-    assert not provider._loaded
 
 
-def test_refresh_sets_loaded(provider, web_client_mock):
-    provider._loaded = False
+def test_refresh_in_progress(provider, web_client_mock, caplog):
+    assert provider._refresh_mutex.acquire(blocking=False)
 
-    with ThreadJoiner(timeout=1.0):
+    with ThreadJoiner():
         provider.refresh()
 
-    web_client_mock.get_user_playlists.assert_called_once()
-    web_client_mock.get_playlist.assert_called()
-    assert provider._loaded
+    web_client_mock.get_user_playlists.assert_not_called()
+    web_client_mock.get_playlist.assert_not_called()
+    assert provider._refresh_mutex.locked()
+    assert "Refreshing Spotify playlists already in progress" in caplog.text
 
 
-def test_refresh_counts_playlists(provider, caplog):
-    with ThreadJoiner(timeout=1.0):
+def test_refresh_counts_valid_playlists(provider, caplog):
+    caplog.set_level(logging.INFO)  # To avoid log corruption from debug logging.
+    with ThreadJoiner():
         provider.refresh()
 
+    assert "Refreshing 2 Spotify playlists in background" in caplog.text
     assert "Refreshed 2 Spotify playlists" in caplog.text
 
 
-def test_refresh_clears_caches(provider, web_client_mock):
-    with ThreadJoiner(timeout=1.0):
+@mock.patch("mopidy.core.listener.CoreListener.send")
+def test_refresh_triggers_playlists_loaded_event(send, provider):
+    with ThreadJoiner():
         provider.refresh()
 
-    web_client_mock.clear_cache.assert_called_once()
+    send.assert_called_once_with("playlists_loaded")
+
+
+def test_refresh_with_refresh_true_arg(provider, web_client_mock):
+    with ThreadJoiner():
+        provider.refresh()
+
+    web_client_mock.get_user_playlists.assert_called_once_with(refresh=True)
+
+
+def test_refresh_handles_error(provider, web_client_mock, caplog):
+    web_client_mock.get_user_playlists.side_effect = Exception()
+
+    with ThreadJoiner():
+        provider.refresh()
+
+    assert "Error occurred while refreshing Spotify playlists" in caplog.text
+    assert not provider._refresh_mutex.locked()
+
+
+def test_refresh_tracks_handles_error(provider, web_client_mock, caplog):
+    web_client_mock.get_playlist.side_effect = Exception()
+
+    with ThreadJoiner():
+        provider.refresh()
+
+    assert "Error occurred while refreshing Spotify playlists tracks" in caplog.text
+    assert not provider._refresh_mutex.locked()
+
+
+def test_refresh_tracks_needs_lock(provider, web_client_mock, caplog):
+    assert provider._refresh_tracks("foo") == []
+
+    assert "Lock must be held before calling this method" in caplog.text
+    web_client_mock.get_playlist.assert_not_called()
+
+
+def test_refresh_tracks(provider, web_client_mock, caplog):
+    uris = ["spotify:user:alice:playlist:foo", "spotify:user:bob:playlist:baz"]
+
+    assert provider._refresh_mutex.acquire(blocking=False)
+    assert provider._refresh_tracks(uris) == uris
+
+    expected_calls = [
+        mock.call("spotify:user:alice:playlist:foo"),
+        mock.call("spotify:user:bob:playlist:baz"),
+    ]
+    web_client_mock.get_playlist.assert_has_calls(expected_calls)
 
 
 def test_lookup(provider):
@@ -204,15 +235,6 @@ def test_lookup_when_not_logged_in(web_client_mock, provider):
     playlist = provider.lookup("spotify:user:alice:playlist:foo")
 
     assert playlist is None
-
-
-def test_lookup_when_not_loaded(provider):
-    provider._loaded = False
-
-    playlist = provider.lookup("spotify:user:alice:playlist:foo")
-
-    assert playlist.uri == "spotify:user:alice:playlist:foo"
-    assert playlist.name == "Foo"
 
 
 def test_lookup_when_playlist_is_empty(provider, caplog):
