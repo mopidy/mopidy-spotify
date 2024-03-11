@@ -87,15 +87,13 @@ class OAuthClient:
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
-        try:
-            self._refresh_mutex.acquire()
-            if self._should_refresh_token():
-                self._refresh_token()
-        except OAuthTokenRefreshError as e:
-            logger.error(e)  # noqa: TRY400
-            return WebResponse(None, None)
-        finally:
-            self._refresh_mutex.release()
+        with self._refresh_mutex:
+            try:
+                if self._should_refresh_token():
+                    self._refresh_token()
+            except OAuthTokenRefreshError as e:
+                logger.error(e)  # noqa: TRY400
+                return WebResponse(None, None)
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault("headers", {}).update(self._headers)
@@ -108,15 +106,12 @@ class OAuthClient:
             )
             return WebResponse(None, None)
 
-        try:
-            self._cache_mutex.acquire()
+        with self._cache_mutex:
             if self._should_cache_response(cache, result):
                 previous_result = cache.get(path)
                 if previous_result and previous_result.updated(result):
                     result = previous_result
                 cache[path] = result
-        finally:
-            self._cache_mutex.release()
 
         return result
 
