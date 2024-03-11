@@ -50,20 +50,33 @@ def skip_refresh_token():
     patcher.stop()
 
 
+def test_should_refresh_token_requires_lock(oauth_client):
+    with pytest.raises(web.OAuthTokenRefreshError):
+        oauth_client._should_refresh_token()
+
+
+def test_refresh_token_requires_lock(oauth_client):
+    with pytest.raises(web.OAuthTokenRefreshError):
+        oauth_client._refresh_token()
+
+
 def test_initial_refresh_token(oauth_client):
-    assert oauth_client._should_refresh_token()
+    with oauth_client._refresh_mutex:
+        assert oauth_client._should_refresh_token()
 
 
 def test_expired_refresh_token(oauth_client, mock_time):
     oauth_client._expires = 1060
     mock_time.return_value = 1001
-    assert oauth_client._should_refresh_token()
+    with oauth_client._refresh_mutex:
+        assert oauth_client._should_refresh_token()
 
 
 def test_still_valid_refresh_token(oauth_client, mock_time):
     oauth_client._expires = 1060
     mock_time.return_value = 1000
-    assert not oauth_client._should_refresh_token()
+    with oauth_client._refresh_mutex:
+        assert not oauth_client._should_refresh_token()
 
 
 def test_user_agent(oauth_client):
@@ -378,7 +391,7 @@ def test_web_response_status_unchanged_from_cache():
 
     assert not response.status_unchanged
 
-    response.still_valid(ignore_expiry=True)
+    response.still_valid(expiry_strategy=web.ExpiryStrategy.FORCE_FRESH)
 
     assert response.status_unchanged
 
@@ -532,8 +545,24 @@ def test_cache_response_expired(
     assert result["uri"] == "new"
 
 
+def test_cache_response_still_valid_strategy(mock_time):
+    response = web.WebResponse("foo", {}, expires=9999 + 1)
+    mock_time.return_value = 9999
+
+    assert response.still_valid() is True
+    assert response.still_valid(expiry_strategy=None) is True
+    assert (
+        response.still_valid(expiry_strategy=web.ExpiryStrategy.FORCE_FRESH)
+        is True
+    )
+    assert (
+        response.still_valid(expiry_strategy=web.ExpiryStrategy.FORCE_EXPIRED)
+        is False
+    )
+
+
 @responses.activate
-def test_cache_response_ignore_expiry(
+def test_cache_response_force_fresh(
     web_response_mock, skip_refresh_token, oauth_client, mock_time, caplog
 ):
     cache = {"https://api.spotify.com/v1/tracks/abc": web_response_mock}
@@ -545,11 +574,17 @@ def test_cache_response_ignore_expiry(
     mock_time.return_value = 9999
 
     assert not web_response_mock.still_valid()
-    assert web_response_mock.still_valid(True)
-    assert "Cached data forced for" in caplog.text
+    assert "Cached data expired for" in caplog.text
+
+    assert web_response_mock.still_valid(
+        expiry_strategy=web.ExpiryStrategy.FORCE_FRESH
+    )
+    assert "Cached data force-fresh for" in caplog.text
 
     result = oauth_client.get(
-        "https://api.spotify.com/v1/tracks/abc", cache, ignore_expiry=True
+        "https://api.spotify.com/v1/tracks/abc",
+        cache,
+        expiry_strategy=web.ExpiryStrategy.FORCE_FRESH,
     )
     assert len(responses.calls) == 0
     assert result["uri"] == "spotify:track:abc"
@@ -974,6 +1009,27 @@ class TestSpotifyOAuthClient:
         assert len(responses.calls) == 1
         assert len(result) == 0
 
+    @pytest.mark.parametrize(
+        ("refresh", "strategy"),
+        [
+            (True, web.ExpiryStrategy.FORCE_EXPIRED),
+            (False, None),
+        ],
+    )
+    def test_get_user_playlists_get_all(
+        self, spotify_client, refresh, strategy
+    ):
+        spotify_client.get_all = mock.Mock(return_value=[])
+
+        result = list(spotify_client.get_user_playlists(refresh=refresh))
+
+        spotify_client.get_all.assert_called_once_with(
+            "users/alice/playlists",
+            params={"limit": 50},
+            expiry_strategy=strategy,
+        )
+        assert len(result) == 0
+
     @responses.activate
     def test_get_user_playlists_sets_params(self, spotify_client):
         responses.add(responses.GET, url("users/alice/playlists"), json={})
@@ -1179,15 +1235,8 @@ class TestSpotifyOAuthClient:
         assert spotify_client.get_playlist(uri) == {}
         assert f"Could not parse {uri!r} as a {msg} URI" in caplog.text
 
-    def test_clear_cache(self, spotify_client):
-        spotify_client._cache = {"foo": "bar"}
-
-        spotify_client.clear_cache()
-
-        assert {} == spotify_client._cache
-
     @pytest.mark.parametrize(
-        "user_id,expected", [("alice", True), (None, False)]
+        ("user_id", "expected"), [("alice", True), (None, False)]
     )
     def test_logged_in(self, spotify_client, user_id, expected):
         spotify_client.user_id = user_id

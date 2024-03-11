@@ -2,13 +2,13 @@ import copy
 import logging
 import os
 import re
+import threading
 import time
 import urllib.parse
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from enum import Enum, unique
-from threading import Lock
 from typing import Optional
 
 import requests
@@ -64,8 +64,11 @@ class OAuthClient:
 
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
-        self._cache_mutex = Lock()
-        self._refresh_mutex = Lock()
+        # TODO: Move _cache_mutex to the object it actually protects.
+        self._cache_mutex = threading.Lock()  # Protects get() cache param.
+        self._refresh_mutex = (
+            threading.Lock()
+        )  # Protects _headers and _expires.
 
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
@@ -77,24 +80,22 @@ class OAuthClient:
 
         _trace(f"Get '{path}'")
 
-        ignore_expiry = kwargs.pop("ignore_expiry", False)
+        expiry_strategy = kwargs.pop("expiry_strategy", None)
         if cache is not None and path in cache:
             cached_result = cache.get(path)
-            if cached_result.still_valid(ignore_expiry):
+            if cached_result.still_valid(expiry_strategy=expiry_strategy):
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
 
         # TODO: Factor this out once we add more methods.
         # TODO: Don't silently error out.
-        try:
-            self._refresh_mutex.acquire()
-            if self._should_refresh_token():
-                self._refresh_token()
-        except OAuthTokenRefreshError as e:
-            logger.error(e)
-            return WebResponse(None, None)
-        finally:
-            self._refresh_mutex.release()
+        with self._refresh_mutex:
+            try:
+                if self._should_refresh_token():
+                    self._refresh_token()
+            except OAuthTokenRefreshError as e:
+                logger.error(e)  # noqa: TRY400
+                return WebResponse(None, None)
 
         # Make sure our headers always override user supplied ones.
         kwargs.setdefault("headers", {}).update(self._headers)
@@ -107,15 +108,12 @@ class OAuthClient:
             )
             return WebResponse(None, None)
 
-        try:
-            self._cache_mutex.acquire()
+        with self._cache_mutex:
             if self._should_cache_response(cache, result):
                 previous_result = cache.get(path)
                 if previous_result and previous_result.updated(result):
                     result = previous_result
                 cache[path] = result
-        finally:
-            self._cache_mutex.release()
 
         return result
 
@@ -124,10 +122,15 @@ class OAuthClient:
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
+        if not self._refresh_mutex.locked():
+            raise OAuthTokenRefreshError("Lock must be held before calling.")
         return not self._auth or time.time() > self._expires - self._margin
 
     def _refresh_token(self):
         logger.debug(f"Fetching OAuth token from {self._refresh_url}")
+
+        if not self._refresh_mutex.locked():
+            raise OAuthTokenRefreshError("Lock must be held before calling.")
 
         data = {"grant_type": "client_credentials"}
         result = self._request_with_retries(
@@ -276,6 +279,12 @@ class OAuthClient:
         return max(0, seconds)
 
 
+@unique
+class ExpiryStrategy(Enum):
+    FORCE_FRESH = "force-fresh"
+    FORCE_EXPIRED = "force-expired"
+
+
 class WebResponse(dict):
     def __init__(self, url, data, expires=0.0, etag=None, status_code=400):
         self._from_cache = False
@@ -334,19 +343,22 @@ class WebResponse(dict):
             if etag and len(etag.groups()) == 2:
                 return etag.groups()[1]
 
-    def still_valid(self, ignore_expiry=False):
-        if ignore_expiry:
-            result = True
-            status = "forced"
-        elif self._expires >= time.time():
-            result = True
-            status = "fresh"
+        return None
+
+    def still_valid(self, *, expiry_strategy=None):
+        if expiry_strategy is None:
+            if self._expires >= time.time():
+                valid = True
+                status = "fresh"
+            else:
+                valid = False
+                status = "expired"
         else:
-            result = False
-            status = "expired"
-        self._from_cache = result
+            valid = expiry_strategy is ExpiryStrategy.FORCE_FRESH
+            status = expiry_strategy.value
+        self._from_cache = valid
         _trace("Cached data %s for %s", status, self)
-        return result
+        return valid
 
     @property
     def status_unchanged(self):
@@ -442,9 +454,12 @@ class SpotifyOAuthClient(OAuthClient):
     def logged_in(self):
         return self.user_id is not None
 
-    def get_user_playlists(self):
+    def get_user_playlists(self, *, refresh=False):
+        expiry_strategy = ExpiryStrategy.FORCE_EXPIRED if refresh else None
         pages = self.get_all(
-            f"users/{self.user_id}/playlists", params={"limit": 50}
+            f"users/{self.user_id}/playlists",
+            params={"limit": 50},
+            expiry_strategy=expiry_strategy,
         )
         for page in pages:
             yield from page.get("items", [])
@@ -456,7 +471,9 @@ class SpotifyOAuthClient(OAuthClient):
         track_pages = self.get_all(
             tracks_path,
             params=params,
-            ignore_expiry=obj.status_unchanged,
+            expiry_strategy=(
+                ExpiryStrategy.FORCE_FRESH if obj.status_unchanged else None
+            ),
         )
 
         more_tracks = []
@@ -540,9 +557,6 @@ class SpotifyOAuthClient(OAuthClient):
         return self.get_one(
             f"tracks/{web_link.id}", params={"market": "from_token"}
         )
-
-    def clear_cache(self, extra_expiry=None):
-        self._cache.clear()
 
 
 @unique
