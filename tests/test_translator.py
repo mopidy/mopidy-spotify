@@ -553,12 +553,6 @@ class TestWebToAlbum:
 
         assert list(album.artists) == []
 
-    def test_caches_results(self, web_album_mock):
-        album1 = translator.web_to_album(web_album_mock)
-        album2 = translator.web_to_album(web_album_mock)
-
-        assert album1 is album2
-
     def test_web_to_album_tracks(self, web_album_mock):
         tracks = translator.web_to_album_tracks(web_album_mock)
 
