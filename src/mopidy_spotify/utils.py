@@ -1,5 +1,7 @@
 import contextlib
+import itertools
 import logging
+import operator
 import time
 
 import requests
@@ -33,3 +35,9 @@ def time_logger(name, level=TRACE):
 
 def flatten(list_of_lists):
     return [item for sublist in list_of_lists for item in sublist]
+
+
+def group_by_type(links):
+    link_type_getter = operator.attrgetter("type")
+    links = sorted((u for u in links if u), key=link_type_getter)
+    return itertools.groupby(links, link_type_getter)

@@ -245,11 +245,9 @@ def test_max_50_ids_per_request(web_client_mock, img_provider):
     "uri",
     [
         "foo:bar",
-        "spotify:baz",
-        "spotify:artist",
-        "spotify:album",
-        "spotify:user",
+        "spotify:user:bob:starred",
         "spotify:playlist",
+        "spotify:your:fish",
     ],
 )
 def test_invalid_uri(img_provider, caplog, uri):
@@ -259,14 +257,11 @@ def test_invalid_uri(img_provider, caplog, uri):
     assert f"Could not parse '{uri}' as a Spotify URI" in caplog.text
 
 
-@pytest.mark.parametrize(
-    "uri", ["spotify:dog:cat", "spotify:your:fish", "spotify:top:hat"]
-)
-def test_unsupported_image_type(img_provider, caplog, uri):
+def test_unsupported_image_type(img_provider, caplog):
     with caplog.at_level(5):
-        result = img_provider.get_images([uri])
+        result = img_provider.get_images(["spotify:your:fish"])
     assert result == {}
-    assert f"Unsupported image type '{uri.split(':')[1]}'" in caplog.text
+    assert "Unsupported image type 'your'" in caplog.text
 
 
 @pytest.mark.parametrize(

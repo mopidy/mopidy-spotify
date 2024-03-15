@@ -1444,10 +1444,16 @@ def test_weblink_from_uri_playlist(uri, id_, owner):
         ("spotify:user:alice:track:foo"),
         ("local:user:alice:playlist:foo"),
         ("spotify:track:foo:bar"),
-        ("spotify:album:"),
         ("https://yahoo.com/playlist/foo"),
         ("https://play.spotify.com/foo"),
         ("total/junk"),
+        ("foo:bar"),
+        ("spotify:baz"),
+        ("spotify:artist"),
+        ("spotify:album"),
+        ("spotify:user"),
+        ("spotify:playlist"),
+        ("spotify:playlist:"),
     ],
 )
 def test_weblink_from_uri_raises(uri):

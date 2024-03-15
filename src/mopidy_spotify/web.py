@@ -8,7 +8,7 @@ import urllib.parse
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
-from enum import Enum, unique
+from enum import StrEnum, auto, unique
 from http import HTTPStatus
 
 import requests
@@ -271,7 +271,7 @@ class OAuthClient:
 
 
 @unique
-class ExpiryStrategy(Enum):
+class ExpiryStrategy(StrEnum):
     FORCE_FRESH = "force-fresh"
     FORCE_EXPIRED = "force-expired"
 
@@ -554,12 +554,12 @@ class SpotifyOAuthClient(OAuthClient):
 
 
 @unique
-class LinkType(Enum):
-    TRACK = "track"
-    ALBUM = "album"
-    ARTIST = "artist"
-    PLAYLIST = "playlist"
-    YOUR = "your"
+class LinkType(StrEnum):
+    TRACK = auto()
+    ALBUM = auto()
+    ARTIST = auto()
+    PLAYLIST = auto()
+    YOUR = auto()
 
 
 @dataclass
