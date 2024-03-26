@@ -5,7 +5,6 @@ from mopidy_spotify.translator import web_to_image
 from mopidy_spotify.utils import group_by_type
 from mopidy_spotify.web import LinkType, WebLink
 
-_API_MAX_IDS_PER_REQUEST = 50
 SUPPORTED_TYPES = (
     LinkType.TRACK,
     LinkType.ALBUM,
@@ -31,9 +30,6 @@ def get_images(web_client, uris):
                 result.update(_process_one(web_client, link))
             else:
                 batch.append(link)
-                if len(batch) >= _API_MAX_IDS_PER_REQUEST:
-                    result.update(_process_many(web_client, link_type, batch))
-                    batch = []
         result.update(_process_many(web_client, link_type, batch))
     return result
 
@@ -65,7 +61,7 @@ def _process_one(web_client, link):
     return {link.uri: _cache[key]}
 
 
-def _process_many(  # noqa: C901
+def _process_many(
     web_client,
     link_type,
     links,
@@ -74,38 +70,21 @@ def _process_many(  # noqa: C901
     if not links:
         return result
 
-    ids = [u.id for u in links]
-    ids_to_links = {u.id: u for u in links}
-
-    data = web_client.get(link_type + "s", params={"ids": ",".join(ids)})
-    for item in data.get(link_type + "s") or []:
-        if not item:
-            continue
-
-        if "linked_from" in item:
-            item_id = item["linked_from"].get("id")
-        else:
-            item_id = item.get("id")
-        link = ids_to_links.get(item_id)
-        if not link:
-            continue
-
+    for link, item in web_client.get_batch(link_type, links):
         key = _make_cache_key(link)
-        if key not in _cache:
-            if link_type == LinkType.TRACK:
-                if "album" not in item:
-                    continue
-                album_link = _parse_uri(item["album"].get("uri"))
-                if not album_link:
-                    continue
-                album_key = _make_cache_key(album_link)
-                if album_key not in _cache:
-                    _cache[album_key] = tuple(
-                        web_to_image(i) for i in item["album"].get("images") or []
-                    )
-                _cache[key] = _cache[album_key]
-            else:
-                _cache[key] = tuple(web_to_image(i) for i in item.get("images") or [])
+        if link_type == LinkType.TRACK:
+            if not (album_item := item.get("album")):
+                continue
+            if not (album_link := _parse_uri(album_item.get("uri"))):
+                continue
+            album_key = _make_cache_key(album_link)
+            if album_key not in _cache:
+                _cache[album_key] = tuple(
+                    web_to_image(i) for i in album_item.get("images") or []
+                )
+            _cache[key] = _cache[album_key]
+        else:
+            _cache[key] = tuple(web_to_image(i) for i in item.get("images") or [])
         result[link.uri] = _cache[key]
 
     return result

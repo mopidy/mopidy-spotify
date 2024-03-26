@@ -307,6 +307,16 @@ class WebResponse(dict):
             status_code=response.status_code,
         )
 
+    @classmethod
+    def from_batch(cls, batch_response, item_json):
+        return cls(
+            batch_response.url,
+            item_json,
+            expires=batch_response._expires,
+            etag=None,
+            status_code=batch_response._status_code,
+        )
+
     @staticmethod
     def _decode(response):
         # Deal with 204 and other responses with empty body.
@@ -406,6 +416,70 @@ class WebResponse(dict):
     def increase_expiry(self, delta_seconds):
         if self.status_ok and not self._from_cache:
             self._expires += delta_seconds
+
+
+@unique
+class LinkType(StrEnum):
+    TRACK = auto()
+    ALBUM = auto()
+    ARTIST = auto()
+    PLAYLIST = auto()
+    YOUR = auto()
+
+
+@dataclass
+class WebLink:
+    uri: str
+    type: LinkType
+    id: str | None = None
+    owner: str | None = None
+
+    @classmethod
+    def from_uri(cls, uri):
+        parsed_uri = urllib.parse.urlparse(uri)
+
+        schemes = ("http", "https")
+        netlocs = ("open.spotify.com", "play.spotify.com")
+
+        if parsed_uri.scheme == "spotify":
+            parts = parsed_uri.path.split(":")
+        elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
+            parts = parsed_uri.path[1:].split("/")
+        else:
+            parts = []
+
+        # Strip out empty parts to ensure we are strict about URI parsing.
+        parts = [p for p in parts if p.strip()]
+
+        match parts:
+            case [type, id] if type in ("track", "album", "artist", "playlist"):
+                return cls(uri, LinkType(type), id, None)
+            case ["your", _]:
+                return cls(uri, LinkType.YOUR)
+            case ["user", owner, "starred"]:
+                if parsed_uri.scheme == "spotify":
+                    return cls(uri, LinkType.PLAYLIST, None, owner)
+            case ["playlist", owner, id]:
+                return cls(uri, LinkType.PLAYLIST, id, owner)
+            case ["user", owner, "playlist", id]:
+                return cls(uri, LinkType.PLAYLIST, id, owner)
+
+        raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
+
+    def __hash__(self):
+        return hash(self.uri)
+
+
+class WebError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+API_MAX_IDS_PER_REQUEST = {
+    LinkType.TRACK: 50,  # API limit is actually 100. Any reason not to use that?
+    LinkType.ARTIST: 50,
+    LinkType.ALBUM: 20,
+}
 
 
 class SpotifyOAuthClient(OAuthClient):
@@ -514,6 +588,35 @@ class SpotifyOAuthClient(OAuthClient):
         )
         return self._with_all_tracks(album)
 
+    def get_batch(self, link_type, links):
+        result = {}
+        if not links:
+            return result
+        if link_type not in API_MAX_IDS_PER_REQUEST:
+            logger.warning(f"Cannot handle batched {link_type}s")
+            return result
+
+        links = list(dict.fromkeys(links))  # Remove duplicates and maintain order
+        for batch in utils.batched(links, API_MAX_IDS_PER_REQUEST[link_type]):
+            ids = [u.id for u in batch]
+            ids_to_links = {u.id: u for u in batch}
+            data = self.get_one(
+                f"{link_type}s", params={"ids": ",".join(ids), "market": "from_token"}
+            )
+            for item in data.get(f"{link_type}s") or []:
+                if not item:
+                    continue
+
+                # For track re-linking.
+                if "linked_from" in item:
+                    item_id = item["linked_from"].get("id")
+                else:
+                    item_id = item.get("id")
+                if link := ids_to_links.get(item_id):
+                    yield link, WebResponse.from_batch(data, item)
+                else:
+                    logger.warning(f"Invalid batch item: {item}")
+
     def get_artist_albums(self, web_link, *, all_tracks=True):
         if web_link.type != LinkType.ARTIST:
             logger.error("Expecting Spotify artist URI")
@@ -551,57 +654,3 @@ class SpotifyOAuthClient(OAuthClient):
             return {}
 
         return self.get_one(f"tracks/{web_link.id}", params={"market": "from_token"})
-
-
-@unique
-class LinkType(StrEnum):
-    TRACK = auto()
-    ALBUM = auto()
-    ARTIST = auto()
-    PLAYLIST = auto()
-    YOUR = auto()
-
-
-@dataclass
-class WebLink:
-    uri: str
-    type: LinkType
-    id: str | None = None
-    owner: str | None = None
-
-    @classmethod
-    def from_uri(cls, uri):
-        parsed_uri = urllib.parse.urlparse(uri)
-
-        schemes = ("http", "https")
-        netlocs = ("open.spotify.com", "play.spotify.com")
-
-        if parsed_uri.scheme == "spotify":
-            parts = parsed_uri.path.split(":")
-        elif parsed_uri.scheme in schemes and parsed_uri.netloc in netlocs:
-            parts = parsed_uri.path[1:].split("/")
-        else:
-            parts = []
-
-        # Strip out empty parts to ensure we are strict about URI parsing.
-        parts = [p for p in parts if p.strip()]
-
-        match parts:
-            case [type, id] if type in ("track", "album", "artist", "playlist"):
-                return cls(uri, LinkType(type), id, None)
-            case ["your", _]:
-                return cls(uri, LinkType.YOUR)
-            case ["user", owner, "starred"]:
-                if parsed_uri.scheme == "spotify":
-                    return cls(uri, LinkType.PLAYLIST, None, owner)
-            case ["playlist", owner, id]:
-                return cls(uri, LinkType.PLAYLIST, id, owner)
-            case ["user", owner, "playlist", id]:
-                return cls(uri, LinkType.PLAYLIST, id, owner)
-
-        raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
-
-
-class WebError(Exception):
-    def __init__(self, message):
-        super().__init__(message)

@@ -77,6 +77,7 @@ def web_track_mock_base(web_artist_mock):
         "name": "ABC 123",
         "track_number": 7,
         "uri": "spotify:track:abc",
+        "id": "abc",
         "type": "track",
         "is_playable": True,
     }
@@ -87,6 +88,7 @@ def web_album_mock_base(web_artist_mock):
     return {
         "name": "DEF 456",
         "uri": "spotify:album:def",
+        "id": "def",
         "type": "album",
         "album_type": "album",
         "artists": [web_artist_mock],
@@ -107,6 +109,7 @@ def web_album_mock_base2(web_artist_mock):
     return {
         "name": "XYZ 789",
         "uri": "spotify:album:xyz",
+        "id": "xyz",
         "type": "album",
         "album_type": "album",
         "artists": [web_artist_mock],
