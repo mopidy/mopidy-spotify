@@ -90,7 +90,7 @@ Installation
 
 Install by running::
 
-    sudo python3 -m pip install --break-system-packages Mopidy-Spotify==5.0.0a1
+    sudo python3 -m pip install --break-system-packages Mopidy-Spotify==5.0.0a2
 
 
 Configuration
