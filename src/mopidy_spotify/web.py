@@ -577,19 +577,8 @@ class SpotifyOAuthClient(OAuthClient):
         )
         return self._with_all_tracks(playlist, {"fields": self.TRACK_FIELDS})
 
-    def get_album(self, web_link):
-        if web_link.type != LinkType.ALBUM:
-            logger.error("Expecting Spotify album URI")
-            return {}
-
-        album = self.get_one(
-            f"albums/{web_link.id}",
-            params={"market": "from_token"},
-        )
-        return self._with_all_tracks(album)
-
     def get_batch(self, link_type, links):
-        result = {}
+        result = []
         if not links:
             return result
         if link_type not in API_MAX_IDS_PER_REQUEST:
@@ -617,6 +606,18 @@ class SpotifyOAuthClient(OAuthClient):
                 else:
                     logger.warning(f"Invalid batch item: {item}")
 
+    def get_albums(self, album_links):
+        result = {}
+        for link_type, link_group in utils.group_by_type(album_links):
+            if link_type != LinkType.ALBUM:
+                logger.error("Expecting Spotify album URIs")
+                continue
+            result.update(self.get_batch(link_type, link_group))
+
+        for link in album_links:
+            if album := result.get(link):
+                yield self._with_all_tracks(album)
+
     def get_artist_albums(self, web_link, *, all_tracks=True):
         if web_link.type != LinkType.ARTIST:
             logger.error("Expecting Spotify artist URI")
@@ -626,17 +627,19 @@ class SpotifyOAuthClient(OAuthClient):
             f"artists/{web_link.id}/albums",
             params={"market": "from_token", "include_groups": "single,album"},
         )
+        album_links = []
         for page in pages:
-            for album in page["items"]:
+            for album in page.get("items") or []:
                 if all_tracks:
                     try:
-                        web_link = WebLink.from_uri(album.get("uri"))
+                        album_links.append(WebLink.from_uri(album.get("uri")))
                     except ValueError as exc:
                         logger.error(exc)  # noqa: TRY400
                         continue
-                    yield self.get_album(web_link)
                 else:
                     yield album
+        if all_tracks:
+            yield from self.get_albums(album_links)
 
     def get_artist_top_tracks(self, web_link):
         if web_link.type != LinkType.ARTIST:

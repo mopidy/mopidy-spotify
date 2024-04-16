@@ -101,9 +101,10 @@ def search(  # noqa: PLR0913
 
 
 def _search_by_uri(config, web_client, query):
+    results = lookup.lookup(config, web_client, query["uri"])
     tracks = []
     for uri in query["uri"]:
-        tracks += lookup.lookup(config, web_client, uri)
+        tracks += results.get(uri, [])
 
     uri = "spotify:search"
     if len(query["uri"]) == 1:

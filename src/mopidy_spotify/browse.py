@@ -108,9 +108,10 @@ def _browse_album(web_client, uri):
         logger.info(f"Failed to browse {uri!r}: {exc}")
         return []
 
-    web_album = web_client.get_album(link)
-    web_tracks = web_album.get("tracks", {}).get("items", [])
-    return list(translator.web_to_track_refs(web_tracks))
+    for web_album in web_client.get_albums([link]):
+        web_tracks = web_album.get("tracks", {}).get("items", [])
+        return list(translator.web_to_track_refs(web_tracks))
+    return []
 
 
 def _browse_artist(web_client, uri):

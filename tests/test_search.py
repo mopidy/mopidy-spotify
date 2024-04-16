@@ -1,5 +1,7 @@
+from unittest import mock
+
 from mopidy import models
-from mopidy_spotify import search
+from mopidy_spotify import lookup, search, translator
 
 
 def test_search_with_no_query_returns_nothing(provider, caplog):
@@ -20,10 +22,11 @@ def test_search_with_empty_query_returns_nothing(provider, caplog):
     assert "Ignored search with empty query" in caplog.text
 
 
-def test_search_by_single_uri(web_client_mock, web_track_mock, provider):
-    web_client_mock.get_track.return_value = web_track_mock
-
-    result = provider.search({"uri": ["spotify:track:abc"]})
+def test_search_by_single_uri(web_track_mock, provider):
+    track = translator.web_to_track(web_track_mock, 160)
+    with mock.patch.object(lookup, "lookup") as mock_lookup:
+        mock_lookup.return_value = {track.uri: [track]}
+        result = provider.search({"uri": [track.uri]})
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == "spotify:track:abc"
@@ -34,10 +37,11 @@ def test_search_by_single_uri(web_client_mock, web_track_mock, provider):
     assert track.bitrate == 160
 
 
-def test_search_by_multiple_uris(web_client_mock, web_track_mock, provider):
-    web_client_mock.get_track.return_value = web_track_mock
-
-    result = provider.search({"uri": ["spotify:track:abc", "spotify:track:abc"]})
+def test_search_by_multiple_uris(web_track_mock, provider):
+    track = translator.web_to_track(web_track_mock, 160)
+    with mock.patch.object(lookup, "lookup") as mock_lookup:
+        mock_lookup.return_value = {track.uri: [track]}
+        result = provider.search({"uri": [track.uri, track.uri]})
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == "spotify:search"

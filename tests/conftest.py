@@ -134,6 +134,16 @@ def web_track_mock(web_track_mock_base, web_album_mock_base):
 
 
 @pytest.fixture()
+def web_track_mock_link(web_track_mock):
+    return web.WebLink.from_uri(web_track_mock["uri"])
+
+
+@pytest.fixture()
+def web_album_mock_link(web_album_mock):
+    return web.WebLink.from_uri(web_album_mock["uri"])
+
+
+@pytest.fixture()
 def web_response_mock(web_track_mock):
     return web.WebResponse(
         "https://api.spotify.com/v1/tracks/abc",
