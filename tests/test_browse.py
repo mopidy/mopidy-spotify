@@ -106,7 +106,7 @@ def test_browse_item_when_offline(web_client_mock, uri, provider, caplog):
 
 
 def test_browse_album(web_client_mock, web_album_mock, provider):
-    web_client_mock.get_album.return_value = web_album_mock
+    web_client_mock.get_albums.return_value = [web_album_mock]
 
     results = provider.browse("spotify:album:def")
 
@@ -115,7 +115,7 @@ def test_browse_album(web_client_mock, web_album_mock, provider):
 
 
 def test_browse_album_bad_uri(web_client_mock, web_album_mock, provider, caplog):
-    web_client_mock.get_album.return_value = web_album_mock
+    web_client_mock.get_albums.return_value = [web_album_mock]
 
     results = provider.browse("spotify:album:def:xyz")
 

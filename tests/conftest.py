@@ -77,6 +77,7 @@ def web_track_mock_base(web_artist_mock):
         "name": "ABC 123",
         "track_number": 7,
         "uri": "spotify:track:abc",
+        "id": "abc",
         "type": "track",
         "is_playable": True,
     }
@@ -87,6 +88,7 @@ def web_album_mock_base(web_artist_mock):
     return {
         "name": "DEF 456",
         "uri": "spotify:album:def",
+        "id": "def",
         "type": "album",
         "album_type": "album",
         "artists": [web_artist_mock],
@@ -107,6 +109,7 @@ def web_album_mock_base2(web_artist_mock):
     return {
         "name": "XYZ 789",
         "uri": "spotify:album:xyz",
+        "id": "xyz",
         "type": "album",
         "album_type": "album",
         "artists": [web_artist_mock],
@@ -128,6 +131,16 @@ def web_track_mock(web_track_mock_base, web_album_mock_base):
         **web_track_mock_base,
         "album": web_album_mock_base,
     }
+
+
+@pytest.fixture()
+def web_track_mock_link(web_track_mock):
+    return web.WebLink.from_uri(web_track_mock["uri"])
+
+
+@pytest.fixture()
+def web_album_mock_link(web_album_mock):
+    return web.WebLink.from_uri(web_album_mock["uri"])
 
 
 @pytest.fixture()

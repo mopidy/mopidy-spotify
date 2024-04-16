@@ -102,7 +102,7 @@ def playlist_lookup(
     logger.debug(f'Fetching Spotify playlist "{uri!r}"')
     web_playlist = web_client.get_playlist(uri)
 
-    if web_playlist == {}:
+    if not web_playlist:
         logger.error(f"Failed to lookup Spotify playlist URI {uri!r}")
         return None
 

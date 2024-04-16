@@ -786,6 +786,7 @@ def foo_album(foo_album_next_tracks):
     params = urllib.parse.urlencode({"market": "from_token"})
     return {
         "href": url(f"albums/foo?{params}"),
+        "id": "foo",
         "tracks": {
             "href": url(f"albums/foo/tracks?{params}"),
             "items": [3, 4, 5],
@@ -1186,12 +1187,12 @@ class TestSpotifyOAuthClient:
         assert spotify_client.logged_in is expected
 
     @responses.activate
-    def test_get_album(self, foo_album, foo_album_next_tracks, spotify_client):
+    def test_get_albums(self, foo_album, foo_album_next_tracks, spotify_client):
         responses.add(
             responses.GET,
-            url("albums/foo"),
-            json=foo_album,
-            match=[matchers.query_string_matcher("market=from_token")],
+            url("albums"),
+            match=[matchers.query_string_matcher("ids=foo&market=from_token")],
+            json={"albums": [foo_album]},
         )
         responses.add(
             responses.GET,
@@ -1200,16 +1201,17 @@ class TestSpotifyOAuthClient:
         )
 
         link = web.WebLink.from_uri("spotify:album:foo")
-        result = spotify_client.get_album(link)
+        results = list(spotify_client.get_albums([link]))
 
         assert len(responses.calls) == 2
-        assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
+        assert len(results) == 1
+        assert results[0]["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
 
     @responses.activate
     def test_get_album_wrong_linktype(self, spotify_client, caplog):
         link = web.WebLink.from_uri("spotify:album:abba")
         link.type = "your"
-        results = list(spotify_client.get_album(link))
+        results = list(spotify_client.get_albums([link]))
 
         assert len(responses.calls) == 0
         assert len(results) == 0
@@ -1238,25 +1240,15 @@ class TestSpotifyOAuthClient:
                 )
             ],
         )
-        responses.add(
-            responses.GET,
-            url("albums/def"),
-            json=web_album_mock,
-        )
-        responses.add(
-            responses.GET,
-            url("albums/xyz"),
-            json=web_album_mock2,
+        spotify_client.get_albums = mock.Mock(
+            return_value=[web_album_mock, web_album_mock2]
         )
 
         link = web.WebLink.from_uri("spotify:artist:abba")
         results = list(spotify_client.get_artist_albums(link, all_tracks=all_tracks))
 
-        if all_tracks:
-            assert len(responses.calls) == 3
-        else:
-            assert len(responses.calls) == 1
-
+        assert len(responses.calls) == 1
+        assert spotify_client.get_albums.call_count == (1 if all_tracks else 0)
         assert len(results) == 2
         assert results[0]["name"] == "DEF 456"
         assert results[1]["name"] == "XYZ 789"
@@ -1269,33 +1261,19 @@ class TestSpotifyOAuthClient:
             assert "tracks" not in results[1]
 
     @responses.activate
-    def test_get_artist_albums_error(
-        self, artist_albums_mock, web_album_mock, spotify_client, caplog
-    ):
+    def test_get_artist_albums_error(self, spotify_client, caplog):
         responses.add(
             responses.GET,
             url("artists/abba/albums"),
-            json=artist_albums_mock,
-        )
-        responses.add(
-            responses.GET,
-            url("albums/def"),
-            json=web_album_mock,
-        )
-        responses.add(
-            responses.GET,
-            url("albums/xyz"),
             json={"error": "bar"},
         )
 
         link = web.WebLink.from_uri("spotify:artist:abba")
         results = list(spotify_client.get_artist_albums(link))
 
-        assert len(responses.calls) == 3
-        assert len(results) == 2
-        assert results[0]["name"] == "DEF 456"
-        assert results[1] == {}
-        assert "Spotify Web API request failed: bar" in caplog.text
+        assert len(responses.calls) == 1
+        assert len(results) == 0
+        assert "Spotify Web API request failed" in caplog.text
 
     @responses.activate
     def test_get_artist_albums_wrong_linktype(self, spotify_client, caplog):
@@ -1320,16 +1298,16 @@ class TestSpotifyOAuthClient:
                 "next": None,
             },
         )
-        responses.add(
-            responses.GET,
-            url("albums/def"),
-            json=web_album_mock,
-        )
+        spotify_client.get_albums = mock.Mock(return_value=[web_album_mock])
 
         link = web.WebLink.from_uri("spotify:artist:abba")
         results = list(spotify_client.get_artist_albums(link))
 
-        assert len(responses.calls) == 2
+        album_link = web.WebLink.from_uri(web_album_mock["uri"])
+        assert len(responses.calls) == 1
+        assert spotify_client.get_albums.call_args == mock.call(
+            [album_link],
+        )
         assert len(results) == 1
         assert results[0]["name"] == "DEF 456"
         assert "Could not parse 'BLOPP' as a Spotify URI" in caplog.text
@@ -1398,6 +1376,113 @@ class TestSpotifyOAuthClient:
         assert len(results) == 0
         assert "Expecting Spotify artist URI" in caplog.text
 
+    @pytest.mark.parametrize(
+        ("link_type", "max_links"),
+        [
+            ("track", 50),
+            ("artist", 50),
+            ("album", 20),
+        ],
+    )
+    def test_get_batch_max_ids_per_request(self, spotify_client, link_type, max_links):
+        spotify_client.get_one = mock.Mock(return_value={})
+        links = [
+            web.WebLink.from_uri(f"spotify:{link_type}:{i}")
+            for i in range(max_links + 1)
+        ]
+
+        dict(spotify_client.get_batch(web.LinkType(link_type), links))
+
+        assert spotify_client.get_one.call_count == 2
+
+        request_ids_1 = spotify_client.get_one.call_args_list[0][1]["params"]["ids"]
+        assert len(request_ids_1.split(",")) == max_links
+
+        request_ids_2 = spotify_client.get_one.call_args_list[1][1]["params"]["ids"]
+        assert len(request_ids_2.split(",")) == 1
+        assert set(request_ids_2.split(",")) == (
+            {link.id for link in links} - set(request_ids_1.split(","))
+        )
+
+    def test_get_batch_removes_duplicates(self, spotify_client):
+        spotify_client.get_one = mock.Mock(return_value={})
+        links = [web.WebLink.from_uri(f"spotify:track:{0}") for i in range(100)]
+
+        dict(spotify_client.get_batch(web.LinkType("track"), links))
+
+        assert spotify_client.get_one.call_count == 1
+        request_ids_1 = spotify_client.get_one.call_args_list[0][1]["params"]["ids"]
+        assert request_ids_1 == links[0].id
+
+    def test_get_batch_playlist(self, spotify_client, caplog):
+        links = [web.WebLink.from_uri("spotify:playlist:foo")]
+
+        results = dict(spotify_client.get_batch(web.LinkType.PLAYLIST, links))
+
+        assert results == {}
+        assert "Cannot handle batched playlists" in caplog.text
+
+    def test_get_batch_empty_results(self, spotify_client):
+        spotify_client.get_one = mock.Mock(return_value={"tracks": [None]})
+        links = [
+            web.WebLink.from_uri("spotify:track:foo"),
+            web.WebLink.from_uri("spotify:track:bar"),
+        ]
+
+        results = dict(spotify_client.get_batch(web.LinkType("track"), links))
+        assert results == {}
+
+    @responses.activate
+    @pytest.mark.parametrize(
+        ("res_types"),
+        [
+            ("tracks"),
+            ("albums"),
+        ],
+    )
+    def test_get_batch_web_response(
+        self, spotify_client, web_track_mock, web_album_mock, res_types
+    ):
+        mock_res = web_track_mock if res_types == "tracks" else web_album_mock
+        mock_id = mock_res["id"]
+        mock_type = mock_res["type"]
+        responses.add(
+            responses.GET,
+            url(res_types),
+            match=[
+                matchers.query_string_matcher(f"ids={mock_id}%2Cbar&market=from_token")
+            ],
+            json={res_types: [mock_res]},
+        )
+        links = [
+            web.WebLink.from_uri(f"spotify:{mock_type}:{mock_id}"),
+            web.WebLink.from_uri(f"spotify:{mock_type}:bar"),  # Won't return result.
+        ]
+
+        results = dict(spotify_client.get_batch(links[0].type, links))
+
+        assert len(results) == 1
+        result = results[links[0]]
+        assert type(result) is web.WebResponse
+        assert result.copy() == mock_res
+
+    @responses.activate
+    def test_get_batch_error(self, spotify_client, web_album_mock, caplog):
+        responses.add(
+            responses.GET,
+            url("albums"),
+            match=[matchers.query_string_matcher("ids=def&market=from_token")],
+            json={"albums": [web_album_mock, {"error": "bar"}, None]},
+        )
+
+        link = web.WebLink.from_uri(web_album_mock["uri"])
+        results = dict(spotify_client.get_batch(link.type, [link]))
+
+        assert len(responses.calls) == 1
+        assert len(results) == 1
+        assert results[link]["name"] == "DEF 456"
+        assert "Invalid batch item" in caplog.text
+
 
 @pytest.mark.parametrize(
     ("uri", "type_", "id_"),
@@ -1444,10 +1529,16 @@ def test_weblink_from_uri_playlist(uri, id_, owner):
         ("spotify:user:alice:track:foo"),
         ("local:user:alice:playlist:foo"),
         ("spotify:track:foo:bar"),
-        ("spotify:album:"),
         ("https://yahoo.com/playlist/foo"),
         ("https://play.spotify.com/foo"),
         ("total/junk"),
+        ("foo:bar"),
+        ("spotify:baz"),
+        ("spotify:artist"),
+        ("spotify:album"),
+        ("spotify:user"),
+        ("spotify:playlist"),
+        ("spotify:playlist:"),
     ],
 )
 def test_weblink_from_uri_raises(uri):
