@@ -1,6 +1,7 @@
 import copy
 from unittest import mock
 
+import mopidy
 import pytest
 from mopidy_spotify import lookup
 
@@ -322,3 +323,9 @@ def test_lookup_no_cache_artist(web_client_mock, web_album_mock, provider):
     assert len(results3) == 2
     assert results3["spotify:album:def"][0].uri == "spotify:track:abc"
     assert results3["spotify:track:abc"][0].uri == "spotify:track:abc"
+
+
+def test_lookup_v4_compatible(provider):
+    # TODO: Remove this once we release the major version
+    provider.lookup("foo")
+    assert mopidy.__version__.startswith("4.0.0a")
