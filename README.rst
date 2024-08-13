@@ -21,7 +21,13 @@ Mopidy-Spotify
 Status  :warning:
 =================
 
+Spotify have recently disabled username and password login for playback
+(`#394 <https://github.com/mopidy/mopidy-spotify/issues/394>`_).
+Alternate authentication methods are possible but not yet supported.
+
 Mopidy-Spotify currently has no support for the following:
+
+- Playback
 
 - Seeking
 
@@ -41,8 +47,6 @@ Mopidy-Spotify currently has no support for the following:
   unavailable
 
 Working support for the following features is currently available:
-
-- Playback
 
 - Search
 
