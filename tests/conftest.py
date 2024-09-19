@@ -22,8 +22,6 @@ def config(tmp_path):
         },
         "proxy": {},
         "spotify": {
-            "username": "alice",
-            "password": "password",
             "bitrate": 160,
             "volume_normalization": True,
             "timeout": 10,

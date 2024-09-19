@@ -36,8 +36,7 @@ def test_on_source_setup_sets_properties(config, provider):
     cred_dir = spotify_data_dir / "credentials-cache"
 
     assert mock_source.set_property.mock_calls == [
-        mock.call("username", "alice"),
-        mock.call("password", "password"),
+        mock.call("access-token", mock.ANY),
         mock.call("bitrate", "160"),
         mock.call("cache-credentials", cred_dir),
         mock.call("cache-files", spotify_cache_dir),
@@ -53,8 +52,7 @@ def test_on_source_setup_without_caching(config, provider):
     cred_dir = spotify_data_dir / "credentials-cache"
 
     assert mock_source.set_property.mock_calls == [
-        mock.call("username", "alice"),
-        mock.call("password", "password"),
+        mock.call("access-token", mock.ANY),
         mock.call("bitrate", "160"),
         mock.call("cache-credentials", cred_dir),
     ]
