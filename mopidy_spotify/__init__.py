@@ -17,8 +17,8 @@ class Extension(ext.Extension):
     def get_config_schema(self):
         schema = super().get_config_schema()
 
-        schema["username"] = config.String()
-        schema["password"] = config.Secret()
+        schema["username"] = config.Deprecated()  # since 5.0
+        schema["password"] = config.Deprecated()  # since 5.0
 
         schema["client_id"] = config.String()
         schema["client_secret"] = config.Secret()
