@@ -76,8 +76,7 @@ Dependencies
   <https://github.com/kingosticks/gst-plugins-rs-build/releases/latest>`_
   for some platforms.
   **We currently require a forked version of ``gst-plugins-spotify`` which supports
-  token-based login. This can be found `here
-  <https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/0.13-librespot-dev>`_.
+  token-based login. This can be found `here <https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/spotify-access-token>`_.
 
 Verify the GStreamer spotify plugin is correctly installed:: 
 
