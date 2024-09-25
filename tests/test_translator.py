@@ -3,6 +3,7 @@ from unittest.mock import patch, sentinel
 
 import pytest
 from mopidy import models
+
 from mopidy_spotify import translator
 
 
