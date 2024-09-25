@@ -38,12 +38,11 @@ Mopidy-Spotify currently has no support for the following:
   possible via web API
 
 - Podcasts (`#201 <https://github.com/mopidy/mopidy-spotify/issues/201>`_) -
-  unavailable
+  now possible
 
-- Radio (`#9 <https://github.com/mopidy/mopidy-spotify/issues/9>`_) - unavailable
+- Radio (`#9 <https://github.com/mopidy/mopidy-spotify/issues/9>`_) - unavailable?
 
-- Spotify Connect (`#14 <https://github.com/mopidy/mopidy-spotify/issues/14>`_) -
-  unavailable
+- Spotify Connect (`#14 <https://github.com/mopidy/mopidy-spotify/issues/14>`_)
 
 Working support for the following features is currently available:
 
