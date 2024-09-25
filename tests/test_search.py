@@ -1,6 +1,7 @@
 from unittest import mock
 
 from mopidy import models
+
 from mopidy_spotify import lookup, search, translator
 
 

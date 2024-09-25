@@ -1,10 +1,11 @@
 import pytest
 from mopidy import models
+
 from mopidy_spotify import images
 from mopidy_spotify.web import LinkType, WebLink
 
 
-@pytest.fixture()
+@pytest.fixture
 def img_provider(provider):
     images._cache = {}
     return provider

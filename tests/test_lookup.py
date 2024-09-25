@@ -3,6 +3,7 @@ from unittest import mock
 
 import mopidy
 import pytest
+
 from mopidy_spotify import lookup
 
 
