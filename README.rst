@@ -65,17 +65,18 @@ Dependencies
 
 - ``Mopidy`` >= 3.4. The music server that Mopidy-Spotify extends.
 
-- A *custom* version of ``gst-plugins-spotify``. The `GStreamer Rust Plugin
-  <https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs>`_ to stream Spotify
-  audio, based on `librespot <https://github.com/librespot-org/librespot/>`_.
-  **This plugin is not yet available from apt.mopidy.com**. It must be either
+- ``gst-plugins-spotify``, the `GStreamer Rust Plugin
+  <https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs>`_ for Spotify
+  playback, based on `librespot <https://github.com/librespot-org/librespot/>`_.
+  *This plugin is not yet available from apt.mopidy.com*. It must be either
   `built from source
   <https://github.com/kingosticks/gst-plugins-rs-build/tree/main?tab=readme-ov-file#native-compile>`_
   or `Debian packages are available
   <https://github.com/kingosticks/gst-plugins-rs-build/releases/latest>`_
-  for some platforms.
-  **We currently require a forked version of ``gst-plugins-spotify`` which supports
-  token-based login. This can be found `here <https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/spotify-access-token>`_.
+  for some platforms. 
+  
+  **We currently require a forked version of this plugin which supports
+  token-based login.** This can be found `here <https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/spotify-access-token>`_.
 
 Verify the GStreamer spotify plugin is correctly installed:: 
 
