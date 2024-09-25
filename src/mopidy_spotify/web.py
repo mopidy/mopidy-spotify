@@ -50,6 +50,7 @@ class OAuthClient:
             self._auth = (client_id, client_secret)
         else:
             self._auth = None
+        self._access_token = None
 
         self._base_url = base_url
         self._refresh_url = refresh_url
@@ -68,6 +69,17 @@ class OAuthClient:
         # TODO: Move _cache_mutex to the object it actually protects.
         self._cache_mutex = threading.Lock()  # Protects get() cache param.
         self._refresh_mutex = threading.Lock()  # Protects _headers and _expires.
+
+    def token(self):
+        with self._refresh_mutex:
+            try:
+                if self._should_refresh_token():
+                    self._refresh_token()
+            except OAuthTokenRefreshError as e:
+                logger.error(e)  # noqa: TRY400
+                return None
+            else:
+                return self._access_token
 
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
@@ -149,7 +161,8 @@ class OAuthClient:
                 f"wrong token_type: {result.get('token_type')}"
             )
 
-        self._headers["Authorization"] = f"Bearer {result['access_token']}"
+        self._access_token = result["access_token"]
+        self._headers["Authorization"] = f"Bearer {self._access_token}"
         self._expires = time.time() + result.get("expires_in", float("Inf"))
 
         if result.get("expires_in"):

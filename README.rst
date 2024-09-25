@@ -22,12 +22,11 @@ Status  :warning:
 =================
 
 Spotify have recently disabled username and password login for playback
-(`#394 <https://github.com/mopidy/mopidy-spotify/issues/394>`_).
-Alternate authentication methods are possible but not yet supported.
+(`#394 <https://github.com/mopidy/mopidy-spotify/issues/394>`_) and we
+now utilise access-token login. You no longer need to provide your
+Spotify account username or password.
 
 Mopidy-Spotify currently has no support for the following:
-
-- Playback
 
 - Seeking
 
@@ -48,6 +47,8 @@ Mopidy-Spotify currently has no support for the following:
 
 Working support for the following features is currently available:
 
+- Playback
+
 - Search
 
 - Playlists (read-only)
@@ -63,18 +64,9 @@ Dependencies
 - A Spotify Premium subscription. Mopidy-Spotify **will not** work with Spotify
   Free, just Spotify Premium.
 
-- A non-Facebook Spotify username and password. If you created your account
-  through Facebook you'll need to create a "device password" to be able to use
-  Mopidy-Spotify. Go to http://www.spotify.com/account/set-device-password/,
-  login with your Facebook account, and follow the instructions. However,
-  sometimes that process can fail for users with Facebook logins, in which case
-  you can create an app-specific password on Facebook by going to facebook.com >
-  Settings > Security > App passwords > Generate app passwords, and generate one
-  to use with Mopidy-Spotify.
-
 - ``Mopidy`` >= 3.4. The music server that Mopidy-Spotify extends.
 
-- ``gst-plugins-spotify`` >= 0.10. The `GStreamer Rust Plugin
+- A *custom* version of ``gst-plugins-spotify``. The `GStreamer Rust Plugin
   <https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs>`_ to stream Spotify
   audio, based on `librespot <https://github.com/librespot-org/librespot/>`_.
   **This plugin is not yet available from apt.mopidy.com**. It must be either
@@ -83,6 +75,8 @@ Dependencies
   or `Debian packages are available
   <https://github.com/kingosticks/gst-plugins-rs-build/releases/latest>`_
   for some platforms.
+  **We currently require a forked version of ``gst-plugins-spotify`` which supports
+  token-based login. This can be found `here <https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/spotify-access-token>`_.
 
 Verify the GStreamer spotify plugin is correctly installed:: 
 
@@ -106,8 +100,6 @@ https://mopidy.com/ext/spotify/#authentication
 to authorize this extension against your Spotify account::
 
     [spotify]
-    username = alice
-    password = secret
     client_id = ... client_id value you got from mopidy.com ...
     client_secret = ... client_secret value you got from mopidy.com ...
 
@@ -116,9 +108,9 @@ The following configuration values are available:
 - ``spotify/enabled``: If the Spotify extension should be enabled or not.
   Defaults to ``true``.
 
-- ``spotify/username``: Your Spotify Premium username. You *must* provide this.
+- ``spotify/username``: Your Spotify Premium username. Obsolete.
 
-- ``spotify/password``: Your Spotify Premium password. You *must* provide this.
+- ``spotify/password``: Your Spotify Premium password. Obsolete.
 
 - ``spotify/client_id``: Your Spotify application client id. You *must* provide this.
 
