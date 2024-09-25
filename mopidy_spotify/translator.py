@@ -180,9 +180,7 @@ def sp_search_query(query, exact=False):
                 if exact:
                     result.append(f'{field}:"{value}"')
                 else:
-                    result.append(
-                        " ".join(f"{field}:{word}" for word in value.split())
-                    )
+                    result.append(" ".join(f"{field}:{word}" for word in value.split()))
 
     return " ".join(result)
 
@@ -191,9 +189,7 @@ def _transform_year(date):
     try:
         return int(date.split("-")[0])
     except ValueError:
-        logger.debug(
-            f'Excluded year from search query: Cannot parse date "{date}"'
-        )
+        logger.debug(f'Excluded year from search query: Cannot parse date "{date}"')
 
 
 def web_to_artist(web_artist):
@@ -216,9 +212,7 @@ def web_to_album_tracks(web_album, bitrate=None):
     if not isinstance(web_tracks, list):
         return []
 
-    tracks = [
-        web_to_track(web_track, bitrate, album) for web_track in web_tracks
-    ]
+    tracks = [web_to_track(web_track, bitrate, album) for web_track in web_tracks]
     return [t for t in tracks if t]
 
 
@@ -227,9 +221,7 @@ def web_to_album(web_album):
     if ref is None:
         return
 
-    artists = [
-        web_to_artist(web_artist) for web_artist in web_album.get("artists", [])
-    ]
+    artists = [web_to_artist(web_artist) for web_artist in web_album.get("artists", [])]
     artists = [a for a in artists if a]
 
     name = web_album.get("name", "Unknown album")
@@ -246,9 +238,7 @@ def web_to_track(web_track, bitrate=None, album=None):
     if ref is None:
         return
 
-    artists = [
-        web_to_artist(web_artist) for web_artist in web_track.get("artists", [])
-    ]
+    artists = [web_to_artist(web_artist) for web_artist in web_track.get("artists", [])]
     artists = [a for a in artists if a]
 
     if album is None:

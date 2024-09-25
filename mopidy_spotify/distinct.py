@@ -16,9 +16,7 @@ def get_distinct(config, playlists, web_client, field, query=None):
     if field == "artist":
         result = _get_distinct_artists(config, playlists, web_client, query)
     elif field == "albumartist":
-        result = _get_distinct_albumartists(
-            config, playlists, web_client, query
-        )
+        result = _get_distinct_albumartists(config, playlists, web_client, query)
     elif field == "album":
         result = _get_distinct_albums(config, playlists, web_client, query)
     elif field == "date":
@@ -91,9 +89,7 @@ def _get_distinct_dates(config, playlists, web_client, query):
         }
 
 
-def _get_search(
-    config, web_client, query, album=False, artist=False, track=False
-):
+def _get_search(config, web_client, query, album=False, artist=False, track=False):
     types = []
     if album:
         types.append("album")

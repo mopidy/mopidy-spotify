@@ -74,9 +74,7 @@ def test_as_list_when_playlist_wont_translate(provider):
 
     assert len(result) == 2
 
-    assert result[0] == Ref.playlist(
-        uri="spotify:user:alice:playlist:foo", name="Foo"
-    )
+    assert result[0] == Ref.playlist(uri="spotify:user:alice:playlist:foo", name="Foo")
     assert result[1] == Ref.playlist(
         uri="spotify:user:bob:playlist:baz", name="Baz (by bob)"
     )
@@ -161,9 +159,7 @@ def test_refresh_in_progress(provider, web_client_mock, caplog):
 
 
 def test_refresh_counts_valid_playlists(provider, caplog):
-    caplog.set_level(
-        logging.INFO
-    )  # To avoid log corruption from debug logging.
+    caplog.set_level(logging.INFO)  # To avoid log corruption from debug logging.
     with ThreadJoiner():
         provider.refresh()
 
@@ -202,10 +198,7 @@ def test_refresh_tracks_handles_error(provider, web_client_mock, caplog):
     with ThreadJoiner():
         provider.refresh()
 
-    assert (
-        "Error occurred while refreshing Spotify playlists tracks"
-        in caplog.text
-    )
+    assert "Error occurred while refreshing Spotify playlists tracks" in caplog.text
     assert not provider._refresh_mutex.locked()
 
 
@@ -257,17 +250,10 @@ def test_lookup_of_playlist_with_other_owner(provider):
     assert playlist.name == "Baz (by bob)"
 
 
-def test_playlist_lookup_when_link_invalid(
-    web_client_mock, web_playlist_mock, caplog
-):
+def test_playlist_lookup_when_link_invalid(web_client_mock, web_playlist_mock, caplog):
     web_client_mock.get_playlist.return_value = web_playlist_mock
 
-    playlist = playlists.playlist_lookup(
-        web_client_mock, "spotify:in:valid", None
-    )
+    playlist = playlists.playlist_lookup(web_client_mock, "spotify:in:valid", None)
 
     assert playlist is None
-    assert (
-        "Failed to lookup Spotify playlist URI 'spotify:in:valid'"
-        in caplog.text
-    )
+    assert "Failed to lookup Spotify playlist URI 'spotify:in:valid'" in caplog.text

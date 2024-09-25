@@ -24,9 +24,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         if not self._backend._web_client.logged_in:
             return []
 
-        user_playlists = self._backend._web_client.get_user_playlists(
-            refresh=refresh
-        )
+        user_playlists = self._backend._web_client.get_user_playlists(refresh=refresh)
         return translator.to_playlist_refs(
             user_playlists, self._backend._web_client.user_id
         )
@@ -54,22 +52,15 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.info("Refreshing Spotify playlists already in progress")
             return
         try:
-            uris = [
-                ref.uri
-                for ref in self._get_flattened_playlist_refs(refresh=True)
-            ]
-            logger.info(
-                f"Refreshing {len(uris)} Spotify playlists in background"
-            )
+            uris = [ref.uri for ref in self._get_flattened_playlist_refs(refresh=True)]
+            logger.info(f"Refreshing {len(uris)} Spotify playlists in background")
             threading.Thread(
                 target=self._refresh_tracks,
                 args=(uris,),
                 daemon=True,
             ).start()
         except Exception:
-            logger.exception(
-                "Error occurred while refreshing Spotify playlists"
-            )
+            logger.exception("Error occurred while refreshing Spotify playlists")
             self._refresh_mutex.release()
 
     def _refresh_tracks(self, playlist_uris):
@@ -77,17 +68,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.error("Lock must be held before calling this method")
             return []
         try:
-            with utils.time_logger(
-                "playlists._refresh_tracks()", logging.DEBUG
-            ):
+            with utils.time_logger("playlists._refresh_tracks()", logging.DEBUG):
                 refreshed = [uri for uri in playlist_uris if self.lookup(uri)]
                 logger.info(f"Refreshed {len(refreshed)} Spotify playlists")
 
             listener.CoreListener.send("playlists_loaded")
         except Exception:
-            logger.exception(
-                "Error occurred while refreshing Spotify playlists tracks"
-            )
+            logger.exception("Error occurred while refreshing Spotify playlists tracks")
         else:
             return refreshed  # For test
         finally:

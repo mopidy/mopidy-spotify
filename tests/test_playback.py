@@ -22,9 +22,7 @@ def backend_mock(config):
 
 @pytest.fixture
 def provider(audio_mock, backend_mock):
-    return backend.SpotifyPlaybackProvider(
-        audio=audio_mock, backend=backend_mock
-    )
+    return backend.SpotifyPlaybackProvider(audio=audio_mock, backend=backend_mock)
 
 
 def test_is_a_playback_provider(provider):

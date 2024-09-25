@@ -133,9 +133,7 @@ def _browse_toplist_user(web_client, variant):
             ]
         )
         if variant == "tracks":
-            return list(
-                translator.web_to_track_refs(items, check_playable=False)
-            )
+            return list(translator.web_to_track_refs(items, check_playable=False))
         else:
             return list(translator.web_to_artist_refs(items))
     else:

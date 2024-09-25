@@ -67,9 +67,7 @@ class OAuthClient:
         self._session = utils.get_requests_session(proxy_config or {})
         # TODO: Move _cache_mutex to the object it actually protects.
         self._cache_mutex = threading.Lock()  # Protects get() cache param.
-        self._refresh_mutex = (
-            threading.Lock()
-        )  # Protects _headers and _expires.
+        self._refresh_mutex = threading.Lock()  # Protects _headers and _expires.
 
     def get(self, path, cache=None, *args, **kwargs):
         if self._authorization_failed:
@@ -195,9 +193,7 @@ class OAuthClient:
                 result = WebResponse.from_requests(prepared_request, response)
 
             if status_code and 400 <= status_code < 600:
-                logger.debug(
-                    f"Fetching {prepared_request.url} failed: {status_code}"
-                )
+                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
 
             # Filter out cases where we should not retry.
             if status_code and status_code not in self._retry_statuses:
@@ -211,8 +207,7 @@ class OAuthClient:
             # Decide how long to sleep in the next iteration.
             backoff_time = backoff_time or (2**i * self._backoff_factor)
             logger.error(
-                f"Retrying {prepared_request.url} in {backoff_time:.3f} "
-                "seconds."
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} " "seconds."
             )
 
         if status_code == 401:
@@ -237,17 +232,13 @@ class OAuthClient:
             scheme, netloc = b.scheme, b.netloc
             path = os.path.normpath(os.path.join(b.path, u.path))
             query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(
-                urllib.parse.parse_qsl(u.query, keep_blank_values=True)
-            )
+            query.extend(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
 
         for key, value in kwargs.items():
             query.append((key, value))
 
         encoded_query = urllib.parse.urlencode(dict(query))
-        return urllib.parse.urlunsplit(
-            (scheme, netloc, path, encoded_query, "")
-        )
+        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _normalise_query_string(self, url, params=None):
         u = urllib.parse.urlsplit(url)
@@ -258,9 +249,7 @@ class OAuthClient:
             query.update(params)
         sorted_unique_query = sorted(query.items())
         encoded_query = urllib.parse.urlencode(sorted_unique_query)
-        return urllib.parse.urlunsplit(
-            (scheme, netloc, path, encoded_query, "")
-        )
+        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _parse_retry_after(self, response):
         """Parse Retry-After header from response if it is set."""
@@ -413,9 +402,7 @@ class SpotifyOAuthClient(OAuthClient):
         "next,items(track(type,uri,name,duration_ms,disc_number,track_number,"
         "artists,album,is_playable,linked_from.uri))"
     )
-    PLAYLIST_FIELDS = (
-        f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
-    )
+    PLAYLIST_FIELDS = f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
     DEFAULT_EXTRA_EXPIRY = 10
 
     def __init__(self, *, client_id, client_secret, proxy_config):
@@ -495,9 +482,7 @@ class SpotifyOAuthClient(OAuthClient):
         try:
             parsed = WebLink.from_uri(uri)
             if parsed.type != LinkType.PLAYLIST:
-                raise ValueError(
-                    f"Could not parse {uri!r} as a Spotify playlist URI"
-                )
+                raise ValueError(f"Could not parse {uri!r} as a Spotify playlist URI")
         except ValueError as exc:
             logger.error(exc)
             return {}
@@ -555,9 +540,7 @@ class SpotifyOAuthClient(OAuthClient):
             logger.error("Expecting Spotify track URI")
             return {}
 
-        return self.get_one(
-            f"tracks/{web_link.id}", params={"market": "from_token"}
-        )
+        return self.get_one(f"tracks/{web_link.id}", params={"market": "from_token"})
 
 
 @unique

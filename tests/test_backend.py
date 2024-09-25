@@ -107,9 +107,7 @@ def test_on_start_refreshes_playlists(web_mock, config, caplog):
     assert "Refreshed 0 Spotify playlists" in caplog.text
 
 
-def test_on_start_doesnt_refresh_playlists_if_not_allowed(
-    web_mock, config, caplog
-):
+def test_on_start_doesnt_refresh_playlists_if_not_allowed(web_mock, config, caplog):
     config["spotify"]["allow_playlists"] = False
 
     backend = get_backend(config)

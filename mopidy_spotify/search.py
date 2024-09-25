@@ -67,9 +67,7 @@ def search(
     albums = (
         [
             translator.web_to_album(web_album)
-            for web_album in result["albums"]["items"][
-                : config["search_album_count"]
-            ]
+            for web_album in result["albums"]["items"][: config["search_album_count"]]
         ]
         if "albums" in result
         else []
@@ -91,18 +89,14 @@ def search(
     tracks = (
         [
             translator.web_to_track(web_track)
-            for web_track in result["tracks"]["items"][
-                : config["search_track_count"]
-            ]
+            for web_track in result["tracks"]["items"][: config["search_track_count"]]
         ]
         if "tracks" in result
         else []
     )
     tracks = [x for x in tracks if x]
 
-    return models.SearchResult(
-        uri=uri, albums=albums, artists=artists, tracks=tracks
-    )
+    return models.SearchResult(uri=uri, albums=albums, artists=artists, tracks=tracks)
 
 
 def _search_by_uri(config, web_client, query):

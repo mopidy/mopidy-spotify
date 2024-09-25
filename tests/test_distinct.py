@@ -127,6 +127,4 @@ def test_get_distinct_with_query(
     types,
 ):
     assert provider.get_distinct(field, query) == expected
-    search_mock.search.assert_called_once_with(
-        mock.ANY, mock.ANY, query, types=types
-    )
+    search_mock.search.assert_called_once_with(mock.ANY, mock.ANY, query, types=types)
