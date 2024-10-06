@@ -76,7 +76,7 @@ Dependencies
   for some platforms. 
   
   **We currently require a forked version of this plugin which supports
-  token-based login.** This can be found `here <https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/spotify-access-token>`_.
+  token-based login.** This can be found `here <https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/spotify-access-token-logging>`_.
 
 Verify the GStreamer spotify plugin is correctly installed:: 
 
@@ -88,7 +88,7 @@ Installation
 
 Install by running::
 
-    sudo python3 -m pip install --break-system-packages Mopidy-Spotify==5.0.0a2
+    sudo python3 -m pip install --break-system-packages Mopidy-Spotify==5.0.0a3
 
 
 Configuration
