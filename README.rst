@@ -94,9 +94,7 @@ Install by running::
 Configuration
 =============
 
-Before starting Mopidy, you must add your Spotify Premium username and password
-to your Mopidy configuration file and also visit
-https://mopidy.com/ext/spotify/#authentication
+Before starting Mopidy, you must visit https://mopidy.com/ext/spotify/#authentication
 to authorize this extension against your Spotify account::
 
     [spotify]
