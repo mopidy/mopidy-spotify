@@ -106,10 +106,6 @@ The following configuration values are available:
 - ``spotify/enabled``: If the Spotify extension should be enabled or not.
   Defaults to ``true``.
 
-- ``spotify/username``: Your Spotify Premium username. Obsolete.
-
-- ``spotify/password``: Your Spotify Premium password. Obsolete.
-
 - ``spotify/client_id``: Your Spotify application client id. You *must* provide this.
 
 - ``spotify/client_secret``: Your Spotify application secret key. You *must* provide this.
@@ -139,6 +135,10 @@ The following configuration values are available:
 
 - ``spotify/search_track_count``: Maximum number of tracks returned in search
   results. Number between 0 and 50. Defaults to 50.
+
+- ``spotify/username``: Your Spotify Premium username. Obsolete.
+
+- ``spotify/password``: Your Spotify Premium password. Obsolete.
 
 
 Project resources
