@@ -101,6 +101,8 @@ to authorize this extension against your Spotify account::
     client_id = ... client_id value you got from mopidy.com ...
     client_secret = ... client_secret value you got from mopidy.com ...
 
+**Remove any credentials.json file you may have manually created.**
+
 The following configuration values are available:
 
 - ``spotify/enabled``: If the Spotify extension should be enabled or not.
@@ -136,9 +138,9 @@ The following configuration values are available:
 - ``spotify/search_track_count``: Maximum number of tracks returned in search
   results. Number between 0 and 50. Defaults to 50.
 
-- ``spotify/username``: Your Spotify Premium username. Obsolete.
+- ``spotify/username``: Deprecated since v5.0.0a3.
 
-- ``spotify/password``: Your Spotify Premium password. Obsolete.
+- ``spotify/password``: Deprecated since v5.0.0a3.
 
 
 Project resources
