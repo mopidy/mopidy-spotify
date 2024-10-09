@@ -80,7 +80,7 @@ Dependencies
 
 Verify the GStreamer spotify plugin is correctly installed:: 
 
-    gst-inspect-1.0 spotify
+    gst-inspect-1.0 spotifyaudiosrc | grep access-token && echo 'This is a compatible version'
 
 
 Installation
