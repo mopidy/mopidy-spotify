@@ -50,3 +50,15 @@ class Extension(ext.Extension):
         from mopidy_spotify.backend import SpotifyBackend
 
         registry.add("backend", SpotifyBackend)
+
+    def get_command(self):
+        from .commands import SpotifyCommand
+
+        return SpotifyCommand()
+
+    @classmethod
+    def get_credentials_dir(cls, config):
+        data_dir = cls.get_data_dir(config)
+        credentials_dir = data_dir / "credentials-cache"
+        credentials_dir.mkdir(mode=0o700, exist_ok=True)
+        return credentials_dir

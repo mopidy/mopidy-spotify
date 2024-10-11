@@ -37,12 +37,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._cache_location = Extension().get_cache_dir(self.backend._config)
-        self._data_location = Extension().get_data_dir(self.backend._config)
+        self._credentials_dir = Extension().get_credentials_dir(self.backend._config)
         self._config = self.backend._config["spotify"]
-
-        self._credentials_dir = self._data_location / "credentials-cache"
-        if not self._credentials_dir.exists():
-            self._credentials_dir.mkdir(mode=0o700)
 
     def on_source_setup(self, source):
         source.set_property("bitrate", str(self._config["bitrate"]))
