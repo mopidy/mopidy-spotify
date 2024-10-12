@@ -18,7 +18,11 @@ class SpotifyCommand(commands.Command):
 class LogoutCommand(commands.Command):
     help = "Logout from Spotify account."
 
-    def run(self, _args, config):
+    def run(
+        self,
+        args,  # noqa: ARG002
+        config,
+    ):
         credentials_dir = Extension().get_credentials_dir(config)
         try:
             for root, dirs, files in os.walk(credentials_dir, topdown=False):
@@ -35,4 +39,4 @@ class LogoutCommand(commands.Command):
         except Exception as error:
             logger.warning(f"Failed to logout from Spotify: {error}")
         else:
-            logger.info("Logout from Spotify complete")
+            logger.info("Logged out from Spotify")
