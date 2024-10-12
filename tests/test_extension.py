@@ -40,3 +40,16 @@ def test_setup():
     ext.setup(registry)
 
     registry.add.assert_called_with("backend", backend_lib.SpotifyBackend)
+
+
+def test_get_credentials_dir(tmp_path):
+    config = {"core": {"data_dir": tmp_path}}
+
+    ext = Extension()
+    result = ext.get_credentials_dir(config)
+    assert result == tmp_path / "spotify" / "credentials-cache"
+    assert result.is_dir()
+    assert result.stat().st_mode == 0o40700
+
+    result2 = ext.get_credentials_dir(config)  # check exists_ok
+    assert result == result2
