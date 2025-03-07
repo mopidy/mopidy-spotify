@@ -9,10 +9,10 @@
 ## Status
 
 > [!WARNING]
-> Spotify have recently disabled username and password login for playback ([#394]
-> (https://github.com/mopidy/mopidy-spotify/issues/394)) and we now utilise
-> access-token login. You no longer need to provide your Spotify account username
-> or password.
+> Spotify have recently disabled username and password login for playback
+> ([#394](https://github.com/mopidy/mopidy-spotify/issues/394)) and we now use
+> access token login. You no longer need to provide your Spotify account
+> username or password.
 
 Mopidy-Spotify currently has no support for the following:
 
