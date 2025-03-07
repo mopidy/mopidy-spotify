@@ -19,7 +19,7 @@ def search(  # noqa: PLR0913
     exact=False,
     types=_SEARCH_TYPES,
 ):
-    # TODO Respect `uris` argument
+    # TODO: Respect `uris` argument
 
     if query is None:
         logger.debug("Ignored search without query")

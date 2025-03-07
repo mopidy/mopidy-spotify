@@ -280,7 +280,7 @@ def test_auth_missing_access_token(web_oauth_mock, oauth_client, caplog):
 @responses.activate
 def test_auth_wrong_token_type(web_oauth_mock, oauth_client, caplog):
     wrong_token_type = web_oauth_mock
-    wrong_token_type["token_type"] = "something"
+    wrong_token_type["token_type"] = "something"  # noqa: S105
     responses.add(
         responses.POST,
         "https://auth.mopidy.com/spotify/token",
@@ -839,7 +839,9 @@ class TestSpotifyOAuthClient:
 
     def test_configures_auth(self):
         client = web.SpotifyOAuthClient(
-            client_id="1234567", client_secret="AbCdEfG", proxy_config=None
+            client_id="1234567",
+            client_secret="AbCdEfG",  # noqa: S106
+            proxy_config=None,
         )
 
         assert client._auth == ("1234567", "AbCdEfG")

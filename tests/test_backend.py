@@ -74,7 +74,7 @@ def test_on_start_configures_proxy(web_mock, config):
 
 def test_on_start_configures_web_client(web_mock, config):
     config["spotify"]["client_id"] = "1234567"
-    config["spotify"]["client_secret"] = "AbCdEfG"
+    config["spotify"]["client_secret"] = "AbCdEfG"  # noqa: S105
 
     backend = get_backend(config)
     with ThreadJoiner():
@@ -82,7 +82,7 @@ def test_on_start_configures_web_client(web_mock, config):
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
         client_id="1234567",
-        client_secret="AbCdEfG",
+        client_secret="AbCdEfG",  # noqa: S106
         proxy_config=mock.ANY,
     )
 

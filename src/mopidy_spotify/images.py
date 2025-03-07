@@ -44,9 +44,11 @@ def _parse_uri(uri):
     try:
         link = WebLink.from_uri(uri)
         if link.type not in SUPPORTED_TYPES:
-            raise ValueError(f"Unsupported image type '{link.type}' in {uri!r}")  # noqa: TRY301
+            msg = f"Unsupported image type '{link.type}' in {uri!r}"
+            raise ValueError(msg)  # noqa: TRY301
         if not link.id:
-            raise ValueError("ID missing")  # noqa: TRY301
+            msg = "ID missing"
+            raise ValueError(msg)  # noqa: TRY301
     except Exception as e:
         logger.exception(f"Could not parse {uri!r} as a Spotify URI ({e!s})")  # noqa: TRY401
         return None

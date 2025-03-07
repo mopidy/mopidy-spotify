@@ -79,6 +79,8 @@ ignore = [
     "D",      # pydocstyle
     "D203",   # one-blank-line-before-class
     "D213",   # multi-line-summary-second-line
+    "FIX002", # line-contains-todo  # TODO
+    "G004",   # logging-f-string
     "ISC001", # single-line-implicit-string-concatenation
     "SLF001", # private-member-access
     "TD002",  # missing-todo-author

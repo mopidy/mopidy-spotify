@@ -36,7 +36,7 @@ class LogoutCommand(commands.Command):
                     dir_path.rmdir()
                     logger.debug(f"Removed directory {dir_path}")
             credentials_dir.rmdir()
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             logger.warning(f"Failed to logout from Spotify: {error}")
         else:
             logger.info("Logged out from Spotify")

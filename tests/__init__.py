@@ -13,4 +13,5 @@ class ThreadJoiner:
         for thread in new_threads:
             thread.join(timeout=self.timeout)
             if thread.is_alive():
-                raise RuntimeError(f"Timeout joining thread {thread}")
+                msg = f"Timeout joining thread {thread}"
+                raise RuntimeError(msg)

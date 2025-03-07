@@ -134,14 +134,16 @@ class OAuthClient:
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
         if not self._refresh_mutex.locked():
-            raise OAuthTokenRefreshError("Lock must be held before calling.")
+            msg = "Lock must be held before calling."
+            raise OAuthTokenRefreshError(msg)
         return not self._auth or time.time() > self._expires - self._margin
 
     def _refresh_token(self):
         logger.debug(f"Fetching OAuth token from {self._refresh_url}")
 
         if not self._refresh_mutex.locked():
-            raise OAuthTokenRefreshError("Lock must be held before calling.")
+            msg = "Lock must be held before calling."
+            raise OAuthTokenRefreshError(msg)
 
         data = {"grant_type": "client_credentials"}
         result = self._request_with_retries(
@@ -149,17 +151,17 @@ class OAuthClient:
         )
 
         if result is None:
-            raise OAuthTokenRefreshError("Unknown error.")
+            msg = "Unknown error."
+            raise OAuthTokenRefreshError(msg)
         if result.get("error"):
-            raise OAuthTokenRefreshError(
-                f"{result['error']} {result.get('error_description', '')}"
-            )
+            msg = f"{result['error']} {result.get('error_description', '')}"
+            raise OAuthTokenRefreshError(msg)
         if not result.get("access_token"):
-            raise OAuthTokenRefreshError("missing access_token")
+            msg = "missing access_token"
+            raise OAuthTokenRefreshError(msg)
         if result.get("token_type") != "Bearer":
-            raise OAuthTokenRefreshError(
-                f"wrong token_type: {result.get('token_type')}"
-            )
+            msg = f"wrong token_type: {result.get('token_type')}"
+            raise OAuthTokenRefreshError(msg)
 
         self._access_token = result["access_token"]
         self._headers["Authorization"] = f"Bearer {self._access_token}"
@@ -278,7 +280,7 @@ class OAuthClient:
             try:
                 date_tuple = parsedate_to_datetime(value)
                 seconds = (date_tuple - now).total_seconds()
-            except Exception:
+            except ValueError:
                 seconds = 0
         return max(0, seconds)
 
@@ -477,7 +479,8 @@ class WebLink:
             case ["user", owner, "playlist", id]:
                 return cls(uri, LinkType.PLAYLIST, id, owner)
 
-        raise ValueError(f"Could not parse {uri!r} as a Spotify URI")
+        msg = f"Could not parse {uri!r} as a Spotify URI"
+        raise ValueError(msg)
 
     def __hash__(self):
         return hash(self.uri)
@@ -579,7 +582,8 @@ class SpotifyOAuthClient(OAuthClient):
         try:
             parsed = WebLink.from_uri(uri)
             if parsed.type != LinkType.PLAYLIST:
-                raise ValueError(f"Could not parse {uri!r} as a Spotify playlist URI")  # noqa: TRY301
+                msg = f"Could not parse {uri!r} as a Spotify playlist URI"
+                raise ValueError(msg)  # noqa: TRY301
         except ValueError as exc:
             logger.error(exc)  # noqa: TRY400
             return {}
