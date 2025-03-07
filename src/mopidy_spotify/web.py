@@ -115,7 +115,7 @@ class OAuthClient:
         if result is None or "error" in result:
             logger.error(
                 "Spotify Web API request failed: "
-                f"{result.get('error','Unknown') if result else 'Unknown'}"
+                f"{result.get('error', 'Unknown') if result else 'Unknown'}"
             )
             return WebResponse(None, None)
 
@@ -221,7 +221,7 @@ class OAuthClient:
             # Decide how long to sleep in the next iteration.
             backoff_time = backoff_time or (2**i * self._backoff_factor)
             logger.error(
-                f"Retrying {prepared_request.url} in {backoff_time:.3f} " "seconds."
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} seconds."
             )
 
         if status_code == HTTPStatus.UNAUTHORIZED:
