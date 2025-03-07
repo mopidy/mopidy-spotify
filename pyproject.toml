@@ -1,112 +1,143 @@
-[build-system]
-requires = ["setuptools >= 66", "setuptools-scm >= 7.1"]
-build-backend = "setuptools.build_meta"
-
-
 [project]
-name = "Mopidy-Spotify"
+name = "mopidy-spotify"
 description = "Mopidy extension for playing music from Spotify"
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">= 3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Stein Magnus Jodal", email = "stein.magnus@jodal.no" }]
 maintainers = [{ name = "Nick Steel", email = "nick@nsteel.co.uk" }]
 classifiers = [
-	"Environment :: No Input/Output (Daemon)",
-	"Intended Audience :: End Users/Desktop",
-	"License :: OSI Approved :: Apache Software License",
-	"Operating System :: OS Independent",
-	"Programming Language :: Python :: 3",
-	"Programming Language :: Python :: 3.11",
-	"Programming Language :: Python :: 3.12",
-	"Topic :: Multimedia :: Sound/Audio :: Players",
+    "Environment :: No Input/Output (Daemon)",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio :: Players",
 ]
 dynamic = ["version"]
-dependencies = [
-	"mopidy >= 4.0.0a1",
-	"pykka >= 4.0",
-	"requests >= 2.20.0",
-	"setuptools >= 66",
-]
-
-[project.optional-dependencies]
-lint = ["ruff"]
-test = ["pytest", "pytest-cov", "responses"]
-typing = []
-dev = ["mopidy-spotify[lint,test,typing]", "tox"]
+dependencies = ["mopidy >= 4.0.0a4", "pykka >= 4", "requests >= 2.20.0"]
 
 [project.urls]
-Source = "https://github.com/mopidy/mopidy-spotify"
-Issues = "https://github.com/mopidy/mopidy-spotify/issues"
+Homepage = "https://github.com/mopidy/mopidy-spotify"
 
 [project.entry-points."mopidy.ext"]
 spotify = "mopidy_spotify:Extension"
+
+
+[build-system]
+requires = ["setuptools >= 66", "setuptools-scm >= 7.1"]
+build-backend = "setuptools.build_meta"
+
+
+[dependency-groups]
+dev = [
+    "tox",
+    { include-group = "ruff" },
+    { include-group = "tests" },
+    { include-group = "typing" },
+]
+ruff = ["ruff"]
+tests = ["pytest", "pytest-cov", "responses"]
+typing = ["pyright"]
+
+
+[tool.coverage.paths]
+source = ["src/", "*/site-packages/"]
+
+[tool.coverage.run]
+source_pkgs = ["mopidy_spotify"]
+
+[tool.coverage.report]
+show_missing = true
+
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+# Not all dependencies have type hints:
+reportMissingTypeStubs = false
+# Already covered by ruff's flake8-self checks:
+reportPrivateImportUsage = false
+
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # By default, fail tests on warnings from our own code
+    "error:::mopidy_spotify",
+    #
+    # Add any warnings you want to ignore here
+]
 
 
 [tool.ruff]
 target-version = "py311"
 
 [tool.ruff.lint]
-select = [
-	"A",   # flake8-builtins
-	"ANN", # flake8-annotations
-	"ARG", # flake8-unused-arguments
-	"B",   # flake8-bugbear
-	"C4",  # flake8-comprehensions
-	"C90", # mccabe
-	"D",   # pydocstyle
-	"DTZ", # flake8-datetimez
-	"E",   # pycodestyle
-	"ERA", # eradicate
-	"F",   # pyflakes
-	"FBT", # flake8-boolean-trap
-	"I",   # isort
-	"INP", # flake8-no-pep420
-	"ISC", # flake8-implicit-str-concat
-	"N",   # pep8-naming
-	"PGH", # pygrep-hooks
-	"PIE", # flake8-pie
-	"PLC", # pylint convention
-	"PLE", # pylint error
-	"PLR", # pylint refactor
-	"PLW", # pylint warning
-	"PT",  # flake8-pytest-style
-	"PTH", # flake8-use-pathlib
-	"Q",   # flake8-quotes
-	"RET", # flake8-return
-	"RSE", # flake8-raise
-	"RUF", # ruff
-	"SIM", # flake8-simplify
-	"SLF", # flake8-self
-	"T20", # flake8-print
-	"TCH", # flake8-type-checking
-	"TID", # flake8-tidy-imports
-	"TRY", # tryceratops
-	"UP",  # pyupgrade
-	"W",   # pycodestyle
-]
+select = ["ALL"]
 ignore = [
-	"ANN",    # flake8-annotations  # TODO: Add types
-	"ANN101", # missing-type-self
-	"ANN102", # missing-type-cls
-	"ANN401", # any-type
-	"D",      # pydocstyle
-	"ISC001", # single-line-implicit-string-concatenation
-	"SLF001", # private-member-access
-	"TRY003", # raise-vanilla-args
+    "ANN",    # flake8-annotations  # TODO: Add types
+    "ANN401", # any-type
+    "D",      # pydocstyle
+    "D203",   # one-blank-line-before-class
+    "D213",   # multi-line-summary-second-line
+    "ISC001", # single-line-implicit-string-concatenation
+    "SLF001", # private-member-access
+    "TD002",  # missing-todo-author
+    "TD003",  # missing-todo-link
+    "TRY003", # raise-vanilla-args
+    #
+    # Conflicting with `ruff format`
+    "COM812", # missing-trailing-comma
+    "ISC001", # single-line-implicit-string-concatenation
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-	"ANN",     # flake8-annotations
-	"ARG",     # flake8-unused-arguments
-	"D",       # pydocstyle
-	"FBT",     # flake8-boolean-trap
-	"PLR0913", # too-many-arguments
-	"PLR2004", # magic-value-comparison
-	"PT027",   # pytest-unittest-raises-assertion
-	"TRY002",  # raise-vanilla-class
+    "ANN",     # flake8-annotations
+    "ARG",     # flake8-unused-arguments
+    "D",       # pydocstyle
+    "FBT",     # flake8-boolean-trap
+    "PLR0913", # too-many-arguments
+    "PLR2004", # magic-value-comparison
+    "PT027",   # pytest-unittest-raises-assertion
+    "S101",    # assert
+    "TRY002",  # raise-vanilla-class
 ]
 
 
+[tool.setuptools.package-data]
+"*" = ["*.conf"]
+
+
 [tool.setuptools_scm]
+# This section, even if empty, must be present for setuptools_scm to work
+
+
+[tool.tox]
+env_list = ["3.11", "3.12", "3.13", "pyright", "ruff-check", "ruff-format"]
+
+[tool.tox.env_run_base]
+package = "wheel"
+wheel_build_env = ".pkg"
+dependency_groups = ["tests"]
+commands = [
+    [
+        "pytest",
+        "--cov",
+        "--basetemp={envtmpdir}",
+        { replace = "posargs", extend = true },
+    ],
+]
+
+[tool.tox.env.pyright]
+dependency_groups = ["typing"]
+commands = [["pyright", "{posargs:src}"]]
+
+[tool.tox.env.ruff-check]
+skip_install = true
+dependency_groups = ["ruff"]
+commands = [["ruff", "check", "{posargs:.}"]]
+
+[tool.tox.env.ruff-format]
+skip_install = true
+dependency_groups = ["ruff"]
+commands = [["ruff", "format", "--check", "{posargs:.}"]]
