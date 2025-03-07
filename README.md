@@ -41,15 +41,15 @@ Working support for the following features is currently available:
 
 - Mopidy >= 3.4. The music server that Mopidy-Spotify extends.
 
--``gst-plugins-spotify`, the [GStreamer Rust Plugin]
-(https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs) for Spotify
-playback, based on [librespot](https://github.com/librespot-org/librespot/).
-_This plugin is not yet available from apt.mopidy.com_. It must be either
-[built from source]
-(https://github.com/kingosticks/gst-plugins-rs-build/tree/main?tab=readme-ov-file#native-compile)
-or [Debian packages are available]
-(https://github.com/kingosticks/gst-plugins-rs-build/releases/latest)
-for some platforms.
+- `gst-plugins-spotify`, the [GStreamer Rust Plugin]
+  (https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs) for Spotify
+  playback, based on [librespot](https://github.com/librespot-org/librespot/).
+  _This plugin is not yet available from apt.mopidy.com_. It must be either
+  [built from source]
+  (https://github.com/kingosticks/gst-plugins-rs-build/tree/main?tab=readme-ov-file#native-compile)
+  or [Debian packages are available]
+  (https://github.com/kingosticks/gst-plugins-rs-build/releases/latest)
+  for some platforms.
 
 **We currently require a forked version of this plugin which supports
 token-based login.** This can be found
