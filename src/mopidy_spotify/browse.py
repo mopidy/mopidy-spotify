@@ -50,7 +50,6 @@ BROWSE_DIR_URIS = {
 def browse(  # noqa: C901, PLR0911, PLR0912
     *,
     config,  # noqa: ARG001
-    session,  # noqa: ARG001
     web_client,
     uri,
 ):

@@ -1,0 +1,8 @@
+_commit: v2.1.1
+_src_path: gh:mopidy/mopidy-ext-template
+author_email: stein.magnus@jodal.no
+author_full_name: Stein Magnus Jodal
+dist_name: mopidy-spotify
+ext_name: spotify
+github_username: mopidy
+short_description: Mopidy extension for playing music from Spotify

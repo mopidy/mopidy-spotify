@@ -80,13 +80,13 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             self._refresh_mutex.release()
 
     def create(self, name):
-        pass  # TODO
+        pass  # TODO: Implement
 
     def delete(self, uri):
-        pass  # TODO
+        pass  # TODO: Implement
 
     def save(self, playlist):
-        pass  # TODO
+        pass  # TODO: Implement
 
 
 def playlist_lookup(

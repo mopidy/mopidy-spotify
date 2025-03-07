@@ -17,7 +17,6 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def browse(self, uri):
         return browse.browse(
             config=self._config,
-            session=None,  # TODO
             web_client=self._backend._web_client,
             uri=uri,
         )

@@ -4,7 +4,7 @@ from mopidy_spotify import Extension
 from mopidy_spotify import backend as backend_lib
 
 
-def test_get_default_config():
+def test_get_default_config() -> None:
     ext = Extension()
 
     config = ext.get_default_config()
@@ -13,7 +13,7 @@ def test_get_default_config():
     assert "enabled = true" in config
 
 
-def test_get_config_schema():
+def test_get_config_schema() -> None:
     ext = Extension()
 
     schema = ext.get_config_schema()
@@ -33,7 +33,7 @@ def test_get_config_schema():
     assert "search_track_count" in schema
 
 
-def test_setup():
+def test_setup() -> None:
     registry = mock.Mock()
 
     ext = Extension()
@@ -42,7 +42,7 @@ def test_setup():
     registry.add.assert_called_with("backend", backend_lib.SpotifyBackend)
 
 
-def test_get_credentials_dir(tmp_path):
+def test_get_credentials_dir(tmp_path) -> None:
     config = {"core": {"data_dir": tmp_path}}
 
     ext = Extension()
