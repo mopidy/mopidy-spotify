@@ -190,7 +190,7 @@ new tag, e.g. `v0.1.0`. Add a title, e.g. `v0.1.0`, and a description of the cha
 Decide if the release is a pre-release (alpha, beta, or release candidate) or
 should be marked as the latest release, and click "Publish release".
 
-Once the releease is created, the `release.yml` GitHub Action will automatically
+Once the release is created, the `release.yml` GitHub Action will automatically
 build and publish the release to
 [PyPI](https://pypi.org/project/mopidy-spotify/).
 
