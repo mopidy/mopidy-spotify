@@ -142,4 +142,4 @@ commands = [["ruff", "check", "{posargs:.}"]]
 [tool.tox.env.ruff-format]
 skip_install = true
 dependency_groups = ["ruff"]
-commands = [["ruff", "format", "--check", "{posargs:.}"]]
+commands = [["ruff", "format", "--check", "--diff", "{posargs:.}"]]
