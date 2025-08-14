@@ -50,9 +50,8 @@ Working support for the following features is currently available:
   [Debian packages are available](https://github.com/kingosticks/gst-plugins-rs-build/releases/latest)
   for some platforms.
 
-**We currently require a forked version of this plugin which supports
-token-based login.** This can be found
-[here](https://gitlab.freedesktop.org/kingosticks/gst-plugins-rs/-/tree/spotify-access-token-logging).
+**We currently prefer a forked version of this plugin which provides better logging.**
+Details in release notes [here](https://github.com/kingosticks/gst-plugins-rs-build/releases/latest).
 
 Verify the GStreamer spotify plugin is correctly installed:
 
