@@ -47,12 +47,12 @@ class Extension(ext.Extension):
         return schema
 
     def setup(self, registry):
-        from mopidy_spotify.backend import SpotifyBackend
+        from mopidy_spotify.backend import SpotifyBackend  # noqa: PLC0415
 
         registry.add("backend", SpotifyBackend)
 
     def get_command(self):
-        from .commands import SpotifyCommand
+        from .commands import SpotifyCommand  # noqa: PLC0415
 
         return SpotifyCommand()
 
