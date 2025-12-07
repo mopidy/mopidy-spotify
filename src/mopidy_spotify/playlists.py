@@ -2,7 +2,7 @@ import logging
 import threading
 
 from mopidy import backend
-from mopidy.core import listener
+from mopidy.core import CoreListener
 
 from mopidy_spotify import translator, utils
 
@@ -71,7 +71,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
                 refreshed = [uri for uri in playlist_uris if self.lookup(uri)]
                 logger.info(f"Refreshed {len(refreshed)} Spotify playlists")
 
-            listener.CoreListener.send("playlists_loaded")
+            CoreListener.send("playlists_loaded")
         except Exception:
             logger.exception("Error occurred while refreshing Spotify playlists tracks")
         else:
