@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 from mopidy import backend as backend_api
+from mopidy.core import CoreListener
 from mopidy.models import Ref
 
 from mopidy_spotify import playlists
@@ -166,7 +167,7 @@ def test_refresh_counts_valid_playlists(provider, caplog):
     assert "Refreshed 2 Spotify playlists" in caplog.text
 
 
-@mock.patch("mopidy.core.listener.CoreListener.send")
+@mock.patch.object(CoreListener, "send")
 def test_refresh_triggers_playlists_loaded_event(send, provider):
     with ThreadJoiner():
         provider.refresh()
