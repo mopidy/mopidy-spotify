@@ -81,7 +81,7 @@ def test_still_valid_refresh_token(oauth_client, mock_time):
 
 def test_user_agent(oauth_client):
     assert oauth_client._session.headers["user-agent"].startswith(
-        f"Mopidy-Spotify/{mopidy_spotify.__version__}"
+        f"mopidy-spotify/{mopidy_spotify.__version__}"
     )
 
 
