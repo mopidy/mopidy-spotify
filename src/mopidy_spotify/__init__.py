@@ -52,12 +52,12 @@ class Extension(ext.Extension):
         registry.add("backend", SpotifyBackend)
 
     def get_command(self):
-        from .commands import SpotifyCommand  # noqa: PLC0415
+        from .commands import app  # noqa: PLC0415
 
-        return SpotifyCommand()
+        return app
 
     @classmethod
-    def get_credentials_dir(cls, config):
+    def get_credentials_dir(cls, config) -> pathlib.Path:
         data_dir = cls.get_data_dir(config)
         credentials_dir = data_dir / "credentials-cache"
         credentials_dir.mkdir(mode=0o700, exist_ok=True)
