@@ -1,16 +1,17 @@
-from unittest.mock import sentinel
+from mopidy.config import Config
 
 from mopidy_spotify import Extension
-from mopidy_spotify.commands import LogoutCommand
+from mopidy_spotify.commands import logout
 
 
 def test_logout_command(tmp_path):
-    config = {"core": {"data_dir": tmp_path}}
+    config = Config({"core": {"data_dir": tmp_path}})
+    Config.set_global(config)
+
     credentials_dir = Extension().get_credentials_dir(config)
     (credentials_dir / "foo").mkdir()
     (credentials_dir / "bar").touch()
 
-    cmd = LogoutCommand()
-    cmd.run(sentinel.args, config)
+    logout()
 
     assert not credentials_dir.is_dir()
