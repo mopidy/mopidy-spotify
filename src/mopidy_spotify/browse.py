@@ -32,6 +32,7 @@ _YOUR_MUSIC_DIR_CONTENTS = [
 
 _PLAYLISTS_DIR_CONTENTS = [
     models.Ref.directory(uri="spotify:playlists:featured", name="Featured"),
+    models.Ref.directory(uri="spotify:playlists:new-releases", name="New releases"),
 ]
 
 
@@ -183,20 +184,44 @@ def _browse_your_music(web_client, variant):
 
 
 def _browse_playlists(web_client, variant):
+    """Browse playlist-related directories (featured playlists, new releases).
+
+    Args:
+        web_client: The Spotify OAuth client for API requests.
+        variant: The playlist variant to browse ('featured' or 'new-releases').
+
+    Returns:
+        A list of Mopidy Ref objects (playlists for 'featured', albums for
+        'new-releases').
+    """
     if not web_client.logged_in:
         return []
 
-    if variant != "featured":
-        return []
+    if variant == "featured":
+        items = flatten(
+            [
+                page.get("playlists", {}).get("items", [])
+                for page in web_client.get_all(
+                    "browse/featured-playlists",
+                    params={"limit": 50},
+                )
+                if page
+            ]
+        )
+        return list(translator.to_playlist_refs(items))
 
-    items = flatten(
-        [
-            page.get("playlists", {}).get("items", [])
-            for page in web_client.get_all(
-                "browse/featured-playlists",
-                params={"limit": 50},
-            )
-            if page
-        ]
-    )
-    return list(translator.to_playlist_refs(items))
+    if variant == "new-releases":
+        items = flatten(
+            [
+                page.get("albums", {}).get("items", [])
+                for page in web_client.get_all(
+                    "browse/new-releases",
+                    params={"limit": 50},
+                )
+                if page
+            ]
+        )
+        return list(translator.web_to_album_refs(items))
+
+    logger.info(f"Failed to browse 'spotify:playlists:{variant}': Unknown URI type")
+    return []

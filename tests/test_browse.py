@@ -65,11 +65,16 @@ def test_browse_your_music_directory(provider):
 
 
 def test_browse_playlists_directory(provider):
+    """Test browsing the playlists directory returns all playlist categories."""
     results = provider.browse("spotify:playlists")
 
-    assert len(results) == 1
+    assert len(results) == 2
     assert (
         models.Ref.directory(uri="spotify:playlists:featured", name="Featured")
+        in results
+    )
+    assert (
+        models.Ref.directory(uri="spotify:playlists:new-releases", name="New releases")
         in results
     )
 
@@ -305,3 +310,153 @@ def test_browse_playlists_featured(web_client_mock, web_playlist_mock, provider)
     assert len(results) == 2
     assert results[0].name == "Foo"
     assert results[0].uri == "spotify:user:alice:playlist:foo"
+
+
+def test_browse_new_releases(web_client_mock, web_album_mock_base, provider):
+    """Test browsing new releases returns album refs.
+
+    Verifies successful response handling per Spotify Web API reference:
+    https://developer.spotify.com/documentation/web-api/reference/get-new-releases
+
+    Response structure: { "albums": { "items": [SimplifiedAlbumObject, ...] } }
+    """
+    web_client_mock.get_all.return_value = [
+        {"albums": {"items": [web_album_mock_base]}},
+        {"albums": {"items": [web_album_mock_base]}},
+    ]
+
+    results = provider.browse("spotify:playlists:new-releases")
+
+    web_client_mock.get_all.assert_called_once_with(
+        "browse/new-releases", params={"limit": 50}
+    )
+    assert len(results) == 2
+    assert results[0] == models.Ref.album(
+        uri="spotify:album:def", name="ABBA - DEF 456"
+    )
+
+
+def test_browse_new_releases_empty(web_client_mock, provider):
+    """Test browsing new releases when API returns empty results.
+
+    Per Spotify API docs, albums.items may be an empty array when no new
+    releases are available for the market.
+    https://developer.spotify.com/documentation/web-api/reference/get-new-releases
+    """
+    web_client_mock.get_all.return_value = [{}]
+
+    results = provider.browse("spotify:playlists:new-releases")
+
+    web_client_mock.get_all.assert_called_once_with(
+        "browse/new-releases", params={"limit": 50}
+    )
+    assert len(results) == 0
+
+
+def test_browse_new_releases_when_offline(web_client_mock, provider):
+    """Test browsing new releases when not logged in.
+
+    Spotify API requires valid OAuth token. Error 401 (bad/expired token) and
+    403 (bad OAuth request) are handled by web_client before reaching browse.
+    https://developer.spotify.com/documentation/web-api/reference/get-new-releases
+    """
+    web_client_mock.logged_in = False
+
+    results = provider.browse("spotify:playlists:new-releases")
+
+    web_client_mock.get_all.assert_not_called()
+    assert len(results) == 0
+
+
+def test_browse_playlists_unknown_variant(web_client_mock, provider, caplog):
+    """Test browsing unknown playlist variant logs warning and returns empty."""
+    results = provider.browse("spotify:playlists:unknown")
+
+    web_client_mock.get_all.assert_not_called()
+    assert len(results) == 0
+    assert "Unknown URI type" in caplog.text
+
+
+# Defensive programming tests - verifying robust handling of edge cases
+#
+# These tests verify graceful handling of malformed or unexpected API responses.
+# Per Spotify Web API reference, the expected response structure is:
+# { "albums": { "href": str, "limit": int, "next": str|null, "offset": int,
+#               "previous": str|null, "total": int, "items": [SimplifiedAlbumObject] } }
+# https://developer.spotify.com/documentation/web-api/reference/get-new-releases
+#
+# However, pagination and network issues may produce partial/malformed responses.
+# The translator.valid_web_data() validates each album object has type="album" and uri.
+
+
+def test_browse_new_releases_handles_none_pages(web_client_mock, provider):
+    """Test that None pages in the response are safely filtered out.
+
+    Pagination via web_client.get_all() may yield None for failed page fetches
+    (e.g., network timeouts, rate limiting via 429 status).
+    """
+    web_client_mock.get_all.return_value = [
+        None,
+        {"albums": {"items": []}},
+        None,
+    ]
+
+    results = provider.browse("spotify:playlists:new-releases")
+
+    assert len(results) == 0
+
+
+def test_browse_new_releases_handles_missing_albums_key(web_client_mock, provider):
+    """Test that pages missing the 'albums' key are handled gracefully.
+
+    While the API spec defines 'albums' as required, defensive coding handles
+    unexpected response shapes that may occur during API changes or errors.
+    """
+    web_client_mock.get_all.return_value = [
+        {"unexpected_key": {"items": []}},
+        {},
+    ]
+
+    results = provider.browse("spotify:playlists:new-releases")
+
+    assert len(results) == 0
+
+
+def test_browse_new_releases_handles_missing_items_key(
+    web_client_mock, web_album_mock_base, provider
+):
+    """Test that pages with 'albums' but missing 'items' are handled gracefully.
+
+    The API spec shows 'items' as required within 'albums', but we use .get()
+    with empty list default to handle partial responses defensively.
+    """
+    web_client_mock.get_all.return_value = [
+        {"albums": {}},
+        {"albums": {"items": [web_album_mock_base]}},
+    ]
+
+    results = provider.browse("spotify:playlists:new-releases")
+
+    assert len(results) == 1
+
+
+def test_browse_new_releases_handles_mixed_valid_invalid_pages(
+    web_client_mock, web_album_mock_base, provider
+):
+    """Test that valid data is extracted even when mixed with invalid pages.
+
+    Real-world pagination may encounter intermittent failures. This verifies
+    the implementation extracts all valid albums while gracefully skipping
+    malformed pages, ensuring maximum data availability.
+    """
+    web_client_mock.get_all.return_value = [
+        None,
+        {"albums": {"items": [web_album_mock_base]}},
+        {},
+        {"albums": {}},
+        {"albums": {"items": [web_album_mock_base, web_album_mock_base]}},
+    ]
+
+    results = provider.browse("spotify:playlists:new-releases")
+
+    assert len(results) == 3
