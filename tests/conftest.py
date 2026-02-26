@@ -33,6 +33,7 @@ def config(tmp_path):
             "search_track_count": 50,
             "client_id": "abcd1234",
             "client_secret": "YWJjZDEyMzQ=",
+            "refresh_url": "https://auth.mopidy.com/spotify/token",
         },
     }
 

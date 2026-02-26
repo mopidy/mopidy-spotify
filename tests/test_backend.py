@@ -72,6 +72,21 @@ def test_on_start_configures_proxy(web_mock, config):
     )
 
 
+def test_on_start_configures_refresh_url(web_mock, config):
+    config["spotify"]["refresh_url"] = "http://localhost:8080/callback"
+
+    backend = get_backend(config)
+    with ThreadJoiner():
+        backend.on_start()
+
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        refresh_url="http://localhost:8080/callback",
+        client_id=mock.ANY,
+        client_secret=mock.ANY,
+        proxy_config=mock.ANY,
+    )
+
+
 def test_on_start_configures_web_client(web_mock, config):
     config["spotify"]["client_id"] = "1234567"
     config["spotify"]["client_secret"] = "AbCdEfG"  # noqa: S105
@@ -81,6 +96,7 @@ def test_on_start_configures_web_client(web_mock, config):
         backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
+        refresh_url="https://auth.mopidy.com/spotify/token",
         client_id="1234567",
         client_secret="AbCdEfG",  # noqa: S106
         proxy_config=mock.ANY,

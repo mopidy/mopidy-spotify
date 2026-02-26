@@ -22,6 +22,7 @@ class Extension(ext.Extension):
 
         schema["client_id"] = config.String()
         schema["client_secret"] = config.Secret()
+        schema["refresh_url"] = config.String()
 
         schema["bitrate"] = config.Integer(choices=(96, 160, 320))
         schema["volume_normalization"] = config.Boolean()

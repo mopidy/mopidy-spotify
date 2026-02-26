@@ -719,6 +719,7 @@ def test_updated_responses_changed(web_response_mock, oauth_client, mock_time):
 @pytest.fixture
 def spotify_client(config):
     client = web.SpotifyOAuthClient(
+        refresh_url=config["spotify"]["refresh_url"],
         client_id=config["spotify"]["client_id"],
         client_secret=config["spotify"]["client_secret"],
         proxy_config=None,
@@ -839,6 +840,7 @@ class TestSpotifyOAuthClient:
 
     def test_configures_auth(self):
         client = web.SpotifyOAuthClient(
+            refresh_url="https://auth.mopidy.com/spotify/token",
             client_id="1234567",
             client_secret="AbCdEfG",  # noqa: S106
             proxy_config=None,
@@ -855,7 +857,10 @@ class TestSpotifyOAuthClient:
             "password": "s3cret",
         }
         client = web.SpotifyOAuthClient(
-            client_id=None, client_secret=None, proxy_config=proxy_config
+            refresh_url="https://auth.mopidy.com/spotify/token",
+            client_id=None,
+            client_secret=None,
+            proxy_config=proxy_config,
         )
 
         assert (

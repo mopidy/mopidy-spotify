@@ -506,10 +506,10 @@ class SpotifyOAuthClient(OAuthClient):
     PLAYLIST_FIELDS = f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
     DEFAULT_EXTRA_EXPIRY = 10
 
-    def __init__(self, *, client_id, client_secret, proxy_config):
+    def __init__(self, *, refresh_url, client_id, client_secret, proxy_config):
         super().__init__(
             base_url="https://api.spotify.com/v1",
-            refresh_url="https://auth.mopidy.com/spotify/token",
+            refresh_url=refresh_url,
             client_id=client_id,
             client_secret=client_secret,
             proxy_config=proxy_config,
