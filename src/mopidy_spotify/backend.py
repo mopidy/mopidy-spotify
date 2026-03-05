@@ -23,9 +23,17 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 
     def on_start(self):
         self._web_client = web.SpotifyOAuthClient(
-            refresh_url=self._config["spotify"]["refresh_url"],
-            client_id=self._config["spotify"]["client_id"],
-            client_secret=self._config["spotify"]["client_secret"],
+            authentication_config=web.SpotifyAuthenticationConfig(
+                provider=Extension.Provider(
+                    self._config["spotify"]["authentication_provider"]
+                ),
+                client_id=self._config["spotify"]["client_id"],
+                client_secret=self._config["spotify"]["client_secret"],
+                refresh_url=self._config["spotify"]["refresh_url"],
+                cache_credentials_path=self._config["spotify"][
+                    "cache_credentials_path"
+                ],
+            ),
             proxy_config=self._config["proxy"],
         )
         self._web_client.login()

@@ -90,9 +90,9 @@ def search(  # noqa: PLR0913
     tracks = (
         [
             translator.web_to_track(web_track)
-            for web_track in result["tracks"]["items"][: config["search_track_count"]]
+            for web_track in result["items"]["items"][: config["search_track_count"]]
         ]
-        if "tracks" in result
+        if "items" in result
         else []
     )
     tracks = [x for x in tracks if x]

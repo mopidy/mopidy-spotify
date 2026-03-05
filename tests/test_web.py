@@ -16,8 +16,10 @@ def oauth_client(config):
     return web.OAuthClient(
         base_url="https://api.spotify.com/v1",
         refresh_url="https://auth.mopidy.com/spotify/token",
+        authentication_provider=mopidy_spotify.Extension.Provider.MOPIDY_PROXY,
         client_id=config["spotify"]["client_id"],
         client_secret=config["spotify"]["client_secret"],
+        cache_credentials_path=None,
         proxy_config=None,
         expiry_margin=60,
     )
@@ -719,9 +721,13 @@ def test_updated_responses_changed(web_response_mock, oauth_client, mock_time):
 @pytest.fixture
 def spotify_client(config):
     client = web.SpotifyOAuthClient(
-        refresh_url=config["spotify"]["refresh_url"],
-        client_id=config["spotify"]["client_id"],
-        client_secret=config["spotify"]["client_secret"],
+        authentication_config=web.SpotifyAuthenticationConfig(
+            provider=mopidy_spotify.Extension.Provider.MOPIDY_PROXY,
+            client_id=config["spotify"]["client_id"],
+            client_secret=config["spotify"]["client_secret"],
+            refresh_url=config["spotify"]["refresh_url"],
+            cache_credentials_path=config["spotify"]["cache_credentials_path"],
+        ),
         proxy_config=None,
     )
     client.user_id = "alice"
@@ -753,7 +759,7 @@ def playlist_tracks_parms():
 def bar_playlist(playlist_parms):
     return {
         "href": url(f"playlists/bar?{playlist_parms}"),
-        "tracks": {"items": [0]},
+        "items": {"items": [0]},
     }
 
 
@@ -769,7 +775,7 @@ def foo_playlist_tracks(playlist_tracks_parms):
 def foo_playlist(playlist_parms, foo_playlist_tracks):
     return {
         "href": url(f"playlists/foo?{playlist_parms}"),
-        "tracks": {"items": [1, 2], "next": foo_playlist_tracks["href"]},
+        "items": {"items": [1, 2], "next": foo_playlist_tracks["href"]},
     }
 
 
@@ -820,7 +826,7 @@ class TestSpotifyOAuthClient:
         "field",
         [
             ("next"),
-            ("items(track"),
+            ("items(item"),
             ("type"),
             ("uri"),
             ("name"),
@@ -833,16 +839,20 @@ class TestSpotifyOAuthClient:
 
     @pytest.mark.parametrize(
         "field",
-        [("name"), ("type"), ("uri"), ("snapshot_id"), ("tracks")],
+        [("name"), ("type"), ("uri"), ("snapshot_id"), ("items")],
     )
     def test_playlist_required_fields(self, field):
         assert field in web.SpotifyOAuthClient.PLAYLIST_FIELDS
 
     def test_configures_auth(self):
         client = web.SpotifyOAuthClient(
-            refresh_url="https://auth.mopidy.com/spotify/token",
-            client_id="1234567",
-            client_secret="AbCdEfG",  # noqa: S106
+            authentication_config=web.SpotifyAuthenticationConfig(
+                provider=mopidy_spotify.Extension.Provider.MOPIDY_PROXY,
+                client_id="1234567",
+                client_secret="AbCdEfG",  # noqa: S106
+                refresh_url="https://auth.mopidy.com/spotify/token",
+                cache_credentials_path=None,
+            ),
             proxy_config=None,
         )
 
@@ -857,9 +867,13 @@ class TestSpotifyOAuthClient:
             "password": "s3cret",
         }
         client = web.SpotifyOAuthClient(
-            refresh_url="https://auth.mopidy.com/spotify/token",
-            client_id=None,
-            client_secret=None,
+            authentication_config=web.SpotifyAuthenticationConfig(
+                provider=mopidy_spotify.Extension.Provider.MOPIDY_PROXY,
+                client_id=None,
+                client_secret=None,
+                refresh_url="https://auth.mopidy.com/spotify/token",
+                cache_credentials_path=None,
+            ),
             proxy_config=proxy_config,
         )
 
@@ -959,7 +973,7 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_get_user_playlists_empty(self, spotify_client):
-        responses.add(responses.GET, url("users/alice/playlists"), json={})
+        responses.add(responses.GET, url("me/playlists"), json={})
 
         result = list(spotify_client.get_user_playlists())
 
@@ -979,7 +993,7 @@ class TestSpotifyOAuthClient:
         result = list(spotify_client.get_user_playlists(refresh=refresh))
 
         spotify_client.get_all.assert_called_once_with(
-            "users/alice/playlists",
+            "me/playlists",
             params={"limit": 50},
             expiry_strategy=strategy,
         )
@@ -987,29 +1001,27 @@ class TestSpotifyOAuthClient:
 
     @responses.activate
     def test_get_user_playlists_sets_params(self, spotify_client):
-        responses.add(responses.GET, url("users/alice/playlists"), json={})
+        responses.add(responses.GET, url("me/playlists"), json={})
 
         list(spotify_client.get_user_playlists())
 
         assert len(responses.calls) == 1
         encoded_params = urllib.parse.urlencode({"limit": 50})
-        assert responses.calls[0].request.url == url(
-            f"users/alice/playlists?{encoded_params}"
-        )
+        assert responses.calls[0].request.url == url(f"me/playlists?{encoded_params}")
 
     @responses.activate
     def test_get_user_playlists(self, spotify_client):
         responses.add(
             responses.GET,
-            url("users/alice/playlists?limit=50"),
+            url("me/playlists?limit=50"),
             json={
-                "next": url("users/alice/playlists?offset=50"),
+                "next": url("me/playlists?offset=50"),
                 "items": ["playlist0", "playlist1", "playlist2"],
             },
         )
         responses.add(
             responses.GET,
-            url("users/alice/playlists?limit=50&offset=50"),
+            url("me/playlists?limit=50&offset=50"),
             json={
                 "next": None,
                 "items": ["playlist3", "playlist4", "playlist5"],
@@ -1030,7 +1042,9 @@ class TestSpotifyOAuthClient:
             json={"error": "baz"},
         )
 
-        result = spotify_client._with_all_tracks(foo_album_response)
+        result = spotify_client._with_all_tracks(
+            foo_album_response, tracks_key="tracks"
+        )
 
         assert result == {}
         assert "Spotify Web API request failed: baz" in caplog.text
@@ -1045,7 +1059,9 @@ class TestSpotifyOAuthClient:
             json=foo_album_next_tracks,
         )
 
-        result = spotify_client._with_all_tracks(foo_album_response)
+        result = spotify_client._with_all_tracks(
+            foo_album_response, tracks_key="tracks"
+        )
 
         assert len(responses.calls) == 1
         assert result["tracks"]["items"] == [3, 4, 5, 6, 7, 8]
@@ -1065,7 +1081,9 @@ class TestSpotifyOAuthClient:
         )
         mock_time.return_value = -1000
 
-        result1 = spotify_client._with_all_tracks(foo_album_response)
+        result1 = spotify_client._with_all_tracks(
+            foo_album_response, tracks_key="tracks"
+        )
 
         assert len(responses.calls) == 1
         cache_keys = list(spotify_client._cache.keys())
@@ -1075,7 +1093,9 @@ class TestSpotifyOAuthClient:
         mock_time.return_value = 1000
 
         foo_album_response._status_code = 304
-        result2 = spotify_client._with_all_tracks(foo_album_response)
+        result2 = spotify_client._with_all_tracks(
+            foo_album_response, tracks_key="tracks"
+        )
 
         assert len(responses.calls) == 0
         assert result1 == result2
@@ -1175,7 +1195,7 @@ class TestSpotifyOAuthClient:
         result = spotify_client.get_playlist("spotify:playlist:foo")
 
         assert len(responses.calls) == 2
-        assert result["tracks"]["items"] == [1, 2, 3, 4, 5]
+        assert result["items"]["items"] == [1, 2, 3, 4, 5]
 
     @pytest.mark.parametrize(
         ("uri", "msg"),
@@ -1198,9 +1218,9 @@ class TestSpotifyOAuthClient:
     def test_get_albums(self, foo_album, foo_album_next_tracks, spotify_client):
         responses.add(
             responses.GET,
-            url("albums"),
-            match=[matchers.query_string_matcher("ids=foo&market=from_token")],
-            json={"albums": [foo_album]},
+            url("albums/foo"),
+            match=[matchers.query_string_matcher("market=from_token")],
+            json=foo_album,
         )
         responses.add(
             responses.GET,
@@ -1374,7 +1394,7 @@ class TestSpotifyOAuthClient:
         responses.add(
             responses.GET,
             url("artists/baz/top-tracks"),
-            json={"tracks": [web_track_mock, web_track_mock]},
+            json={"items": [web_track_mock, web_track_mock]},
         )
         link = web.WebLink.from_uri("spotify:artist:baz")
         link.type = "your"
@@ -1401,16 +1421,8 @@ class TestSpotifyOAuthClient:
 
         dict(spotify_client.get_batch(web.LinkType(link_type), links))
 
-        assert spotify_client.get_one.call_count == 2
-
-        request_ids_1 = spotify_client.get_one.call_args_list[0][1]["params"]["ids"]
-        assert len(request_ids_1.split(",")) == max_links
-
-        request_ids_2 = spotify_client.get_one.call_args_list[1][1]["params"]["ids"]
-        assert len(request_ids_2.split(",")) == 1
-        assert set(request_ids_2.split(",")) == (
-            {link.id for link in links} - set(request_ids_1.split(","))
-        )
+        assert spotify_client.get_one.call_count == 21 if link_type == "album" else 51
+        assert spotify_client.get_one.call_args_list[0][0][0] == f"{link_type}s/0"
 
     def test_get_batch_removes_duplicates(self, spotify_client):
         spotify_client.get_one = mock.Mock(return_value={})
@@ -1419,8 +1431,7 @@ class TestSpotifyOAuthClient:
         dict(spotify_client.get_batch(web.LinkType("track"), links))
 
         assert spotify_client.get_one.call_count == 1
-        request_ids_1 = spotify_client.get_one.call_args_list[0][1]["params"]["ids"]
-        assert request_ids_1 == links[0].id
+        assert spotify_client.get_one.call_args_list[0][0][0] == f"tracks/{links[0].id}"
 
     def test_get_batch_playlist(self, spotify_client, caplog):
         links = [web.WebLink.from_uri("spotify:playlist:foo")]
@@ -1431,7 +1442,7 @@ class TestSpotifyOAuthClient:
         assert "Cannot handle batched playlists" in caplog.text
 
     def test_get_batch_empty_results(self, spotify_client):
-        spotify_client.get_one = mock.Mock(return_value={"tracks": [None]})
+        spotify_client.get_one = mock.Mock(return_value={"items": [None]})
         links = [
             web.WebLink.from_uri("spotify:track:foo"),
             web.WebLink.from_uri("spotify:track:bar"),
@@ -1456,11 +1467,9 @@ class TestSpotifyOAuthClient:
         mock_type = mock_res["type"]
         responses.add(
             responses.GET,
-            url(res_types),
-            match=[
-                matchers.query_string_matcher(f"ids={mock_id}%2Cbar&market=from_token")
-            ],
-            json={res_types: [mock_res]},
+            url(f"{res_types}/{mock_id}"),
+            match=[matchers.query_string_matcher("market=from_token")],
+            json=mock_res,
         )
         links = [
             web.WebLink.from_uri(f"spotify:{mock_type}:{mock_id}"),
@@ -1478,15 +1487,22 @@ class TestSpotifyOAuthClient:
     def test_get_batch_error(self, spotify_client, web_album_mock, caplog):
         responses.add(
             responses.GET,
-            url("albums"),
-            match=[matchers.query_string_matcher("ids=def&market=from_token")],
-            json={"albums": [web_album_mock, {"error": "bar"}, None]},
+            url("albums/def"),
+            match=[matchers.query_string_matcher("market=from_token")],
+            json=web_album_mock,
+        )
+        responses.add(
+            responses.GET,
+            url("albums/err"),
+            match=[matchers.query_string_matcher("market=from_token")],
+            json={"error": "bar"},
         )
 
         link = web.WebLink.from_uri(web_album_mock["uri"])
-        results = dict(spotify_client.get_batch(link.type, [link]))
+        link2 = web.WebLink.from_uri("spotify:album:err")
+        results = dict(spotify_client.get_batch(link.type, [link, link2]))
 
-        assert len(responses.calls) == 1
+        assert len(responses.calls) == 2
         assert len(results) == 1
         assert results[link]["name"] == "DEF 456"
         assert "Invalid batch item" in caplog.text

@@ -249,7 +249,7 @@ def test_search_filters_bad_results(
     }
     web_search_mock["albums"]["items"] = [good_track]
     web_search_mock["artists"]["items"][0]["uri"] = None
-    web_search_mock["tracks"]["items"] = [{}, good_track, bad_track]
+    web_search_mock["items"]["items"] = [{}, good_track, bad_track]
     web_client_mock.get.return_value = web_search_mock
     result = provider.search({"any": ["ABBA"]})
 

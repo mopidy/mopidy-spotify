@@ -34,6 +34,8 @@ def config(tmp_path):
             "client_id": "abcd1234",
             "client_secret": "YWJjZDEyMzQ=",
             "refresh_url": "https://auth.mopidy.com/spotify/token",
+            "authentication_provider": "mopidy_proxy",
+            "cache_credentials_path": None,
         },
     }
 
@@ -41,7 +43,9 @@ def config(tmp_path):
 @pytest.fixture
 def web_mock():
     patcher = mock.patch.object(backend, "web", spec=web)
-    yield patcher.start()
+    mocked_web = patcher.start()
+    mocked_web.SpotifyAuthenticationConfig = web.SpotifyAuthenticationConfig
+    yield mocked_web
     patcher.stop()
 
 
@@ -50,7 +54,7 @@ def web_search_mock(web_album_mock_base, web_artist_mock, web_track_mock):
     return {
         "albums": {"items": [web_album_mock_base]},
         "artists": {"items": [web_artist_mock]},
-        "tracks": {"items": [web_track_mock, web_track_mock]},
+        "items": {"items": [web_track_mock, web_track_mock]},
     }
 
 
@@ -59,7 +63,7 @@ def web_search_mock_large(web_album_mock, web_artist_mock, web_track_mock):
     return {
         "albums": {"items": [web_album_mock] * 10},
         "artists": {"items": [web_artist_mock] * 10},
-        "tracks": {"items": [web_track_mock] * 10},
+        "items": {"items": [web_track_mock] * 10},
     }
 
 
@@ -174,7 +178,7 @@ def web_playlist_mock(web_track_mock):
     return {
         "owner": {"id": "alice"},
         "name": "Foo",
-        "tracks": {"items": [{"track": web_track_mock}]},
+        "items": {"items": [{"item": web_track_mock}]},
         "snapshot_id": "abcderfg12364",
         "uri": "spotify:user:alice:playlist:foo",
         "type": "playlist",
