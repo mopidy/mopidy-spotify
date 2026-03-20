@@ -107,7 +107,7 @@ def test_user_agent(oauth_client):
 def test_parse_retry_after(oauth_client, mock_now, header, expected):
     mock_now.return_value = datetime(2022, 12, 7, 11, 27, 26, 0, tzinfo=UTC)
     mock_response = mock.Mock(headers={"Retry-After": header})
-    result = oauth_client._parse_retry_after(mock_response)
+    result = oauth_client._request._parse_retry_after(mock_response)
 
     assert result == expected
 

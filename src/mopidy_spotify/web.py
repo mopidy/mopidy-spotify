@@ -32,6 +32,97 @@ class OAuthClientError(Exception):
     pass
 
 
+class WebRequest:
+    def __init__(
+        self,
+        session,
+        base_url,
+        timeout=10,
+        retries=3,
+        retry_statuses=(500, 502, 503, 429),
+        backoff_factor=0.5,
+    ):
+        self._session = session
+        self._base_url = base_url
+        self._timeout = timeout
+        self._number_of_retries = retries
+        self._retry_statuses = retry_statuses
+        self._backoff_factor = backoff_factor
+
+    def execute(self, method, url, *args, **kwargs):
+        prepared_request = self._session.prepare_request(
+            requests.Request(
+                method, utils.prepare_url(self._base_url, url, *args), **kwargs
+            )
+        )
+
+        try_until = time.time() + self._timeout
+
+        status_code = None
+        result = None
+        backoff_time = 0
+
+        for i in range(self._number_of_retries):
+            remaining_timeout = max(try_until - time.time(), 1)
+
+            # Give up if we don't have any timeout left after sleeping.
+            if backoff_time > remaining_timeout:
+                break
+            if backoff_time > 0:
+                time.sleep(backoff_time)
+
+            try:
+                response = self._session.send(
+                    prepared_request, timeout=remaining_timeout
+                )
+            except requests.RequestException as e:
+                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
+                status_code = None
+                backoff_time = 0
+                result = None
+            else:
+                status_code = response.status_code
+                backoff_time = self._parse_retry_after(response)
+                result = WebResponse.from_requests(prepared_request, response)
+
+            if status_code and 400 <= status_code < 600:  # noqa: PLR2004
+                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
+
+            # Filter out cases where we should not retry.
+            if status_code and status_code not in self._retry_statuses:
+                break
+
+            # TODO: Provider might return invalid JSON for "OK" responses.
+            # This should really not happen, so ignoring for the purpose of
+            # retries. It would be easier if they correctly used 204, but
+            # instead some endpoints return 200 with no content, or true/false.
+
+            # Decide how long to sleep in the next iteration.
+            backoff_time = backoff_time or (2**i * self._backoff_factor)
+            logger.error(
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} seconds."
+            )
+
+        return result, status_code
+
+    def _parse_retry_after(self, response):
+        """Parse Retry-After header from response if it is set."""
+        value = response.headers.get("Retry-After")
+
+        if not value:
+            seconds = 0
+        elif re.match(r"^\s*[0-9]+\s*$", value):
+            seconds = int(value)
+        else:
+            now = datetime.now(tz=UTC).replace(tzinfo=None)
+            try:
+                date_tuple = parsedate_to_datetime(value)
+                seconds = (date_tuple - now).total_seconds()
+            except ValueError:
+                seconds = 0
+        return max(0, seconds)
+
+
 class OAuthClient:
     def __init__(  # noqa: PLR0913
         self,
@@ -71,6 +162,13 @@ class OAuthClient:
 
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
+        self._request = WebRequest(
+            session=self._session,
+            base_url=self._base_url,
+            timeout=self._timeout,
+            retries=self._number_of_retries,
+            retry_statuses=self._retry_statuses,
+        )
         # TODO: Move _cache_mutex to the object it actually protects.
         self._cache_mutex = threading.Lock()  # Protects get() cache param.
         self._refresh_mutex = threading.Lock()  # Protects _headers and _expires.
@@ -194,56 +292,7 @@ class OAuthClient:
             logger.debug(f"Token scopes: {result['scope']}")
 
     def _request_with_retries(self, method, url, *args, **kwargs):
-        prepared_request = self._session.prepare_request(
-            requests.Request(method, utils.prepare_url(self._base_url, url, *args), **kwargs)
-        )
-
-        try_until = time.time() + self._timeout
-
-        status_code = None
-        result = None
-        backoff_time = 0
-
-        for i in range(self._number_of_retries):
-            remaining_timeout = max(try_until - time.time(), 1)
-
-            # Give up if we don't have any timeout left after sleeping.
-            if backoff_time > remaining_timeout:
-                break
-            if backoff_time > 0:
-                time.sleep(backoff_time)
-
-            try:
-                response = self._session.send(
-                    prepared_request, timeout=remaining_timeout
-                )
-            except requests.RequestException as e:
-                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
-                status_code = None
-                backoff_time = 0
-                result = None
-            else:
-                status_code = response.status_code
-                backoff_time = self._parse_retry_after(response)
-                result = WebResponse.from_requests(prepared_request, response)
-
-            if status_code and 400 <= status_code < 600:  # noqa: PLR2004
-                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
-
-            # Filter out cases where we should not retry.
-            if status_code and status_code not in self._retry_statuses:
-                break
-
-            # TODO: Provider might return invalid JSON for "OK" responses.
-            # This should really not happen, so ignoring for the purpose of
-            # retries. It would be easier if they correctly used 204, but
-            # instead some endpoints return 200 with no content, or true/false.
-
-            # Decide how long to sleep in the next iteration.
-            backoff_time = backoff_time or (2**i * self._backoff_factor)
-            logger.error(
-                f"Retrying {prepared_request.url} in {backoff_time:.3f} seconds."
-            )
+        result, status_code = self._request.execute(method, url, *args, **kwargs)
 
         if status_code == HTTPStatus.UNAUTHORIZED:
             self._authorization_failed = True
@@ -265,23 +314,6 @@ class OAuthClient:
         sorted_unique_query = sorted(query.items())
         encoded_query = urllib.parse.urlencode(sorted_unique_query)
         return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
-
-    def _parse_retry_after(self, response):
-        """Parse Retry-After header from response if it is set."""
-        value = response.headers.get("Retry-After")
-
-        if not value:
-            seconds = 0
-        elif re.match(r"^\s*[0-9]+\s*$", value):
-            seconds = int(value)
-        else:
-            now = datetime.now(tz=UTC).replace(tzinfo=None)
-            try:
-                date_tuple = parsedate_to_datetime(value)
-                seconds = (date_tuple - now).total_seconds()
-            except ValueError:
-                seconds = 0
-        return max(0, seconds)
 
 
 @unique
