@@ -195,7 +195,7 @@ class OAuthClient:
 
     def _request_with_retries(self, method, url, *args, **kwargs):
         prepared_request = self._session.prepare_request(
-            requests.Request(method, self._prepare_url(url, *args), **kwargs)
+            requests.Request(method, utils.prepare_url(self._base_url, url, *args), **kwargs)
         )
 
         try_until = time.time() + self._timeout
@@ -254,26 +254,6 @@ class OAuthClient:
                 "Mopidy to resolve this problem."
             )
         return result
-
-    def _prepare_url(self, url, *args, **kwargs):
-        # TODO: Move this out as a helper and unit-test it directly?
-        b = urllib.parse.urlsplit(self._base_url)
-        u = urllib.parse.urlsplit(url.format(*args))
-
-        if u.scheme or u.netloc:
-            scheme, netloc, path = u.scheme, u.netloc, u.path
-            query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
-        else:
-            scheme, netloc = b.scheme, b.netloc
-            path = os.path.normpath(os.path.join(b.path, u.path))  # noqa: PTH118
-            query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
-
-        for key, value in kwargs.items():
-            query.append((key, value))
-
-        encoded_query = urllib.parse.urlencode(dict(query))
-        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _normalise_query_string(self, url, params=None):
         u = urllib.parse.urlsplit(url)

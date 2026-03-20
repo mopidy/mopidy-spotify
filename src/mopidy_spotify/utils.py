@@ -2,7 +2,9 @@ import contextlib
 import itertools
 import logging
 import operator
+import os
 import time
+import urllib.parse
 
 import requests
 from mopidy import httpclient
@@ -54,3 +56,23 @@ def batched(iterable, n):
     it = iter(iterable)
     while batch := tuple(itertools.islice(it, n)):
         yield batch
+
+
+def prepare_url(base_url, url, *args, **kwargs):
+    b = urllib.parse.urlsplit(base_url)
+    u = urllib.parse.urlsplit(url.format(*args))
+
+    if u.scheme or u.netloc:
+        scheme, netloc, path = u.scheme, u.netloc, u.path
+        query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
+    else:
+        scheme, netloc = b.scheme, b.netloc
+        path = os.path.normpath(os.path.join(b.path, u.path))  # noqa: PTH118
+        query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
+        query.extend(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
+
+    for key, value in kwargs.items():
+        query.append((key, value))
+
+    encoded_query = urllib.parse.urlencode(dict(query))
+    return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
