@@ -3,25 +3,32 @@ import json
 import secrets
 import urllib.parse
 import urllib.request
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 
-class SpotifyDirectAuthentication:
+class Authentication(ABC):
+    @abstractmethod
+    def fetch_token(self) -> tuple[dict[str, str] | None, int | None]:
+        """Fetch an OAuth token."""
+
+
+class SpotifyDirectAuthentication(Authentication):
     def __init__(
         self,
         client_id: str,
         client_secret: str,
         refresh_url: str,
-        credentials: dict[str, str] | None = None,
         cache_credentials_path: str | None = None,
     ):
         self._client_id: str = client_id
         self._client_secret: str = client_secret
         self._refresh_url: str = refresh_url
-        self._credentials: dict[str, str] | None = credentials
+        self._credentials: dict[str, str] | None = None
         self._cache_credentials_path: str | None = cache_credentials_path
 
     def _save_token(self, token: dict[str, str]) -> None:
+        self._credentials = token
         if self._cache_credentials_path:
             with Path(self._cache_credentials_path).open("w") as f:
                 json.dump(token, f)
@@ -32,37 +39,32 @@ class SpotifyDirectAuthentication:
                 return json.load(f)
         return None
 
-    def _spotify_token_request(self, payload: dict[str, str]) -> dict[str, str]:
+    def _spotify_token_request(self, payload: dict[str, str]) -> tuple[dict[str, str], int]:
         url = "https://accounts.spotify.com/api/token"
-        # Validate URL scheme is https
-        parsed_url = urllib.parse.urlparse(url)
-        if parsed_url.scheme != "https":
-            msg = f"Invalid URL scheme: {parsed_url.scheme}"
-            raise RuntimeError(msg)
 
         auth_str = f"{self._client_id}:{self._client_secret}"
         auth_header = base64.b64encode(auth_str.encode()).decode()
 
         encoded_data = urllib.parse.urlencode(payload).encode()
 
-        req = urllib.request.Request(url, data=encoded_data, method="POST")  # noqa: S310
+        req = urllib.request.Request(url, data=encoded_data, method="POST")
         req.add_header("Authorization", f"Basic {auth_header}")
         req.add_header("Content-Type", "application/x-www-form-urlencoded")
 
-        with urllib.request.urlopen(req) as response:  # noqa: S310
-            return json.loads(response.read().decode())
+        with urllib.request.urlopen(req) as response:
+            return json.loads(response.read().decode()), response.status
 
-    def _refresh_access_token(self, refresh_token: str) -> dict[str, str]:
+    def _refresh_access_token(self, refresh_token: str) -> tuple[dict[str, str], int]:
         data = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
         }
-        new_token = self._spotify_token_request(data)
+        new_token, status = self._spotify_token_request(data)
         if "refresh_token" not in new_token:
             new_token["refresh_token"] = refresh_token
-        return new_token
+        return new_token, status
 
-    def _exchange_code_for_token(self, code: str) -> dict[str, str]:
+    def _exchange_code_for_token(self, code: str) -> tuple[dict[str, str], int]:
         data = {
             "grant_type": "authorization_code",
             "code": code,
@@ -70,7 +72,7 @@ class SpotifyDirectAuthentication:
         }
         return self._spotify_token_request(data)
 
-    def _authenticate(self) -> dict[str, str]:
+    def _authenticate(self) -> tuple[dict[str, str], int]:
         state = secrets.token_urlsafe(16)
 
         auth_params = {
@@ -102,13 +104,36 @@ Please go here and authorize: {authorization_url}
 
         return self._exchange_code_for_token(code)
 
-    def fetch_token(self) -> dict[str, str]:
+    def fetch_token(self) -> tuple[dict[str, str] | None, int | None]:
         token = self._credentials or self._load_token()
+        status = None
 
         if not token:
-            token = self._authenticate()
+            token, status = self._authenticate()
         else:
-            token = self._refresh_access_token(token["refresh_token"])
+            token, status = self._refresh_access_token(token["refresh_token"])
 
         self._save_token(token)
-        return token
+        return token, status
+
+
+class MopidyProxyAuthentication(Authentication):
+    def __init__(
+        self,
+        request,
+        auth: tuple[str, str] | None,
+        refresh_url: str,
+    ):
+        self._request = request
+        self._auth: tuple[str, str] | None = auth
+        self._refresh_url: str = refresh_url
+
+    def _request_with_retries(self, method, url, *args, **kwargs) -> tuple[dict[str, str] | None, int | None]:
+        result, status = self._request.execute(method, url, *args, **kwargs)
+        return result, status
+
+    def fetch_token(self) -> tuple[dict[str, str] | None, int | None]:
+        data = {"grant_type": "client_credentials"}
+        return self._request_with_retries(
+            "POST", self._refresh_url, auth=self._auth, data=data
+        )

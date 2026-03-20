@@ -11,32 +11,58 @@ mock_old_token = secrets.token_urlsafe(16)
 mock_new_token = secrets.token_urlsafe(16)
 
 
-def test_fetch_token_refreshes_and_caches(tmp_path, monkeypatch):
+def test_fetch_from_disk_token_refreshes_and_caches(tmp_path, monkeypatch):
     cache_path = tmp_path / "token.json"
+    cache_path.write_text(json.dumps({"refresh_token": mock_old_token}))
+
     auth = SpotifyDirectAuthentication(
         client_id="id",
         client_secret=mock_secret,
         refresh_url="https://example.com/redirect",
-        credentials={"refresh_token": mock_old_token},
         cache_credentials_path=str(cache_path),
     )
 
-    def fake_token_request(self, payload: dict[str, str]) -> dict[str, str]:
+    def fake_token_request(self, payload: dict[str, str]) -> tuple[dict[str, str], int]:
         assert payload["grant_type"] == "refresh_token"
         assert payload["refresh_token"] == mock_old_token
-        return {"access_token": mock_new_token}
+        return {"access_token": mock_new_token}, 200
 
     monkeypatch.setattr(
         SpotifyDirectAuthentication, "_spotify_token_request", fake_token_request
     )
 
-    token = auth.fetch_token()
+    token, status_code = auth.fetch_token()
 
+    assert token is not None
     assert token["access_token"] == mock_new_token
     assert token["refresh_token"] == mock_old_token
+    assert status_code == 200
 
     assert json.loads(cache_path.read_text()) == token
 
+def test_fetch_from_memory_token_refreshes_and_caches(tmp_path, monkeypatch):
+    auth = SpotifyDirectAuthentication(
+        client_id="id",
+        client_secret=mock_secret,
+        refresh_url="https://example.com/redirect",
+    )
+    auth._credentials = {"refresh_token": mock_old_token}
+
+    def fake_token_request(self, payload: dict[str, str]) -> tuple[dict[str, str], int]:
+        assert payload["grant_type"] == "refresh_token"
+        assert payload["refresh_token"] == mock_old_token
+        return {"access_token": mock_new_token}, 200
+
+    monkeypatch.setattr(
+        SpotifyDirectAuthentication, "_spotify_token_request", fake_token_request
+    )
+
+    token, status_code = auth.fetch_token()
+
+    assert token is not None
+    assert token["access_token"] == mock_new_token
+    assert token["refresh_token"] == mock_old_token
+    assert status_code == 200
 
 def test_authenticate_flow_saves_token(tmp_path, monkeypatch):
     cache_path = tmp_path / "token.json"
@@ -53,10 +79,10 @@ def test_authenticate_flow_saves_token(tmp_path, monkeypatch):
         lambda prompt="": "https://example.com/callback?code=code123&state=fixedstate",
     )
 
-    def fake_token_request(self, payload: dict[str, str]) -> dict[str, str]:
+    def fake_token_request(self, payload: dict[str, str]) -> tuple[dict[str, str], int]:
         assert payload["grant_type"] == "authorization_code"
         assert payload["code"] == "code123"
-        return {"access_token": "tok", "refresh_token": "rtok"}
+        return {"access_token": "tok", "refresh_token": "rtok"}, 200
 
     monkeypatch.setattr(
         SpotifyDirectAuthentication, "_spotify_token_request", fake_token_request
@@ -69,8 +95,9 @@ def test_authenticate_flow_saves_token(tmp_path, monkeypatch):
         cache_credentials_path=str(cache_path),
     )
 
-    token = auth.fetch_token()
+    token, status_code = auth.fetch_token()
 
+    assert status_code == 200
     assert token == {"access_token": "tok", "refresh_token": "rtok"}
     assert json.loads(cache_path.read_text()) == token
 

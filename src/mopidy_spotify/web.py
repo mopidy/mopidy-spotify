@@ -1,6 +1,5 @@
 import copy
 import logging
-import os
 import re
 import threading
 import time
@@ -32,97 +31,6 @@ class OAuthClientError(Exception):
     pass
 
 
-class WebRequest:
-    def __init__(
-        self,
-        session,
-        base_url,
-        timeout=10,
-        retries=3,
-        retry_statuses=(500, 502, 503, 429),
-        backoff_factor=0.5,
-    ):
-        self._session = session
-        self._base_url = base_url
-        self._timeout = timeout
-        self._number_of_retries = retries
-        self._retry_statuses = retry_statuses
-        self._backoff_factor = backoff_factor
-
-    def execute(self, method, url, *args, **kwargs):
-        prepared_request = self._session.prepare_request(
-            requests.Request(
-                method, utils.prepare_url(self._base_url, url, *args), **kwargs
-            )
-        )
-
-        try_until = time.time() + self._timeout
-
-        status_code = None
-        result = None
-        backoff_time = 0
-
-        for i in range(self._number_of_retries):
-            remaining_timeout = max(try_until - time.time(), 1)
-
-            # Give up if we don't have any timeout left after sleeping.
-            if backoff_time > remaining_timeout:
-                break
-            if backoff_time > 0:
-                time.sleep(backoff_time)
-
-            try:
-                response = self._session.send(
-                    prepared_request, timeout=remaining_timeout
-                )
-            except requests.RequestException as e:
-                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
-                status_code = None
-                backoff_time = 0
-                result = None
-            else:
-                status_code = response.status_code
-                backoff_time = self._parse_retry_after(response)
-                result = WebResponse.from_requests(prepared_request, response)
-
-            if status_code and 400 <= status_code < 600:  # noqa: PLR2004
-                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
-
-            # Filter out cases where we should not retry.
-            if status_code and status_code not in self._retry_statuses:
-                break
-
-            # TODO: Provider might return invalid JSON for "OK" responses.
-            # This should really not happen, so ignoring for the purpose of
-            # retries. It would be easier if they correctly used 204, but
-            # instead some endpoints return 200 with no content, or true/false.
-
-            # Decide how long to sleep in the next iteration.
-            backoff_time = backoff_time or (2**i * self._backoff_factor)
-            logger.error(
-                f"Retrying {prepared_request.url} in {backoff_time:.3f} seconds."
-            )
-
-        return result, status_code
-
-    def _parse_retry_after(self, response):
-        """Parse Retry-After header from response if it is set."""
-        value = response.headers.get("Retry-After")
-
-        if not value:
-            seconds = 0
-        elif re.match(r"^\s*[0-9]+\s*$", value):
-            seconds = int(value)
-        else:
-            now = datetime.now(tz=UTC).replace(tzinfo=None)
-            try:
-                date_tuple = parsedate_to_datetime(value)
-                seconds = (date_tuple - now).total_seconds()
-            except ValueError:
-                seconds = 0
-        return max(0, seconds)
-
-
 class OAuthClient:
     def __init__(  # noqa: PLR0913
         self,
@@ -144,7 +52,6 @@ class OAuthClient:
         else:
             self._auth = None
         self._access_token = None
-        self._credentials = None
         self._authentication_provider = authentication_provider
         self._cache_credentials_path = cache_credentials_path
 
@@ -169,6 +76,24 @@ class OAuthClient:
             retries=self._number_of_retries,
             retry_statuses=self._retry_statuses,
         )
+
+        if self._auth:
+            if self._authentication_provider == Extension.Provider.SPOTIFY_DIRECT:
+                self._authentication = authenticate.SpotifyDirectAuthentication(
+                    client_id=self._auth[0],
+                    client_secret=self._auth[1],
+                    refresh_url=self._refresh_url,
+                    cache_credentials_path=self._cache_credentials_path,
+                )
+            else:
+                self._authentication = authenticate.MopidyProxyAuthentication(
+                    request=self._request,
+                    auth=self._auth,
+                    refresh_url=self._refresh_url,
+                )
+        else:
+            self._authentication = None
+
         # TODO: Move _cache_mutex to the object it actually protects.
         self._cache_mutex = threading.Lock()  # Protects get() cache param.
         self._refresh_mutex = threading.Lock()  # Protects _headers and _expires.
@@ -247,24 +172,8 @@ class OAuthClient:
         if not self._refresh_mutex.locked():
             msg = "Lock must be held before calling."
             raise OAuthTokenRefreshError(msg)
-
-        if self._authentication_provider == Extension.Provider.SPOTIFY_DIRECT:
-            if self._auth:
-                session = authenticate.SpotifyDirectAuthentication(
-                    client_id=self._auth[0],
-                    client_secret=self._auth[1],
-                    refresh_url=self._refresh_url,
-                    credentials=self._credentials,
-                    cache_credentials_path=self._cache_credentials_path,
-                )
-                result = session.fetch_token()
-            else:
-                result = None
-        else:
-            data = {"grant_type": "client_credentials"}
-            result = self._request_with_retries(
-                "POST", self._refresh_url, auth=self._auth, data=data
-            )
+        
+        result, status_code = self._authentication.fetch_token() if self._authentication else (None, None)
 
         if result is None:
             msg = "Unknown error."
@@ -278,9 +187,10 @@ class OAuthClient:
         if result.get("token_type") != "Bearer":
             msg = f"wrong token_type: {result.get('token_type')}"
             raise OAuthTokenRefreshError(msg)
+        if status_code is not None:
+            self._check_unauthorized_status_code(status_code)
 
         self._access_token = result["access_token"]
-        self._credentials = result
         self._headers["Authorization"] = f"Bearer {self._access_token}"
         self._expires = time.time() + result.get("expires_in", float("Inf"))
 
@@ -293,7 +203,10 @@ class OAuthClient:
 
     def _request_with_retries(self, method, url, *args, **kwargs):
         result, status_code = self._request.execute(method, url, *args, **kwargs)
+        self._check_unauthorized_status_code(status_code)
+        return result
 
+    def _check_unauthorized_status_code(self, status_code):
         if status_code == HTTPStatus.UNAUTHORIZED:
             self._authorization_failed = True
             logger.error(
@@ -302,7 +215,6 @@ class OAuthClient:
                 "https://www.mopidy.com/authenticate and/or restart "
                 "Mopidy to resolve this problem."
             )
-        return result
 
     def _normalise_query_string(self, url, params=None):
         u = urllib.parse.urlsplit(url)
@@ -462,6 +374,99 @@ class WebResponse(dict):
     def increase_expiry(self, delta_seconds):
         if self.status_ok and not self._from_cache:
             self._expires += delta_seconds
+
+
+class WebRequest:
+    def __init__(
+        self,
+        session,
+        base_url,
+        timeout=10,
+        retries=3,
+        retry_statuses=(500, 502, 503, 429),
+        backoff_factor=0.5,
+    ):
+        self._session = session
+        self._base_url = base_url
+        self._timeout = timeout
+        self._number_of_retries = retries
+        self._retry_statuses = retry_statuses
+        self._backoff_factor = backoff_factor
+
+    def execute(
+        self, method, url, *args, **kwargs
+    ) -> tuple[WebResponse | None, int | None]:
+        prepared_request = self._session.prepare_request(
+            requests.Request(
+                method, utils.prepare_url(self._base_url, url, *args), **kwargs
+            )
+        )
+
+        try_until = time.time() + self._timeout
+
+        status_code = None
+        result = None
+        backoff_time = 0
+
+        for i in range(self._number_of_retries):
+            remaining_timeout = max(try_until - time.time(), 1)
+
+            # Give up if we don't have any timeout left after sleeping.
+            if backoff_time > remaining_timeout:
+                break
+            if backoff_time > 0:
+                time.sleep(backoff_time)
+
+            try:
+                response = self._session.send(
+                    prepared_request, timeout=remaining_timeout
+                )
+            except requests.RequestException as e:
+                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
+                status_code = None
+                backoff_time = 0
+                result = None
+            else:
+                status_code = response.status_code
+                backoff_time = self._parse_retry_after(response)
+                result = WebResponse.from_requests(prepared_request, response)
+
+            if status_code and 400 <= status_code < 600:  # noqa: PLR2004
+                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
+
+            # Filter out cases where we should not retry.
+            if status_code and status_code not in self._retry_statuses:
+                break
+
+            # TODO: Provider might return invalid JSON for "OK" responses.
+            # This should really not happen, so ignoring for the purpose of
+            # retries. It would be easier if they correctly used 204, but
+            # instead some endpoints return 200 with no content, or true/false.
+
+            # Decide how long to sleep in the next iteration.
+            backoff_time = backoff_time or (2**i * self._backoff_factor)
+            logger.error(
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} seconds."
+            )
+
+        return result, status_code
+
+    def _parse_retry_after(self, response):
+        """Parse Retry-After header from response if it is set."""
+        value = response.headers.get("Retry-After")
+
+        if not value:
+            seconds = 0
+        elif re.match(r"^\s*[0-9]+\s*$", value):
+            seconds = int(value)
+        else:
+            now = datetime.now(tz=UTC).replace(tzinfo=None)
+            try:
+                date_tuple = parsedate_to_datetime(value)
+                seconds = (date_tuple - now).total_seconds()
+            except ValueError:
+                seconds = 0
+        return max(0, seconds)
 
 
 @unique
