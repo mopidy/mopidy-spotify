@@ -94,7 +94,7 @@ def web_to_track_refs(web_tracks, *, check_playable=True):
     for web_track in web_tracks:
         ref = web_to_track_ref(
             # The extra level here is to also support "saved track objects".
-            web_track.get("track", web_track),
+            web_track.get("item", web_track),
             check_playable=check_playable,
         )
         if ref is not None:
@@ -113,7 +113,7 @@ def to_playlist(
     if ref is None or as_ref:
         return ref
 
-    web_tracks = web_playlist.get("tracks", {}).get("items") or []
+    web_tracks = web_playlist.get("items", {}).get("items") or []
     if as_items and not isinstance(web_tracks, list):
         return None
 
@@ -121,7 +121,7 @@ def to_playlist(
         return list(web_to_track_refs(web_tracks))
 
     tracks = [
-        web_to_track(web_track.get("track", {}), bitrate=bitrate)
+        web_to_track(web_track.get("item", {}), bitrate=bitrate)
         for web_track in web_tracks
     ]
     tracks = [t for t in tracks if t]

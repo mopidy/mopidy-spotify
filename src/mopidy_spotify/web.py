@@ -1,6 +1,5 @@
 import copy
 import logging
-import os
 import re
 import threading
 import time
@@ -13,7 +12,7 @@ from http import HTTPStatus
 
 import requests
 
-from mopidy_spotify import utils
+from mopidy_spotify import Extension, authenticate, utils
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +37,10 @@ class OAuthClient:
         *,
         base_url,
         refresh_url,
+        authentication_provider,
         client_id=None,
         client_secret=None,
+        cache_credentials_path,
         proxy_config=None,
         expiry_margin=60,
         timeout=10,
@@ -51,6 +52,8 @@ class OAuthClient:
         else:
             self._auth = None
         self._access_token = None
+        self._authentication_provider = authentication_provider
+        self._cache_credentials_path = cache_credentials_path
 
         self._base_url = base_url
         self._refresh_url = refresh_url
@@ -66,6 +69,31 @@ class OAuthClient:
 
         self._headers = {"Content-Type": "application/json"}
         self._session = utils.get_requests_session(proxy_config or {})
+        self._request = WebRequest(
+            session=self._session,
+            base_url=self._base_url,
+            timeout=self._timeout,
+            retries=self._number_of_retries,
+            retry_statuses=self._retry_statuses,
+        )
+
+        if self._auth:
+            if self._authentication_provider == Extension.Provider.SPOTIFY_DIRECT:
+                self._authentication = authenticate.SpotifyDirectAuthentication(
+                    client_id=self._auth[0],
+                    client_secret=self._auth[1],
+                    refresh_url=self._refresh_url,
+                    cache_credentials_path=self._cache_credentials_path,
+                )
+            else:
+                self._authentication = authenticate.MopidyProxyAuthentication(
+                    request=self._request,
+                    auth=self._auth,
+                    refresh_url=self._refresh_url,
+                )
+        else:
+            self._authentication = None
+
         # TODO: Move _cache_mutex to the object it actually protects.
         self._cache_mutex = threading.Lock()  # Protects get() cache param.
         self._refresh_mutex = threading.Lock()  # Protects _headers and _expires.
@@ -144,11 +172,8 @@ class OAuthClient:
         if not self._refresh_mutex.locked():
             msg = "Lock must be held before calling."
             raise OAuthTokenRefreshError(msg)
-
-        data = {"grant_type": "client_credentials"}
-        result = self._request_with_retries(
-            "POST", self._refresh_url, auth=self._auth, data=data
-        )
+        
+        result, status_code = self._authentication.fetch_token() if self._authentication else (None, None)
 
         if result is None:
             msg = "Unknown error."
@@ -162,6 +187,8 @@ class OAuthClient:
         if result.get("token_type") != "Bearer":
             msg = f"wrong token_type: {result.get('token_type')}"
             raise OAuthTokenRefreshError(msg)
+        if status_code is not None:
+            self._check_unauthorized_status_code(status_code)
 
         self._access_token = result["access_token"]
         self._headers["Authorization"] = f"Bearer {self._access_token}"
@@ -175,57 +202,11 @@ class OAuthClient:
             logger.debug(f"Token scopes: {result['scope']}")
 
     def _request_with_retries(self, method, url, *args, **kwargs):
-        prepared_request = self._session.prepare_request(
-            requests.Request(method, self._prepare_url(url, *args), **kwargs)
-        )
+        result, status_code = self._request.execute(method, url, *args, **kwargs)
+        self._check_unauthorized_status_code(status_code)
+        return result
 
-        try_until = time.time() + self._timeout
-
-        status_code = None
-        result = None
-        backoff_time = 0
-
-        for i in range(self._number_of_retries):
-            remaining_timeout = max(try_until - time.time(), 1)
-
-            # Give up if we don't have any timeout left after sleeping.
-            if backoff_time > remaining_timeout:
-                break
-            if backoff_time > 0:
-                time.sleep(backoff_time)
-
-            try:
-                response = self._session.send(
-                    prepared_request, timeout=remaining_timeout
-                )
-            except requests.RequestException as e:
-                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
-                status_code = None
-                backoff_time = 0
-                result = None
-            else:
-                status_code = response.status_code
-                backoff_time = self._parse_retry_after(response)
-                result = WebResponse.from_requests(prepared_request, response)
-
-            if status_code and 400 <= status_code < 600:  # noqa: PLR2004
-                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
-
-            # Filter out cases where we should not retry.
-            if status_code and status_code not in self._retry_statuses:
-                break
-
-            # TODO: Provider might return invalid JSON for "OK" responses.
-            # This should really not happen, so ignoring for the purpose of
-            # retries. It would be easier if they correctly used 204, but
-            # instead some endpoints return 200 with no content, or true/false.
-
-            # Decide how long to sleep in the next iteration.
-            backoff_time = backoff_time or (2**i * self._backoff_factor)
-            logger.error(
-                f"Retrying {prepared_request.url} in {backoff_time:.3f} seconds."
-            )
-
+    def _check_unauthorized_status_code(self, status_code):
         if status_code == HTTPStatus.UNAUTHORIZED:
             self._authorization_failed = True
             logger.error(
@@ -234,27 +215,6 @@ class OAuthClient:
                 "https://www.mopidy.com/authenticate and/or restart "
                 "Mopidy to resolve this problem."
             )
-        return result
-
-    def _prepare_url(self, url, *args, **kwargs):
-        # TODO: Move this out as a helper and unit-test it directly?
-        b = urllib.parse.urlsplit(self._base_url)
-        u = urllib.parse.urlsplit(url.format(*args))
-
-        if u.scheme or u.netloc:
-            scheme, netloc, path = u.scheme, u.netloc, u.path
-            query = urllib.parse.parse_qsl(u.query, keep_blank_values=True)
-        else:
-            scheme, netloc = b.scheme, b.netloc
-            path = os.path.normpath(os.path.join(b.path, u.path))  # noqa: PTH118
-            query = urllib.parse.parse_qsl(b.query, keep_blank_values=True)
-            query.extend(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
-
-        for key, value in kwargs.items():
-            query.append((key, value))
-
-        encoded_query = urllib.parse.urlencode(dict(query))
-        return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
     def _normalise_query_string(self, url, params=None):
         u = urllib.parse.urlsplit(url)
@@ -266,23 +226,6 @@ class OAuthClient:
         sorted_unique_query = sorted(query.items())
         encoded_query = urllib.parse.urlencode(sorted_unique_query)
         return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
-
-    def _parse_retry_after(self, response):
-        """Parse Retry-After header from response if it is set."""
-        value = response.headers.get("Retry-After")
-
-        if not value:
-            seconds = 0
-        elif re.match(r"^\s*[0-9]+\s*$", value):
-            seconds = int(value)
-        else:
-            now = datetime.now(tz=UTC).replace(tzinfo=None)
-            try:
-                date_tuple = parsedate_to_datetime(value)
-                seconds = (date_tuple - now).total_seconds()
-            except ValueError:
-                seconds = 0
-        return max(0, seconds)
 
 
 @unique
@@ -433,6 +376,99 @@ class WebResponse(dict):
             self._expires += delta_seconds
 
 
+class WebRequest:
+    def __init__(
+        self,
+        session,
+        base_url,
+        timeout=10,
+        retries=3,
+        retry_statuses=(500, 502, 503, 429),
+        backoff_factor=0.5,
+    ):
+        self._session = session
+        self._base_url = base_url
+        self._timeout = timeout
+        self._number_of_retries = retries
+        self._retry_statuses = retry_statuses
+        self._backoff_factor = backoff_factor
+
+    def execute(
+        self, method, url, *args, **kwargs
+    ) -> tuple[WebResponse | None, int | None]:
+        prepared_request = self._session.prepare_request(
+            requests.Request(
+                method, utils.prepare_url(self._base_url, url, *args), **kwargs
+            )
+        )
+
+        try_until = time.time() + self._timeout
+
+        status_code = None
+        result = None
+        backoff_time = 0
+
+        for i in range(self._number_of_retries):
+            remaining_timeout = max(try_until - time.time(), 1)
+
+            # Give up if we don't have any timeout left after sleeping.
+            if backoff_time > remaining_timeout:
+                break
+            if backoff_time > 0:
+                time.sleep(backoff_time)
+
+            try:
+                response = self._session.send(
+                    prepared_request, timeout=remaining_timeout
+                )
+            except requests.RequestException as e:
+                logger.debug(f"Fetching {prepared_request.url} failed: {e}")
+                status_code = None
+                backoff_time = 0
+                result = None
+            else:
+                status_code = response.status_code
+                backoff_time = self._parse_retry_after(response)
+                result = WebResponse.from_requests(prepared_request, response)
+
+            if status_code and 400 <= status_code < 600:  # noqa: PLR2004
+                logger.debug(f"Fetching {prepared_request.url} failed: {status_code}")
+
+            # Filter out cases where we should not retry.
+            if status_code and status_code not in self._retry_statuses:
+                break
+
+            # TODO: Provider might return invalid JSON for "OK" responses.
+            # This should really not happen, so ignoring for the purpose of
+            # retries. It would be easier if they correctly used 204, but
+            # instead some endpoints return 200 with no content, or true/false.
+
+            # Decide how long to sleep in the next iteration.
+            backoff_time = backoff_time or (2**i * self._backoff_factor)
+            logger.error(
+                f"Retrying {prepared_request.url} in {backoff_time:.3f} seconds."
+            )
+
+        return result, status_code
+
+    def _parse_retry_after(self, response):
+        """Parse Retry-After header from response if it is set."""
+        value = response.headers.get("Retry-After")
+
+        if not value:
+            seconds = 0
+        elif re.match(r"^\s*[0-9]+\s*$", value):
+            seconds = int(value)
+        else:
+            now = datetime.now(tz=UTC).replace(tzinfo=None)
+            try:
+                date_tuple = parsedate_to_datetime(value)
+                seconds = (date_tuple - now).total_seconds()
+            except ValueError:
+                seconds = 0
+        return max(0, seconds)
+
+
 @unique
 class LinkType(StrEnum):
     TRACK = auto()
@@ -498,20 +534,36 @@ API_MAX_IDS_PER_REQUEST = {
 }
 
 
+@dataclass(frozen=True, slots=True)
+class SpotifyAuthenticationConfig:
+    provider: Extension.Provider
+    client_id: str | None
+    client_secret: str | None
+    refresh_url: str
+    cache_credentials_path: str | None
+
+
 class SpotifyOAuthClient(OAuthClient):
     TRACK_FIELDS = (
-        "next,items(track(type,uri,name,duration_ms,disc_number,track_number,"
+        "next,items(item(type,uri,name,duration_ms,disc_number,track_number,"
         "artists,album,is_playable,linked_from.uri))"
     )
-    PLAYLIST_FIELDS = f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
+    PLAYLIST_FIELDS = f"name,owner(id),type,uri,snapshot_id,items({TRACK_FIELDS}),"
+    ALBUM_FIELDS = f"name,owner(id),type,uri,snapshot_id,items({TRACK_FIELDS}),"
     DEFAULT_EXTRA_EXPIRY = 10
 
-    def __init__(self, *, client_id, client_secret, proxy_config):
+    def __init__(
+        self,
+        authentication_config: SpotifyAuthenticationConfig,
+        proxy_config,
+    ):
         super().__init__(
             base_url="https://api.spotify.com/v1",
-            refresh_url="https://auth.mopidy.com/spotify/token",
-            client_id=client_id,
-            client_secret=client_secret,
+            refresh_url=authentication_config.refresh_url,
+            authentication_provider=authentication_config.provider,
+            client_id=authentication_config.client_id,
+            client_secret=authentication_config.client_secret,
+            cache_credentials_path=authentication_config.cache_credentials_path,
             proxy_config=proxy_config,
         )
         self.user_id = None
@@ -545,17 +597,17 @@ class SpotifyOAuthClient(OAuthClient):
     def get_user_playlists(self, *, refresh=False):
         expiry_strategy = ExpiryStrategy.FORCE_EXPIRED if refresh else None
         pages = self.get_all(
-            f"users/{self.user_id}/playlists",
+            "me/playlists",
             params={"limit": 50},
             expiry_strategy=expiry_strategy,
         )
         for page in pages:
             yield from page.get("items", [])
 
-    def _with_all_tracks(self, obj, params=None):
+    def _with_all_tracks(self, obj, params=None, tracks_key="items"):
         if params is None:
             params = {}
-        tracks_path = obj.get("tracks", {}).get("next")
+        tracks_path = obj.get(tracks_key, {}).get("next")
         track_pages = self.get_all(
             tracks_path,
             params=params,
@@ -573,8 +625,8 @@ class SpotifyOAuthClient(OAuthClient):
         if more_tracks:
             # Take a copy to avoid changing the cached response.
             obj = copy.deepcopy(obj)
-            obj.setdefault("tracks", {}).setdefault("items", [])
-            obj["tracks"]["items"] += more_tracks
+            obj.setdefault(tracks_key, {}).setdefault("items", [])
+            obj[tracks_key]["items"] += more_tracks
 
         return obj
 
@@ -604,14 +656,11 @@ class SpotifyOAuthClient(OAuthClient):
 
         links = list(dict.fromkeys(links))  # Remove duplicates and maintain order
         for batch in utils.batched(links, API_MAX_IDS_PER_REQUEST[link_type]):
-            ids = [u.id for u in batch]
             ids_to_links = {u.id: u for u in batch}
-            data = self.get_one(
-                f"{link_type}s", params={"ids": ",".join(ids), "market": "from_token"}
-            )
-            for item in data.get(f"{link_type}s") or []:
-                if not item:
-                    continue
+            for type_id in ids_to_links:
+                item = self.get_one(
+                    f"{link_type}s/{type_id}", params={"market": "from_token"}
+                )
 
                 # For track re-linking.
                 if "linked_from" in item:
@@ -619,7 +668,7 @@ class SpotifyOAuthClient(OAuthClient):
                 else:
                     item_id = item.get("id")
                 if link := ids_to_links.get(item_id):
-                    yield link, WebResponse.from_batch(data, item)
+                    yield link, WebResponse.from_batch(item, item)
                 else:
                     logger.warning(f"Invalid batch item: {item}")
 
@@ -633,7 +682,7 @@ class SpotifyOAuthClient(OAuthClient):
 
         for link in album_links:
             if album := result.get(link):
-                yield self._with_all_tracks(album)
+                yield self._with_all_tracks(album, tracks_key="tracks")
 
     def get_artist_albums(self, web_link, *, all_tracks=True):
         if web_link.type != LinkType.ARTIST:

@@ -15,7 +15,7 @@ def web_client_mock(web_client_mock, web_track_mock):
     web_playlist1 = {
         "owner": {"id": "alice"},
         "name": "Foo",
-        "tracks": {"items": [{"track": web_track_mock}]},
+        "items": {"items": [{"item": web_track_mock}]},
         "uri": "spotify:user:alice:playlist:foo",
         "type": "playlist",
     }
@@ -28,7 +28,7 @@ def web_client_mock(web_client_mock, web_track_mock):
     web_playlist3 = {
         "owner": {"id": "alice"},
         "name": "Malformed",
-        "tracks": {"items": []},
+        "items": {"items": []},
         "uri": "spotify:user:alice:playlist:malformed",
         "type": "bogus",
     }

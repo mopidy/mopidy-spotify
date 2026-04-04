@@ -2,7 +2,8 @@ from unittest import mock, skip
 
 from mopidy import backend as backend_api
 
-from mopidy_spotify import backend, library, playlists
+import mopidy_spotify
+from mopidy_spotify import backend, library, playlists, web
 from mopidy_spotify.backend import SpotifyPlaybackProvider
 from tests import ThreadJoiner
 
@@ -72,6 +73,63 @@ def test_on_start_configures_proxy(web_mock, config):
     )
 
 
+def test_on_start_configures_refresh_url(web_mock, config):
+    config["spotify"]["refresh_url"] = "http://localhost:8080/callback"
+
+    backend = get_backend(config)
+    with ThreadJoiner():
+        backend.on_start()
+
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        authentication_config=web.SpotifyAuthenticationConfig(
+            provider=mopidy_spotify.Extension.Provider.MOPIDY_PROXY,
+            client_id=mock.ANY,
+            client_secret=mock.ANY,
+            refresh_url="http://localhost:8080/callback",
+            cache_credentials_path=None,
+        ),
+        proxy_config=mock.ANY,
+    )
+
+
+def test_on_start_configures_provider_spotify_direct(web_mock, config):
+    config["spotify"]["authentication_provider"] = "spotify_direct"
+
+    backend = get_backend(config)
+    with ThreadJoiner():
+        backend.on_start()
+
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        authentication_config=web.SpotifyAuthenticationConfig(
+            provider=mopidy_spotify.Extension.Provider.SPOTIFY_DIRECT,
+            client_id=mock.ANY,
+            client_secret=mock.ANY,
+            refresh_url="https://auth.mopidy.com/spotify/token",
+            cache_credentials_path=None,
+        ),
+        proxy_config=mock.ANY,
+    )
+
+
+def test_on_start_configures_cache_credentials_path(web_mock, config, tmp_path):
+    config["spotify"]["cache_credentials_path"] = str(tmp_path / "spotify_credentials")
+
+    backend = get_backend(config)
+    with ThreadJoiner():
+        backend.on_start()
+
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        authentication_config=web.SpotifyAuthenticationConfig(
+            provider=mopidy_spotify.Extension.Provider.MOPIDY_PROXY,
+            client_id=mock.ANY,
+            client_secret=mock.ANY,
+            refresh_url="https://auth.mopidy.com/spotify/token",
+            cache_credentials_path=str(tmp_path / "spotify_credentials"),
+        ),
+        proxy_config=mock.ANY,
+    )
+
+
 def test_on_start_configures_web_client(web_mock, config):
     config["spotify"]["client_id"] = "1234567"
     config["spotify"]["client_secret"] = "AbCdEfG"  # noqa: S105
@@ -81,8 +139,13 @@ def test_on_start_configures_web_client(web_mock, config):
         backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        client_id="1234567",
-        client_secret="AbCdEfG",  # noqa: S106
+        authentication_config=web.SpotifyAuthenticationConfig(
+            provider=mopidy_spotify.Extension.Provider.MOPIDY_PROXY,
+            client_id="1234567",
+            client_secret="AbCdEfG",  # noqa: S106
+            refresh_url="https://auth.mopidy.com/spotify/token",
+            cache_credentials_path=None,
+        ),
         proxy_config=mock.ANY,
     )
 

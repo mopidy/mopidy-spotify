@@ -186,7 +186,7 @@ class TestWebToTrackRef:
 
 class TestWebToTrackRefs:
     def test_returns_playlist_tracks(self, web_track_mock):
-        web_tracks = [{"track": web_track_mock}] * 3
+        web_tracks = [{"item": web_track_mock}] * 3
         refs = list(translator.web_to_track_refs(web_tracks))
 
         assert refs == [refs[0], refs[0], refs[0]]
@@ -261,7 +261,7 @@ class TestToPlaylist:
         assert playlist.last_modified is None
 
     def test_no_track_data(self, web_playlist_mock):
-        del web_playlist_mock["tracks"]
+        del web_playlist_mock["items"]
 
         playlist = translator.to_playlist(web_playlist_mock)
 
@@ -276,7 +276,7 @@ class TestToPlaylist:
         assert track_ref in items
 
     def test_as_items_no_track_data(self, web_playlist_mock):
-        del web_playlist_mock["tracks"]
+        del web_playlist_mock["items"]
 
         items = translator.to_playlist(web_playlist_mock, as_items=True)
 
@@ -317,7 +317,7 @@ class TestToPlaylistRef:
         assert ref.name == "spotify:user:alice:playlist:foo"
 
     def test_success_without_track_data(self, web_playlist_mock):
-        del web_playlist_mock["tracks"]
+        del web_playlist_mock["items"]
 
         ref = translator.to_playlist_ref(web_playlist_mock)
 

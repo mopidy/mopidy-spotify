@@ -257,7 +257,7 @@ def test_browse_your_music_empty(web_client_mock, provider):
 
 
 def test_browse_your_music_tracks(web_client_mock, web_track_mock, provider):
-    web_saved_track_mock = {"track": web_track_mock}
+    web_saved_track_mock = {"item": web_track_mock}
     web_client_mock.get_all.return_value = [
         {"items": [web_saved_track_mock, web_saved_track_mock]},
         {"items": [web_saved_track_mock, web_saved_track_mock]},

@@ -1,4 +1,5 @@
 import pathlib
+from enum import Enum
 from importlib.metadata import version
 
 from mopidy import config, ext
@@ -11,6 +12,10 @@ class Extension(ext.Extension):
     ext_name = "spotify"
     version = __version__
 
+    class Provider(Enum):
+        MOPIDY_PROXY = "mopidy_proxy"
+        SPOTIFY_DIRECT = "spotify_direct"
+
     def get_default_config(self):
         return config.read(pathlib.Path(__file__).parent / "ext.conf")
 
@@ -20,8 +25,13 @@ class Extension(ext.Extension):
         schema["username"] = config.Deprecated()  # since 5.0
         schema["password"] = config.Deprecated()  # since 5.0
 
+        schema["authentication_provider"] = config.String(
+            choices=[p.value for p in self.Provider]
+        )
         schema["client_id"] = config.String()
         schema["client_secret"] = config.Secret()
+        schema["refresh_url"] = config.String()
+        schema["cache_credentials_path"] = config.String(optional=True)
 
         schema["bitrate"] = config.Integer(choices=(96, 160, 320))
         schema["volume_normalization"] = config.Boolean()
