@@ -80,6 +80,7 @@ client_secret = ... client_secret value you got from mopidy.com ...
 
 > [!IMPORTANT]
 > Remove any `credentials.json` file you may have manually created.
+> You must also do this if you need to reauthorize the extension.
 
 The following configuration values are available:
 
