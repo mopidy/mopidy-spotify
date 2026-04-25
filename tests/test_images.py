@@ -360,4 +360,4 @@ def test_service_returns_none_result_playlist(web_client_mock, img_provider):
 
     result = img_provider.get_images(["spotify:playlist:41shEpOKyyadtG6lDclooa"])
 
-    assert result == {"spotify:playlist:41shEpOKyyadtG6lDclooa": ()}
+    assert result == {"spotify:playlist:41shEpOKyyadtG6lDclooa": []}

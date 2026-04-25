@@ -78,7 +78,6 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "ANN",    # flake8-annotations  # TODO: Add types
     "ANN401", # any-type
     "D",      # pydocstyle
     "D203",   # one-blank-line-before-class

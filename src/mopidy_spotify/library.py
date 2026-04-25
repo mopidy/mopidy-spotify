@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from mopidy.types import DistinctField, Query, SearchField, Uri
 
     from mopidy_spotify.backend import SpotifyBackend
+    from mopidy_spotify.playlists import SpotifyPlaylistsProvider
     from mopidy_spotify.types import SpotifyConfig
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
     @override
     def browse(self, uri: Uri) -> list[Ref]:
+        if self._backend._web_client is None:
+            return []
         return browse.browse(
             config=self._config,
             web_client=self._backend._web_client,
@@ -40,9 +43,11 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         field: DistinctField,
         query: Query[SearchField] | None = None,
     ) -> set[str]:
+        if self._backend._web_client is None or self._backend.playlists is None:
+            return set()
         return distinct.get_distinct(
             self._config,
-            self._backend.playlists,
+            cast("SpotifyPlaylistsProvider", self._backend.playlists),
             self._backend._web_client,
             field,
             query,
@@ -50,10 +55,14 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
 
     @override
     def get_images(self, uris: Iterable[Uri]) -> dict[Uri, list[Image]]:
+        if self._backend._web_client is None:
+            return {}
         return images.get_images(self._backend._web_client, uris)
 
     @override
     def lookup_many(self, uris: Iterable[Uri]) -> dict[Uri, list[Track]]:
+        if self._backend._web_client is None:
+            return {}
         return lookup.lookup(self._config, self._backend._web_client, uris)
 
     @override
@@ -63,6 +72,8 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         uris: Iterable[Uri] | None = None,
         exact: bool = False,
     ) -> SearchResult | None:
+        if self._backend._web_client is None:
+            return None
         return search.search(
             self._config,
             self._backend._web_client,

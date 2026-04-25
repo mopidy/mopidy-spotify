@@ -1,27 +1,40 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from mopidy.models import Album, Artist, Image, Playlist, Ref, Track
-from mopidy.types import DurationMs
+from mopidy.types import DurationMs, Uri
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable, Mapping
+
+    from mopidy.types import Query, SearchField
 
 logger = logging.getLogger(__name__)
 
 
-def web_to_artist_ref(web_artist):
+def web_to_artist_ref(web_artist: Mapping[str, Any]) -> Ref | None:
     if not valid_web_data(web_artist, "artist"):
         return None
 
     uri = web_artist["uri"]
-    return Ref.artist(uri=uri, name=web_artist.get("name", uri))
+    return Ref.artist(
+        uri=Uri(uri),
+        name=web_artist.get("name", uri),
+    )
 
 
-def web_to_artist_refs(web_artists):
+def web_to_artist_refs(
+    web_artists: Iterable[Mapping[str, Any]],
+) -> Generator[Ref]:
     for web_artist in web_artists:
         ref = web_to_artist_ref(web_artist)
         if ref is not None:
             yield ref
 
 
-def web_to_album_ref(web_album):
+def web_to_album_ref(web_album: Mapping[str, Any]) -> Ref | None:
     if not valid_web_data(web_album, "album"):
         return None
 
@@ -34,10 +47,15 @@ def web_to_album_ref(web_album):
     else:
         name = web_album["uri"]
 
-    return Ref.album(uri=web_album["uri"], name=name)
+    return Ref.album(
+        uri=Uri(web_album["uri"]),
+        name=name,
+    )
 
 
-def web_to_album_refs(web_albums):
+def web_to_album_refs(
+    web_albums: Iterable[Mapping[str, Any]],
+) -> Generator[Ref]:
     for web_album in web_albums:
         ref = web_to_album_ref(
             # The extra level here is to also support "saved album objects".
@@ -47,7 +65,7 @@ def web_to_album_refs(web_albums):
             yield ref
 
 
-def valid_web_data(data, object_type):
+def valid_web_data(data: Any, object_type: str) -> bool:
     return (
         isinstance(data, dict)
         and data.get("type") == object_type
@@ -55,7 +73,11 @@ def valid_web_data(data, object_type):
     )
 
 
-def web_to_track_ref(web_track, *, check_playable=True):
+def web_to_track_ref(
+    web_track: Mapping[str, Any],
+    *,
+    check_playable: bool = True,
+) -> Ref | None:
     if not valid_web_data(web_track, "track"):
         return None
 
@@ -67,10 +89,17 @@ def web_to_track_ref(web_track, *, check_playable=True):
         logger.debug(f"{uri!r} is not playable")
         return None
 
-    return Ref.track(uri=uri, name=web_track.get("name", uri))
+    return Ref.track(
+        uri=Uri(uri),
+        name=web_track.get("name", uri),
+    )
 
 
-def web_to_track_refs(web_tracks, *, check_playable=True):
+def web_to_track_refs(
+    web_tracks: Iterable[Mapping[str, Any]],
+    *,
+    check_playable: bool = True,
+) -> Generator[Ref]:
     for web_track in web_tracks:
         ref = web_to_track_ref(
             # The extra level here is to also support "saved track objects".
@@ -81,14 +110,47 @@ def web_to_track_refs(web_tracks, *, check_playable=True):
             yield ref
 
 
+@overload
 def to_playlist(
-    web_playlist,
+    web_playlist: Mapping[str, Any],
     *,
-    username=None,
-    bitrate=None,
-    as_ref=False,
-    as_items=False,
-):
+    username: str | None = None,
+    bitrate: int | None = None,
+    as_ref: Literal[True],
+    as_items: bool = False,
+) -> Ref | None: ...
+
+
+@overload
+def to_playlist(
+    web_playlist: Mapping[str, Any],
+    *,
+    username: str | None = None,
+    bitrate: int | None = None,
+    as_ref: Literal[False] = False,
+    as_items: Literal[True],
+) -> list[Ref] | None: ...
+
+
+@overload
+def to_playlist(
+    web_playlist: Mapping[str, Any],
+    *,
+    username: str | None = None,
+    bitrate: int | None = None,
+    as_ref: Literal[False] = False,
+    as_items: Literal[False] = False,
+) -> Playlist | None: ...
+
+
+def to_playlist(
+    web_playlist: Mapping[str, Any],
+    *,
+    username: str | None = None,
+    bitrate: int | None = None,
+    as_ref: bool = False,
+    as_items: bool = False,
+) -> Ref | list[Ref] | Playlist | None:
     ref = to_playlist_ref(web_playlist, username)
     if ref is None or as_ref:
         return ref
@@ -113,7 +175,10 @@ def to_playlist(
     )
 
 
-def to_playlist_ref(web_playlist, username=None):
+def to_playlist_ref(
+    web_playlist: Mapping[str, Any],
+    username: str | None = None,
+) -> Ref | None:
     if not valid_web_data(web_playlist, "playlist"):
         return None
 
@@ -123,10 +188,16 @@ def to_playlist_ref(web_playlist, username=None):
     if username is not None and owner != username:
         name = f"{name} (by {owner})"
 
-    return Ref.playlist(uri=web_playlist["uri"], name=name)
+    return Ref.playlist(
+        uri=Uri(web_playlist["uri"]),
+        name=name,
+    )
 
 
-def to_playlist_refs(web_playlists, username=None):
+def to_playlist_refs(
+    web_playlists: Iterable[Mapping[str, Any]],
+    username: str | None = None,
+) -> Generator[Ref]:
     for web_playlist in web_playlists:
         ref = to_playlist_ref(web_playlist, username)
         if ref is not None:
@@ -143,7 +214,11 @@ SEARCH_FIELD_MAP = {
 }
 
 
-def sp_search_query(query, *, exact=False):
+def sp_search_query(
+    query: Query[SearchField],
+    *,
+    exact: bool = False,
+) -> str:
     """Translate a Mopidy search query to a Spotify search query"""
 
     result = []
@@ -162,23 +237,25 @@ def sp_search_query(query, *, exact=False):
                 if exact:
                     result.append(f'"{value}"')
                 else:
-                    result.append(value)
+                    result.append(str(value))
             elif exact:
                 result.append(f'{field}:"{value}"')
             else:
-                result.append(" ".join(f"{field}:{word}" for word in value.split()))
+                words = str(value).split()
+                result.append(" ".join(f"{field}:{word}" for word in words))
 
     return " ".join(result)
 
 
-def _transform_year(date):
+def _transform_year(date: Any) -> int | None:
     try:
-        return int(date.split("-")[0])
+        return int(str(date).split("-")[0])
     except ValueError:
         logger.debug(f'Excluded year from search query: Cannot parse date "{date}"')
+        return None
 
 
-def web_to_artist(web_artist):
+def web_to_artist(web_artist: Mapping[str, Any]) -> Artist | None:
     ref = web_to_artist_ref(web_artist)
     if ref is None:
         return None
@@ -188,7 +265,10 @@ def web_to_artist(web_artist):
     )
 
 
-def web_to_album_tracks(web_album, bitrate=None):
+def web_to_album_tracks(
+    web_album: Mapping[str, Any],
+    bitrate: int | None = None,
+) -> list[Track]:
     album = web_to_album(web_album)
     if album is None:
         return []
@@ -204,7 +284,7 @@ def web_to_album_tracks(web_album, bitrate=None):
     return [t for t in tracks if t]
 
 
-def web_to_album(web_album):
+def web_to_album(web_album: Mapping[str, Any]) -> Album | None:
     ref = web_to_album_ref(web_album)
     if ref is None:
         return None
@@ -220,13 +300,17 @@ def web_to_album(web_album):
     )
 
 
-def int_or_none(inp):
+def int_or_none(inp: Any) -> int | None:
     if inp is not None:
         return int(float(inp))
     return None
 
 
-def web_to_track(web_track, bitrate=None, album=None):
+def web_to_track(
+    web_track: Mapping[str, Any],
+    bitrate: int | None = None,
+    album: Album | None = None,
+) -> Track | None:
     ref = web_to_track_ref(web_track)
     if ref is None:
         return None
@@ -250,7 +334,7 @@ def web_to_track(web_track, bitrate=None, album=None):
     )
 
 
-def web_to_image(web_image):
+def web_to_image(web_image: Mapping[str, Any]) -> Image:
     return Image(
         uri=web_image["url"],
         height=int_or_none(web_image.get("height")),

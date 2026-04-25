@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import itertools
 import logging
@@ -11,20 +13,27 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from enum import StrEnum, auto, unique
 from http import HTTPStatus
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import requests
 
 from mopidy_spotify import utils
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Mapping
+
+    from mopidy.config import ProxyConfig
+    from mopidy.types import Uri
+
 logger = logging.getLogger(__name__)
 
 
-def _trace(*args, **kwargs):
+def _trace(*args: Any, **kwargs: Any) -> None:
     logger.log(utils.TRACE, *args, **kwargs)
 
 
 class OAuthTokenRefreshError(Exception):
-    def __init__(self, reason):
+    def __init__(self, reason: str) -> None:
         message = f"OAuth token refresh failed: {reason}"
         super().__init__(message)
 
@@ -37,16 +46,16 @@ class OAuthClient:
     def __init__(  # noqa: PLR0913
         self,
         *,
-        base_url,
-        refresh_url,
-        client_id=None,
-        client_secret=None,
-        proxy_config=None,
-        expiry_margin=60,
-        timeout=10,
-        retries=3,
-        retry_statuses=(500, 502, 503, 429),
-    ):
+        base_url: str,
+        refresh_url: str,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        proxy_config: ProxyConfig | None = None,
+        expiry_margin: int = 60,
+        timeout: int = 10,
+        retries: int = 3,
+        retry_statuses: tuple[int, ...] = (500, 502, 503, 429),
+    ) -> None:
         if client_id and client_secret:
             self._auth = (client_id, client_secret)
         else:
@@ -66,12 +75,12 @@ class OAuthClient:
         self._backoff_factor = 0.5
 
         self._headers = {"Content-Type": "application/json"}
-        self._session = utils.get_requests_session(proxy_config or {})
+        self._session = utils.get_requests_session(proxy_config)
         # TODO: Move _cache_mutex to the object it actually protects.
         self._cache_mutex = threading.Lock()  # Protects get() cache param.
         self._refresh_mutex = threading.Lock()  # Protects _headers and _expires.
 
-    def token(self):
+    def token(self) -> str | None:
         with self._refresh_mutex:
             try:
                 if self._should_refresh_token():
@@ -82,7 +91,13 @@ class OAuthClient:
             else:
                 return self._access_token
 
-    def get(self, path, cache=None, *args, **kwargs):
+    def get(
+        self,
+        path: str,
+        cache: dict[str, WebResponse] | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> WebResponse:
         if self._authorization_failed:
             logger.debug("Blocking request as previous authorization failed.")
             return WebResponse(None, None)
@@ -93,8 +108,7 @@ class OAuthClient:
         _trace(f"Get '{path}'")
 
         expiry_strategy = kwargs.pop("expiry_strategy", None)
-        if cache is not None and path in cache:
-            cached_result = cache.get(path)
+        if cache is not None and (cached_result := cache.get(path)) is not None:
             if cached_result.still_valid(expiry_strategy=expiry_strategy):
                 return cached_result
             kwargs.setdefault("headers", {}).update(cached_result.etag_headers)
@@ -129,17 +143,17 @@ class OAuthClient:
 
         return result
 
-    def _should_cache_response(self, response):
+    def _should_cache_response(self, response: WebResponse) -> bool:
         return response.status_ok
 
-    def _should_refresh_token(self):
+    def _should_refresh_token(self) -> bool:
         # TODO: Add jitter to margin?
         if not self._refresh_mutex.locked():
             msg = "Lock must be held before calling."
             raise OAuthTokenRefreshError(msg)
         return not self._auth or time.time() > self._expires - self._margin
 
-    def _refresh_token(self):
+    def _refresh_token(self) -> None:
         logger.debug(f"Fetching OAuth token from {self._refresh_url}")
 
         if not self._refresh_mutex.locked():
@@ -175,7 +189,13 @@ class OAuthClient:
         if result.get("scope"):
             logger.debug(f"Token scopes: {result['scope']}")
 
-    def _request_with_retries(self, method, url, *args, **kwargs):
+    def _request_with_retries(
+        self,
+        method: str,
+        url: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> WebResponse | None:
         prepared_request = self._session.prepare_request(
             requests.Request(method, self._prepare_url(url, *args), **kwargs)
         )
@@ -237,7 +257,7 @@ class OAuthClient:
             )
         return result
 
-    def _prepare_url(self, url, *args, **kwargs):
+    def _prepare_url(self, url: str, *args: Any, **kwargs: Any) -> str:
         # TODO: Move this out as a helper and unit-test it directly?
         b = urllib.parse.urlsplit(self._base_url)
         u = urllib.parse.urlsplit(url.format(*args))
@@ -257,7 +277,11 @@ class OAuthClient:
         encoded_query = urllib.parse.urlencode(dict(query))
         return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
-    def _normalise_query_string(self, url, params=None):
+    def _normalise_query_string(
+        self,
+        url: str,
+        params: Mapping[str, Any] | None = None,
+    ) -> str:
         u = urllib.parse.urlsplit(url)
         scheme, netloc, path = u.scheme, u.netloc, u.path
 
@@ -268,7 +292,7 @@ class OAuthClient:
         encoded_query = urllib.parse.urlencode(sorted_unique_query)
         return urllib.parse.urlunsplit((scheme, netloc, path, encoded_query, ""))
 
-    def _parse_retry_after(self, response):
+    def _parse_retry_after(self, response: requests.Response) -> float:
         """Parse Retry-After header from response if it is set."""
         value = response.headers.get("Retry-After")
 
@@ -295,13 +319,13 @@ class ExpiryStrategy(StrEnum):
 class WebResponse(dict):
     def __init__(
         self,
-        url,
-        data,
+        url: str | None,
+        data: Mapping[str, Any] | None,
         *,
-        expires=0.0,
-        etag=None,
-        status_code=400,
-    ):
+        expires: float = 0.0,
+        etag: str | None = None,
+        status_code: int = 400,
+    ) -> None:
         self._from_cache = False
         self.url = url
         self._expires = expires
@@ -311,7 +335,11 @@ class WebResponse(dict):
         _trace(f"New WebResponse {self}")
 
     @classmethod
-    def from_requests(cls, request, response):
+    def from_requests(
+        cls,
+        request: requests.PreparedRequest,
+        response: requests.Response,
+    ) -> WebResponse:
         expires = cls._parse_cache_control(response)
         etag = cls._parse_etag(response)
         json = cls._decode(response)
@@ -324,7 +352,11 @@ class WebResponse(dict):
         )
 
     @classmethod
-    def from_batch(cls, batch_response, item_json):
+    def from_batch(
+        cls,
+        batch_response: WebResponse,
+        item_json: Mapping[str, Any] | None,
+    ) -> WebResponse:
         return cls(
             batch_response.url,
             item_json,
@@ -334,7 +366,7 @@ class WebResponse(dict):
         )
 
     @staticmethod
-    def _decode(response):
+    def _decode(response: requests.Response) -> Any:
         # Deal with 204 and other responses with empty body.
         if not response.content:
             return None
@@ -346,7 +378,7 @@ class WebResponse(dict):
             return None
 
     @staticmethod
-    def _parse_cache_control(response):
+    def _parse_cache_control(response: requests.Response) -> float:
         """Parse Cache-Control header from response if it is set."""
         value = response.headers.get("Cache-Control", "no-store").lower()
 
@@ -358,7 +390,7 @@ class WebResponse(dict):
         return time.time() + seconds
 
     @staticmethod
-    def _parse_etag(response):
+    def _parse_etag(response: requests.Response) -> str | None:
         """Parse ETag header from response if it is set."""
         value = response.headers.get("ETag")
 
@@ -373,7 +405,7 @@ class WebResponse(dict):
 
         return None
 
-    def still_valid(self, *, expiry_strategy=None):
+    def still_valid(self, *, expiry_strategy: ExpiryStrategy | None = None) -> bool:
         if expiry_strategy is None:
             if self._expires >= time.time():
                 valid = True
@@ -389,20 +421,20 @@ class WebResponse(dict):
         return valid
 
     @property
-    def status_unchanged(self):
+    def status_unchanged(self) -> bool:
         return self._from_cache or self._status_code == HTTPStatus.NOT_MODIFIED
 
     @property
-    def status_ok(self):
+    def status_ok(self) -> bool:
         return self._status_code >= 200 and self._status_code < 400  # noqa: PLR2004
 
     @property
-    def etag_headers(self):
+    def etag_headers(self) -> dict[str, str]:
         if self._etag is None:
             return {}
         return {"If-None-Match": self._etag}
 
-    def updated(self, response):
+    def updated(self, response: WebResponse) -> bool:
         self._from_cache = False
         if self._etag is None:
             return False
@@ -422,14 +454,14 @@ class WebResponse(dict):
         self._status_code = response._status_code
         return True
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"URL: {self.url} "
             f"expires at: {datetime.fromtimestamp(self._expires, tz=UTC)} "
             f"[ETag: {self._etag}]"
         )
 
-    def increase_expiry(self, delta_seconds):
+    def increase_expiry(self, delta_seconds: float) -> None:
         if self.status_ok and not self._from_cache:
             self._expires += delta_seconds
 
@@ -445,13 +477,13 @@ class LinkType(StrEnum):
 
 @dataclass
 class WebLink:
-    uri: str
+    uri: Uri
     type: LinkType
     id: str | None = None
     owner: str | None = None
 
     @classmethod
-    def from_uri(cls, uri):
+    def from_uri(cls, uri: Uri) -> WebLink:
         parsed_uri = urllib.parse.urlparse(uri)
 
         schemes = ("http", "https")
@@ -483,16 +515,16 @@ class WebLink:
         msg = f"Could not parse {uri!r} as a Spotify URI"
         raise ValueError(msg)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.uri)
 
 
 class WebError(Exception):
-    def __init__(self, message):
+    def __init__(self, message: str) -> None:
         super().__init__(message)
 
 
-API_MAX_IDS_PER_REQUEST = {
+API_MAX_IDS_PER_REQUEST: dict[LinkType, int] = {
     LinkType.TRACK: 50,  # API limit is actually 100. Any reason not to use that?
     LinkType.ARTIST: 50,
     LinkType.ALBUM: 20,
@@ -500,14 +532,22 @@ API_MAX_IDS_PER_REQUEST = {
 
 
 class SpotifyOAuthClient(OAuthClient):
-    TRACK_FIELDS = (
+    TRACK_FIELDS: ClassVar[str] = (
         "next,items(track(type,uri,name,duration_ms,disc_number,track_number,"
         "artists,album,is_playable,linked_from.uri))"
     )
-    PLAYLIST_FIELDS = f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
-    DEFAULT_EXTRA_EXPIRY = 10
+    PLAYLIST_FIELDS: ClassVar[str] = (
+        f"name,owner(id),type,uri,snapshot_id,tracks({TRACK_FIELDS}),"
+    )
+    DEFAULT_EXTRA_EXPIRY: ClassVar[int] = 10
 
-    def __init__(self, *, client_id, client_secret, proxy_config):
+    def __init__(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        proxy_config: ProxyConfig | None = None,
+    ) -> None:
         super().__init__(
             base_url="https://api.spotify.com/v1",
             refresh_url="https://auth.mopidy.com/spotify/token",
@@ -515,23 +555,25 @@ class SpotifyOAuthClient(OAuthClient):
             client_secret=client_secret,
             proxy_config=proxy_config,
         )
-        self.user_id = None
-        self._cache = {}
+        self.user_id: str | None = None
+        self._cache: dict[str, WebResponse] = {}
         self._extra_expiry = self.DEFAULT_EXTRA_EXPIRY
 
-    def get_one(self, path, *args, **kwargs):
+    def get_one(self, path: str, *args: Any, **kwargs: Any) -> WebResponse:
         _trace(f"Fetching page {path!r}")
         result = self.get(path, self._cache, *args, **kwargs)
         result.increase_expiry(self._extra_expiry)
         return result
 
-    def get_all(self, path, *args, **kwargs):
+    def get_all(
+        self, path: str | None, *args: Any, **kwargs: Any
+    ) -> Iterator[WebResponse]:
         while path is not None:
             result = self.get_one(path, *args, **kwargs)
             path = result.get("next")
             yield result
 
-    def login(self):
+    def login(self) -> bool:
         self.user_id = self.get("me").get("id")
         if self.user_id is None:
             logger.error("Failed to load Spotify user profile")
@@ -540,10 +582,12 @@ class SpotifyOAuthClient(OAuthClient):
         return True
 
     @property
-    def logged_in(self):
+    def logged_in(self) -> bool:
         return self.user_id is not None
 
-    def get_user_playlists(self, *, refresh=False):
+    def get_user_playlists(
+        self, *, refresh: bool = False
+    ) -> Iterator[Mapping[str, Any]]:
         expiry_strategy = ExpiryStrategy.FORCE_EXPIRED if refresh else None
         pages = self.get_all(
             f"users/{self.user_id}/playlists",
@@ -553,7 +597,11 @@ class SpotifyOAuthClient(OAuthClient):
         for page in pages:
             yield from page.get("items", [])
 
-    def _with_all_tracks(self, obj, params=None):
+    def _with_all_tracks(
+        self,
+        obj: WebResponse,
+        params: Mapping[str, Any] | None = None,
+    ) -> WebResponse | dict[str, Any]:
         if params is None:
             params = {}
         tracks_path = obj.get("tracks", {}).get("next")
@@ -579,7 +627,7 @@ class SpotifyOAuthClient(OAuthClient):
 
         return obj
 
-    def get_playlist(self, uri):
+    def get_playlist(self, uri: Uri) -> Mapping[str, Any]:
         try:
             parsed = WebLink.from_uri(uri)
             if parsed.type != LinkType.PLAYLIST:
@@ -595,19 +643,22 @@ class SpotifyOAuthClient(OAuthClient):
         )
         return self._with_all_tracks(playlist, {"fields": self.TRACK_FIELDS})
 
-    def get_batch(self, link_type, links):
-        result = []
+    def get_batch(
+        self,
+        link_type: LinkType,
+        links: list[WebLink],
+    ) -> Iterator[tuple[WebLink, WebResponse]]:
         if not links:
-            return result
+            return
         if link_type not in API_MAX_IDS_PER_REQUEST:
             logger.warning(f"Cannot handle batched {link_type}s")
-            return result
+            return
 
         links = list(dict.fromkeys(links))  # Remove duplicates and maintain order
         for batch in itertools.batched(
             links, API_MAX_IDS_PER_REQUEST[link_type], strict=False
         ):
-            ids = [u.id for u in batch]
+            ids = [u.id for u in batch if u.id is not None]
             ids_to_links = {u.id: u for u in batch}
             data = self.get_one(
                 f"{link_type}s", params={"ids": ",".join(ids), "market": "from_token"}
@@ -626,19 +677,21 @@ class SpotifyOAuthClient(OAuthClient):
                 else:
                     logger.warning(f"Invalid batch item: {item}")
 
-    def get_albums(self, album_links):
+    def get_albums(self, album_links: list[WebLink]) -> Iterator[Mapping[str, Any]]:
         result = {}
         for link_type, link_group in utils.group_by_type(album_links):
             if link_type != LinkType.ALBUM:
                 logger.error("Expecting Spotify album URIs")
                 continue
-            result.update(self.get_batch(link_type, link_group))
+            result.update(self.get_batch(link_type, list(link_group)))
 
         for link in album_links:
             if album := result.get(link):
                 yield self._with_all_tracks(album)
 
-    def get_artist_albums(self, web_link, *, all_tracks=True):
+    def get_artist_albums(
+        self, web_link: WebLink, *, all_tracks: bool = True
+    ) -> Iterator[Mapping[str, Any]]:
         if web_link.type != LinkType.ARTIST:
             logger.error("Expecting Spotify artist URI")
             return []
@@ -661,17 +714,20 @@ class SpotifyOAuthClient(OAuthClient):
         if all_tracks:
             yield from self.get_albums(album_links)
 
-    def get_artist_top_tracks(self, web_link):
+    def get_artist_top_tracks(self, web_link: WebLink) -> list[Mapping[str, Any]]:
         if web_link.type != LinkType.ARTIST:
             logger.error("Expecting Spotify artist URI")
             return []
 
-        return self.get_one(
-            f"artists/{web_link.id}/top-tracks",
-            params={"market": "from_token"},
-        ).get("tracks")
+        return (
+            self.get_one(
+                f"artists/{web_link.id}/top-tracks",
+                params={"market": "from_token"},
+            ).get("tracks")
+            or []
+        )
 
-    def get_track(self, web_link):
+    def get_track(self, web_link: WebLink) -> Mapping[str, Any]:
         if web_link.type != LinkType.TRACK:
             logger.error("Expecting Spotify track URI")
             return {}

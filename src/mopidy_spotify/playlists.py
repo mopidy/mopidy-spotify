@@ -10,10 +10,13 @@ from mopidy.core import CoreListener
 from mopidy_spotify import translator, utils
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from mopidy.models import Playlist, Ref
     from mopidy.types import Uri
 
     from mopidy_spotify.backend import SpotifyBackend
+    from mopidy_spotify.web import SpotifyOAuthClient
 
 logger = logging.getLogger(__name__)
 
@@ -27,18 +30,24 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
     @override
     def as_list(self) -> list[Ref]:
         with utils.time_logger("playlists.as_list()", logging.DEBUG):
-            return list(self._get_flattened_playlist_refs())
+            return self._get_flattened_playlist_refs()
 
-    def _get_flattened_playlist_refs(self, *, refresh=False):
+    def _get_flattened_playlist_refs(
+        self,
+        *,
+        refresh: bool = False,
+    ) -> list[Ref]:
         web_client = self._backend._web_client
         if web_client is None or not web_client.logged_in:
             return []
 
         user_playlists = web_client.get_user_playlists(refresh=refresh)
-        return translator.to_playlist_refs(user_playlists, web_client.user_id)
+        return list(translator.to_playlist_refs(user_playlists, web_client.user_id))
 
     @override
     def get_items(self, uri: Uri) -> list[Ref] | None:
+        if self._backend._web_client is None:
+            return None
         with utils.time_logger(f"playlist.get_items({uri!r})", logging.DEBUG):
             return playlist_lookup(
                 self._backend._web_client,
@@ -49,6 +58,8 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     @override
     def lookup(self, uri: Uri) -> Playlist | None:
+        if self._backend._web_client is None:
+            return None
         with utils.time_logger(f"playlists.lookup({uri!r})", logging.DEBUG):
             return playlist_lookup(
                 self._backend._web_client,
@@ -59,8 +70,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
     @override
     def refresh(self) -> None:
-        web_client = self._backend._web_client
-        if web_client is None or not web_client.logged_in:
+        if self._backend._web_client is None or not self._backend._web_client.logged_in:
             return
         if not self._refresh_mutex.acquire(blocking=False):
             logger.info("Refreshing Spotify playlists already in progress")
@@ -77,7 +87,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             logger.exception("Error occurred while refreshing Spotify playlists")
             self._refresh_mutex.release()
 
-    def _refresh_tracks(self, playlist_uris):
+    def _refresh_tracks(self, playlist_uris: Iterable[Uri]) -> list[Uri]:
         if not self._refresh_mutex.locked():
             logger.error("Lock must be held before calling this method")
             return []
@@ -89,6 +99,7 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
             CoreListener.send("playlists_loaded")
         except Exception:
             logger.exception("Error occurred while refreshing Spotify playlists tracks")
+            return []
         else:
             return refreshed  # For test
         finally:
@@ -109,32 +120,32 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
 
 @overload
 def playlist_lookup(
-    web_client,
-    uri,
+    web_client: SpotifyOAuthClient,
+    uri: Uri,
     *,
-    bitrate,
+    bitrate: int | None,
     as_items: Literal[True],
 ) -> list[Ref] | None: ...
 
 
 @overload
 def playlist_lookup(
-    web_client,
-    uri,
+    web_client: SpotifyOAuthClient,
+    uri: Uri,
     *,
-    bitrate,
+    bitrate: int | None,
     as_items: Literal[False] = False,
 ) -> Playlist | None: ...
 
 
 def playlist_lookup(
-    web_client,
-    uri,
+    web_client: SpotifyOAuthClient,
+    uri: Uri,
     *,
-    bitrate,
+    bitrate: int | None,
     as_items: bool = False,
-):
-    if web_client is None or not web_client.logged_in:
+) -> Playlist | list[Ref] | None:
+    if not web_client.logged_in:
         return None
 
     logger.debug(f"Fetching Spotify playlist {uri!r}")

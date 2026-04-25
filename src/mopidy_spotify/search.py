@@ -1,10 +1,21 @@
+from __future__ import annotations
+
 import logging
 import urllib.parse
+from typing import TYPE_CHECKING
 
-from mopidy import models
+from mopidy.models import SearchResult
 from mopidy.types import Uri
 
 from mopidy_spotify import lookup, translator
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from mopidy.types import Query, SearchField
+
+    from mopidy_spotify.types import SpotifyConfig
+    from mopidy_spotify.web import SpotifyOAuthClient
 
 _SEARCH_TYPES = ["album", "artist", "track"]
 
@@ -12,19 +23,19 @@ logger = logging.getLogger(__name__)
 
 
 def search(  # noqa: PLR0913
-    config,
-    web_client,
+    config: SpotifyConfig,
+    web_client: SpotifyOAuthClient,
     *,
-    query=None,
-    uris=None,  # noqa: ARG001
-    exact=False,
-    types=_SEARCH_TYPES,
-):
+    query: Query[SearchField] | None = None,
+    uris: Iterable[Uri] | None = None,  # noqa: ARG001
+    exact: bool = False,
+    types: list[str] = _SEARCH_TYPES,
+) -> SearchResult:
     # TODO: Respect `uris` argument
 
     if not query:
         logger.debug("Ignored search without query")
-        return models.SearchResult(uri=Uri("spotify:search"))
+        return SearchResult(uri=Uri("spotify:search"))
 
     if "uri" in query:
         return _search_by_uri(config, web_client, query)
@@ -32,14 +43,14 @@ def search(  # noqa: PLR0913
     sp_query = translator.sp_search_query(query, exact=exact)
     if not sp_query:
         logger.debug("Ignored search with empty query")
-        return models.SearchResult(uri=Uri("spotify:search"))
+        return SearchResult(uri=Uri("spotify:search"))
 
     uri = Uri(f"spotify:search:{urllib.parse.quote(sp_query)}")
     logger.info(f"Searching Spotify for: {sp_query}")
 
-    if web_client is None or not web_client.logged_in:
+    if not web_client.logged_in:
         logger.info("Spotify search aborted: Spotify is offline")
-        return models.SearchResult(uri=uri)
+        return SearchResult(uri=uri)
 
     search_count = max(
         config["search_album_count"],
@@ -98,7 +109,7 @@ def search(  # noqa: PLR0913
     )
     tracks = [x for x in tracks if x]
 
-    return models.SearchResult(
+    return SearchResult(
         uri=uri,
         albums=tuple(albums),
         artists=tuple(artists),
@@ -106,17 +117,20 @@ def search(  # noqa: PLR0913
     )
 
 
-def _search_by_uri(config, web_client, query):
-    results = lookup.lookup(config, web_client, query["uri"])
+def _search_by_uri(
+    config: SpotifyConfig,
+    web_client: SpotifyOAuthClient,
+    query: Query[SearchField],
+) -> SearchResult:
+    uris = [Uri(uri) for uri in query["uri"] if isinstance(uri, str)]
+    results = lookup.lookup(config, web_client, uris)
     tracks = []
-    for uri in query["uri"]:
+    for uri in uris:
         tracks += results.get(uri, [])
 
-    uri = Uri("spotify:search")
-    if len(query["uri"]) == 1:
-        uri = query["uri"][0]
+    result_uri = uris[0] if len(uris) == 1 else Uri("spotify:search")
 
-    return models.SearchResult(
-        uri=uri,
+    return SearchResult(
+        uri=result_uri,
         tracks=tuple(tracks),
     )
