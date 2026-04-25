@@ -1,29 +1,8 @@
 import logging
-from collections.abc import Hashable
 
 from mopidy import models
 
 logger = logging.getLogger(__name__)
-
-
-class memoized:  # noqa: N801
-    def __init__(self, func):
-        self.func = func
-        self.cache = {}
-
-    def __call__(self, *args, **kwargs):
-        # NOTE Only args, not kwargs, are part of the memoization key.
-        if not isinstance(args, Hashable):
-            return self.func(*args, **kwargs)
-        if args in self.cache:
-            return self.cache[args]
-        value = self.func(*args, **kwargs)
-        if value is not None:
-            self.cache[args] = value
-        return value
-
-
-# TODO: memoize web functions?
 
 
 def web_to_artist_ref(web_artist):
