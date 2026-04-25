@@ -64,7 +64,7 @@ gst-inspect-1.0 spotifyaudiosrc | grep Version | awk '{print $2}'
 Install by running:
 
 ```sh
-sudo python3 -m pip install --break-system-packages mopidy-spotify==5.0.0a3
+sudo python3 -m pip install --break-system-packages mopidy-spotify
 ```
 
 ## Configuration
