@@ -14,7 +14,7 @@ app = cyclopts.App(help="Spotify extension commands.")
 
 
 @app.command(help="Logout from Spotify account.")
-def logout():
+def logout() -> None:
     config = Config.get_global()
     credentials_dir = Extension().get_credentials_dir(config)
     try:

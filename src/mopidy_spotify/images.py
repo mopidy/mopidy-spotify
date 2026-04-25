@@ -1,9 +1,20 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from mopidy_spotify.browse import BROWSE_DIR_URIS
 from mopidy_spotify.translator import web_to_image
 from mopidy_spotify.utils import group_by_type
 from mopidy_spotify.web import LinkType, WebLink
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from mopidy.models import Image
+    from mopidy.types import Uri
+
+    from mopidy_spotify.web import SpotifyOAuthClient
 
 SUPPORTED_TYPES = (
     LinkType.TRACK,
@@ -17,8 +28,11 @@ _cache = {}  # (type, id) -> [Image(), ...]
 logger = logging.getLogger(__name__)
 
 
-def get_images(web_client, uris):
-    result = {}
+def get_images(
+    web_client: SpotifyOAuthClient,
+    uris: Iterable[Uri],
+) -> dict[Uri, list[Image]]:
+    result: dict[Uri, list[Image]] = {}
     links = (_parse_uri(u) for u in uris)
     for link_type, link_group in group_by_type(links):
         batch = []
@@ -34,11 +48,11 @@ def get_images(web_client, uris):
     return result
 
 
-def _make_cache_key(link):
+def _make_cache_key(link: WebLink) -> tuple[LinkType, str | None]:
     return (link.type, link.id)
 
 
-def _parse_uri(uri):
+def _parse_uri(uri: Uri) -> WebLink | None:
     if uri in BROWSE_DIR_URIS:
         return None  # These are internal to the extension.
     try:
@@ -56,19 +70,22 @@ def _parse_uri(uri):
     return link
 
 
-def _process_one(web_client, link):
+def _process_one(
+    web_client: SpotifyOAuthClient,
+    link: WebLink,
+) -> dict[Uri, list[Image]]:
     data = web_client.get(f"{link.type}s/{link.id}")
     key = _make_cache_key(link)
-    _cache[key] = tuple(web_to_image(i) for i in data.get("images") or [])
+    _cache[key] = [web_to_image(i) for i in data.get("images") or []]
     return {link.uri: _cache[key]}
 
 
 def _process_many(
-    web_client,
-    link_type,
-    links,
-):
-    result = {}
+    web_client: SpotifyOAuthClient,
+    link_type: LinkType,
+    links: list[WebLink],
+) -> dict[Uri, list[Image]]:
+    result: dict[Uri, list[Image]] = {}
     if not links:
         return result
 
@@ -81,12 +98,12 @@ def _process_many(
                 continue
             album_key = _make_cache_key(album_link)
             if album_key not in _cache:
-                _cache[album_key] = tuple(
+                _cache[album_key] = [
                     web_to_image(i) for i in album_item.get("images") or []
-                )
+                ]
             _cache[key] = _cache[album_key]
         else:
-            _cache[key] = tuple(web_to_image(i) for i in item.get("images") or [])
+            _cache[key] = [web_to_image(i) for i in item.get("images") or []]
         result[link.uri] = _cache[key]
 
     return result

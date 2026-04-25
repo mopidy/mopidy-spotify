@@ -1,10 +1,12 @@
+from pathlib import Path
+
 from mopidy.config import Config
 
 from mopidy_spotify import Extension
 from mopidy_spotify.commands import logout
 
 
-def test_logout_command(tmp_path):
+def test_logout_command(tmp_path: Path):
     config = Config({"core": {"data_dir": tmp_path}})
     Config.set_global(config)
 

@@ -9,7 +9,7 @@ from mopidy.types import UriScheme
 from mopidy_spotify import Extension, library, playlists, web
 
 if TYPE_CHECKING:
-    from mopidy.audio import Audio
+    from mopidy.audio import AudioProxy
     from mopidy.config import Config
 
     from mopidy_spotify.types import SpotifyConfig
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
     uri_schemes: ClassVar[list[UriScheme]] = [UriScheme("spotify")]
 
-    def __init__(self, *, config: Config, audio: Audio) -> None:
+    def __init__(self, *, config: Config, audio: AudioProxy) -> None:
         super().__init__()
 
         self._config = config
@@ -33,7 +33,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
         else:
             self.playlists = None
 
-    def on_start(self):
+    def on_start(self) -> None:
         self._web_client = web.SpotifyOAuthClient(
             client_id=self._config["spotify"]["client_id"],
             client_secret=self._config["spotify"]["client_secret"],
@@ -48,7 +48,7 @@ class SpotifyBackend(pykka.ThreadingActor, backend.Backend):
 class SpotifyPlaybackProvider(backend.PlaybackProvider):
     backend: SpotifyBackend
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._cache_location = Extension().get_cache_dir(self.backend._config)
         self._credentials_dir = Extension().get_credentials_dir(self.backend._config)

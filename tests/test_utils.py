@@ -1,10 +1,12 @@
 import re
 from unittest import mock
 
+import pytest
+
 from mopidy_spotify import utils
 
 
-def test_time_logger(caplog):
+def test_time_logger(caplog: pytest.LogCaptureFixture):
     with utils.time_logger("task"):
         pass
 

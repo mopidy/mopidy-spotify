@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 from mopidy.models import Ref
 from mopidy.types import Uri
@@ -8,6 +9,12 @@ from mopidy.types import Uri
 from mopidy_spotify import playlists, translator
 from mopidy_spotify.utils import flatten
 from mopidy_spotify.web import WebLink
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from mopidy_spotify.types import SpotifyConfig
+    from mopidy_spotify.web import SpotifyOAuthClient
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +46,8 @@ _PLAYLISTS_DIR_CONTENTS = [
 
 
 BROWSE_DIR_URIS = {
-    u.uri
-    for u in [
+    directory.uri
+    for directory in [
         ROOT_DIR,
         *_ROOT_DIR_CONTENTS,
         *_TOP_LIST_DIR_CONTENTS,
@@ -52,10 +59,10 @@ BROWSE_DIR_URIS = {
 
 def browse(  # noqa: C901, PLR0911, PLR0912
     *,
-    config,  # noqa: ARG001
-    web_client,
-    uri,
-):
+    config: SpotifyConfig,  # noqa: ARG001
+    web_client: SpotifyOAuthClient,
+    uri: Uri,
+) -> list[Ref]:
     if uri == ROOT_DIR.uri:
         return _ROOT_DIR_CONTENTS
     if uri == _TOP_LIST_DIR.uri:
@@ -65,7 +72,7 @@ def browse(  # noqa: C901, PLR0911, PLR0912
     if uri == _PLAYLISTS_DIR.uri:
         return _PLAYLISTS_DIR_CONTENTS
 
-    if web_client is None or not web_client.logged_in:
+    if not web_client.logged_in:
         return []
 
     # TODO: Support for category browsing.
@@ -94,19 +101,20 @@ def browse(  # noqa: C901, PLR0911, PLR0912
     return []
 
 
-def _browse_playlist(web_client, uri) -> list[Ref]:
-    return (
-        playlists.playlist_lookup(
-            web_client,
-            uri,
-            bitrate=None,
-            as_items=True,
-        )
-        or []
+def _browse_playlist(
+    web_client: SpotifyOAuthClient,
+    uri: Uri,
+) -> list[Ref]:
+    playlist_items = playlists.playlist_lookup(
+        web_client,
+        uri,
+        bitrate=None,
+        as_items=True,
     )
+    return playlist_items if playlist_items is not None else []
 
 
-def _browse_album(web_client, uri):
+def _browse_album(web_client: SpotifyOAuthClient, uri: Uri) -> list[Ref]:
     try:
         link = WebLink.from_uri(uri)
     except ValueError as exc:
@@ -119,7 +127,7 @@ def _browse_album(web_client, uri):
     return []
 
 
-def _browse_artist(web_client, uri):
+def _browse_artist(web_client: SpotifyOAuthClient, uri: Uri) -> list[Ref]:
     try:
         link = WebLink.from_uri(uri)
     except ValueError as exc:
@@ -135,7 +143,7 @@ def _browse_artist(web_client, uri):
     return top_tracks + albums
 
 
-def _browse_toplist_user(web_client, variant):
+def _browse_toplist_user(web_client: SpotifyOAuthClient, variant: str) -> list[Ref]:
     if not web_client.logged_in:
         return []
 
@@ -159,8 +167,8 @@ def _browse_toplist_user(web_client, variant):
         return []
 
 
-def _load_your_music(web_client, variant):
-    if web_client is None or not web_client.logged_in:
+def _load_your_music(web_client: SpotifyOAuthClient, variant: str) -> Iterator[Any]:
+    if not web_client.logged_in:
         return
 
     if variant not in ("tracks", "albums"):
@@ -177,7 +185,7 @@ def _load_your_music(web_client, variant):
         yield from items
 
 
-def _browse_your_music(web_client, variant):
+def _browse_your_music(web_client: SpotifyOAuthClient, variant: str) -> list[Ref]:
     items = _load_your_music(web_client, variant)
     match variant:
         case "tracks":
@@ -188,7 +196,7 @@ def _browse_your_music(web_client, variant):
             return []
 
 
-def _browse_playlists(web_client, variant):
+def _browse_playlists(web_client: SpotifyOAuthClient, variant: str) -> list[Ref]:
     if not web_client.logged_in:
         return []
 

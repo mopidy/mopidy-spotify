@@ -1,20 +1,28 @@
+from unittest import mock
+
 import pytest
-from mopidy import models
+from mopidy.models import Image
+from mopidy.types import Uri
 
 from mopidy_spotify import images
+from mopidy_spotify.library import SpotifyLibraryProvider
 from mopidy_spotify.web import LinkType, WebLink
 
 
 @pytest.fixture
-def img_provider(provider):
+def img_provider(
+    provider: SpotifyLibraryProvider,
+) -> SpotifyLibraryProvider:
     images._cache = {}
     return provider
 
 
-def test_get_artist_images(web_client_mock, img_provider):
+def test_get_artist_images(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     links = [
-        WebLink.from_uri("spotify:artist:4FCGgZrVQtcbDFEap3OAb2"),
-        WebLink.from_uri("http://open.spotify.com/artist/0Nsz79ZcE8E4i3XZhCzZ1l"),
+        WebLink.from_uri(Uri("spotify:artist:4FCGgZrVQtcbDFEap3OAb2")),
+        WebLink.from_uri(Uri("http://open.spotify.com/artist/0Nsz79ZcE8E4i3XZhCzZ1l")),
     ]
     uris = [link.uri for link in links]
 
@@ -52,27 +60,29 @@ def test_get_artist_images(web_client_mock, img_provider):
     assert len(result[uris[1]]) == 1
 
     image1a = result[uris[0]][0]
-    assert isinstance(image1a, models.Image)
+    assert isinstance(image1a, Image)
     assert image1a.uri == "img://1/a"
     assert image1a.height == 640
     assert image1a.width == 640
 
     image1b = result[uris[0]][1]
-    assert isinstance(image1b, models.Image)
+    assert isinstance(image1b, Image)
     assert image1b.uri == "img://1/b"
     assert image1b.height == 300
     assert image1b.width == 300
 
     image2a = result[uris[1]][0]
-    assert isinstance(image2a, models.Image)
+    assert isinstance(image2a, Image)
     assert image2a.uri == "img://2/a"
     assert image2a.height == 64
     assert image2a.width == 64
 
 
-def test_get_album_images(web_client_mock, img_provider):
+def test_get_album_images(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     links = [
-        WebLink.from_uri("http://play.spotify.com/album/1utFPuvgBHXzLJdqhCDOkg"),
+        WebLink.from_uri(Uri("http://play.spotify.com/album/1utFPuvgBHXzLJdqhCDOkg")),
     ]
     uris = [link.uri for link in links]
 
@@ -95,15 +105,17 @@ def test_get_album_images(web_client_mock, img_provider):
     assert len(result[uris[0]]) == 1
 
     image = result[uris[0]][0]
-    assert isinstance(image, models.Image)
+    assert isinstance(image, Image)
     assert image.uri == "img://1/a"
     assert image.height == 640
     assert image.width == 640
 
 
-def test_get_track_images(web_client_mock, img_provider):
+def test_get_track_images(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     links = [
-        WebLink.from_uri("spotify:track:41shEpOKyyadtG6lDclooa"),
+        WebLink.from_uri(Uri("spotify:track:41shEpOKyyadtG6lDclooa")),
     ]
     uris = [link.uri for link in links]
 
@@ -129,15 +141,17 @@ def test_get_track_images(web_client_mock, img_provider):
     assert len(result[uris[0]]) == 1
 
     image = result[uris[0]][0]
-    assert isinstance(image, models.Image)
+    assert isinstance(image, Image)
     assert image.uri == "img://1/a"
     assert image.height == 640
     assert image.width == 640
 
 
-def test_get_track_images_bad_album_uri(web_client_mock, img_provider):
+def test_get_track_images_bad_album_uri(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     links = [
-        WebLink.from_uri("spotify:track:41shEpOKyyadtG6lDclooa"),
+        WebLink.from_uri(Uri("spotify:track:41shEpOKyyadtG6lDclooa")),
     ]
     uris = [link.uri for link in links]
 
@@ -160,9 +174,11 @@ def test_get_track_images_bad_album_uri(web_client_mock, img_provider):
     web_client_mock.get_batch.assert_called_once_with(LinkType.TRACK, links)
 
 
-def test_get_relinked_track_images(web_client_mock, img_provider):
+def test_get_relinked_track_images(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     links = [
-        WebLink.from_uri("spotify:track:4nqN0p0FjfH39G3hxeuKad"),
+        WebLink.from_uri(Uri("spotify:track:4nqN0p0FjfH39G3hxeuKad")),
     ]
     uris = [link.uri for link in links]
 
@@ -193,15 +209,17 @@ def test_get_relinked_track_images(web_client_mock, img_provider):
     assert len(result[uris[0]]) == 1
 
     image = result[uris[0]][0]
-    assert isinstance(image, models.Image)
+    assert isinstance(image, Image)
     assert image.uri == "img://1/a"
     assert image.height == 640
     assert image.width == 640
 
 
-def test_get_track_images_cached(web_client_mock, img_provider):
+def test_get_track_images_cached(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     links = [
-        WebLink.from_uri("spotify:track:41shEpOKyyadtG6lDclooa"),
+        WebLink.from_uri(Uri("spotify:track:41shEpOKyyadtG6lDclooa")),
     ]
     uris = [link.uri for link in links]
 
@@ -225,8 +243,10 @@ def test_get_track_images_cached(web_client_mock, img_provider):
     assert result1 == result2
 
 
-def test_get_playlist_image(web_client_mock, img_provider):
-    uris = ["spotify:playlist:41shEpOKyyadtG6lDclooa", "foo:bar"]
+def test_get_playlist_image(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
+    uris = [Uri("spotify:playlist:41shEpOKyyadtG6lDclooa"), Uri("foo:bar")]
 
     web_client_mock.get.return_value = {
         "id": "41shEpOKyyadtG6lDclooa",
@@ -242,14 +262,16 @@ def test_get_playlist_image(web_client_mock, img_provider):
     assert len(result[uris[0]]) == 1
 
     image = result[uris[0]][0]
-    assert isinstance(image, models.Image)
+    assert isinstance(image, Image)
     assert image.uri == "img://1/a"
     assert image.height == 640
     assert image.width == 640
 
 
-def test_get_playlist_image_cached(web_client_mock, img_provider):
-    uris = ["spotify:playlist:41shEpOKyyadtG6lDclooa"]
+def test_get_playlist_image_cached(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
+    uris = [Uri("spotify:playlist:41shEpOKyyadtG6lDclooa")]
 
     web_client_mock.get.return_value = {
         "id": "41shEpOKyyadtG6lDclooa",
@@ -270,9 +292,13 @@ def test_get_playlist_image_cached(web_client_mock, img_provider):
         "artist",
     ],
 )
-def test_results_are_cached(web_client_mock, img_provider, link_type):
+def test_results_are_cached(
+    web_client_mock: mock.MagicMock,
+    img_provider: SpotifyLibraryProvider,
+    link_type: str,
+):
     links = [
-        WebLink.from_uri(f"spotify:{link_type}:41shEpOKyyadtG6lDclooa"),
+        WebLink.from_uri(Uri(f"spotify:{link_type}:41shEpOKyyadtG6lDclooa")),
     ]
     uris = [link.uri for link in links]
 
@@ -302,16 +328,22 @@ def test_results_are_cached(web_client_mock, img_provider, link_type):
         "spotify:your:fish",
     ],
 )
-def test_invalid_uri(img_provider, caplog, uri):
+def test_invalid_uri(
+    img_provider: SpotifyLibraryProvider,
+    caplog: pytest.LogCaptureFixture,
+    uri: Uri,
+):
     with caplog.at_level(5):
         result = img_provider.get_images([uri])
     assert result == {}
     assert f"Could not parse '{uri}' as a Spotify URI" in caplog.text
 
 
-def test_unsupported_image_type(img_provider, caplog):
+def test_unsupported_image_type(
+    img_provider: SpotifyLibraryProvider, caplog: pytest.LogCaptureFixture
+):
     with caplog.at_level(5):
-        result = img_provider.get_images(["spotify:your:fish"])
+        result = img_provider.get_images([Uri("spotify:your:fish")])
     assert result == {}
     assert "Unsupported image type 'your'" in caplog.text
 
@@ -327,37 +359,47 @@ def test_unsupported_image_type(img_provider, caplog):
         "spotify:playlists:featured",
     ],
 )
-def test_browse_internal_uris_no_result(img_provider, caplog, uri):
+def test_browse_internal_uris_no_result(
+    img_provider: SpotifyLibraryProvider,
+    caplog: pytest.LogCaptureFixture,
+    uri: Uri,
+):
     result = img_provider.get_images([uri])
 
     assert result == {}
 
 
-def test_no_uris_gives_no_results(img_provider):
+def test_no_uris_gives_no_results(img_provider: SpotifyLibraryProvider):
     result = img_provider.get_images([])
 
     assert result == {}
 
 
-def test_service_returns_empty_result(web_client_mock, img_provider):
+def test_service_returns_empty_result(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     web_client_mock.get.return_value = {"tracks": [{}]}
 
-    result = img_provider.get_images(["spotify:track:41shEpOKyyadtG6lDclooa"])
+    result = img_provider.get_images([Uri("spotify:track:41shEpOKyyadtG6lDclooa")])
 
     assert result == {}
 
 
-def test_service_returns_none_result(web_client_mock, img_provider):
+def test_service_returns_none_result(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     web_client_mock.get.return_value = {"tracks": None}
 
-    result = img_provider.get_images(["spotify:track:41shEpOKyyadtG6lDclooa"])
+    result = img_provider.get_images([Uri("spotify:track:41shEpOKyyadtG6lDclooa")])
 
     assert result == {}
 
 
-def test_service_returns_none_result_playlist(web_client_mock, img_provider):
+def test_service_returns_none_result_playlist(
+    web_client_mock: mock.MagicMock, img_provider: SpotifyLibraryProvider
+):
     web_client_mock.get.return_value = {"images": None}
 
-    result = img_provider.get_images(["spotify:playlist:41shEpOKyyadtG6lDclooa"])
+    result = img_provider.get_images([Uri("spotify:playlist:41shEpOKyyadtG6lDclooa")])
 
-    assert result == {"spotify:playlist:41shEpOKyyadtG6lDclooa": ()}
+    assert result == {"spotify:playlist:41shEpOKyyadtG6lDclooa": []}

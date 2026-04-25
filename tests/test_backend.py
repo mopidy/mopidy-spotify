@@ -1,28 +1,31 @@
+from typing import Any
 from unittest import mock, skip
 
+import pytest
 from mopidy import backend as backend_api
 
-from mopidy_spotify import backend, library, playlists
+from mopidy_spotify import backend, playlists
 from mopidy_spotify.backend import SpotifyPlaybackProvider
+from mopidy_spotify.library import SpotifyLibraryProvider
 from tests import ThreadJoiner
 
 
-def get_backend(config):
+def get_backend(config: dict[str, Any]):
     obj = backend.SpotifyBackend(config=config, audio=None)
     obj._web_client = mock.Mock()
     return obj
 
 
-def test_uri_schemes(config):
+def test_uri_schemes(config: dict[str, Any]):
     backend = get_backend(config)
 
     assert "spotify" in backend.uri_schemes
 
 
-def test_init_sets_up_the_providers(config):
+def test_init_sets_up_the_providers(config: dict[str, Any]):
     backend = get_backend(config)
 
-    assert isinstance(backend.library, library.SpotifyLibraryProvider)
+    assert isinstance(backend.library, SpotifyLibraryProvider)
     assert isinstance(backend.library, backend_api.LibraryProvider)
 
     assert isinstance(backend.playback, SpotifyPlaybackProvider)
@@ -32,7 +35,7 @@ def test_init_sets_up_the_providers(config):
     assert isinstance(backend.playlists, backend_api.PlaylistsProvider)
 
 
-def test_init_disables_playlists_provider_if_not_allowed(config):
+def test_init_disables_playlists_provider_if_not_allowed(config: dict[str, Any]):
     config["spotify"]["allow_playlists"] = False
 
     backend = get_backend(config)
@@ -41,17 +44,17 @@ def test_init_disables_playlists_provider_if_not_allowed(config):
 
 
 @skip("currently can't configure this")
-def test_on_start_configures_preferred_bitrate(config):
+def test_on_start_configures_preferred_bitrate(config: dict[str, Any]):
     pass
 
 
 @skip("support this with spotifyaudiosrc?")
-def test_on_start_configures_volume_normalization(config):
+def test_on_start_configures_volume_normalization(config: dict[str, Any]):
     pass
 
 
 @skip("support this with spotifyaudiosrc?")
-def test_on_start_configures_proxy(web_mock, config):
+def test_on_start_configures_proxy(web_mock: mock.MagicMock, config: dict[str, Any]):
     config["proxy"] = {
         "scheme": "https",
         "hostname": "my-proxy.example.com",
@@ -72,7 +75,9 @@ def test_on_start_configures_proxy(web_mock, config):
     )
 
 
-def test_on_start_configures_web_client(web_mock, config):
+def test_on_start_configures_web_client(
+    web_mock: mock.MagicMock, config: dict[str, Any]
+):
     config["spotify"]["client_id"] = "1234567"
     config["spotify"]["client_secret"] = "AbCdEfG"  # noqa: S105
 
@@ -87,14 +92,18 @@ def test_on_start_configures_web_client(web_mock, config):
     )
 
 
-def test_on_start_logs_in(web_mock, config):
+def test_on_start_logs_in(web_mock: mock.MagicMock, config: dict[str, Any]):
     backend = get_backend(config)
     backend.on_start()
 
     web_mock.SpotifyOAuthClient.return_value.login.assert_called_once()
 
 
-def test_on_start_refreshes_playlists(web_mock, config, caplog):
+def test_on_start_refreshes_playlists(
+    web_mock: mock.MagicMock,
+    config: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+):
     backend = get_backend(config)
     with ThreadJoiner():
         backend.on_start()
@@ -105,7 +114,11 @@ def test_on_start_refreshes_playlists(web_mock, config, caplog):
     assert "Refreshed 0 Spotify playlists" in caplog.text
 
 
-def test_on_start_doesnt_refresh_playlists_if_not_allowed(web_mock, config, caplog):
+def test_on_start_doesnt_refresh_playlists_if_not_allowed(
+    web_mock: mock.MagicMock,
+    config: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+):
     config["spotify"]["allow_playlists"] = False
 
     backend = get_backend(config)

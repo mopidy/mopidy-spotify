@@ -1,21 +1,35 @@
-import logging
-from collections.abc import Generator
+from __future__ import annotations
 
-from mopidy.models import SearchResult, Track
+import logging
+from typing import TYPE_CHECKING
 
 from mopidy_spotify import search
-from mopidy_spotify.playlists import SpotifyPlaylistsProvider
-from mopidy_spotify.types import SpotifyConfig
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from mopidy.models import SearchResult, Track
+    from mopidy.types import DistinctField, Query, SearchField
+
+    from mopidy_spotify.playlists import SpotifyPlaylistsProvider
+    from mopidy_spotify.types import SpotifyConfig
+    from mopidy_spotify.web import SpotifyOAuthClient
 
 logger = logging.getLogger(__name__)
 
 
-def get_distinct(config, playlists, web_client, field, query=None) -> set[str]:
+def get_distinct(
+    config: SpotifyConfig,
+    playlists: SpotifyPlaylistsProvider,
+    web_client: SpotifyOAuthClient,
+    field: DistinctField,
+    query: Query[SearchField] | None = None,
+) -> set[str]:
     # To make the returned data as interesting as possible, we limit
     # ourselves to data extracted from the user's playlists when no search
     # query is included.
     # TODO: Perhaps should use tracks from My Music instead?
-    if web_client is None or not web_client.logged_in:
+    if not web_client.logged_in:
         return set()
 
     match field:
@@ -33,7 +47,12 @@ def get_distinct(config, playlists, web_client, field, query=None) -> set[str]:
     return {x for x in result if isinstance(x, str)}
 
 
-def _get_distinct_artists(config, playlists, web_client, query) -> set[str]:
+def _get_distinct_artists(
+    config: SpotifyConfig,
+    playlists: SpotifyPlaylistsProvider,
+    web_client: SpotifyOAuthClient,
+    query: Query[SearchField] | None,
+) -> set[str]:
     logger.debug(f"Getting distinct artists: {query}")
 
     if query:
@@ -50,7 +69,12 @@ def _get_distinct_artists(config, playlists, web_client, query) -> set[str]:
     }
 
 
-def _get_distinct_albumartists(config, playlists, web_client, query) -> set[str]:
+def _get_distinct_albumartists(
+    config: SpotifyConfig,
+    playlists: SpotifyPlaylistsProvider,
+    web_client: SpotifyOAuthClient,
+    query: Query[SearchField] | None,
+) -> set[str]:
     logger.debug(f"Getting distinct albumartists: {query}")
 
     if query:
@@ -71,7 +95,12 @@ def _get_distinct_albumartists(config, playlists, web_client, query) -> set[str]
     }
 
 
-def _get_distinct_albums(config, playlists, web_client, query) -> set[str]:
+def _get_distinct_albums(
+    config: SpotifyConfig,
+    playlists: SpotifyPlaylistsProvider,
+    web_client: SpotifyOAuthClient,
+    query: Query[SearchField] | None,
+) -> set[str]:
     logger.debug(f"Getting distinct albums: {query}")
 
     if query:
@@ -85,7 +114,12 @@ def _get_distinct_albums(config, playlists, web_client, query) -> set[str]:
     }
 
 
-def _get_distinct_dates(config, playlists, web_client, query) -> set[str]:
+def _get_distinct_dates(
+    config: SpotifyConfig,
+    playlists: SpotifyPlaylistsProvider,
+    web_client: SpotifyOAuthClient,
+    query: Query[SearchField] | None,
+) -> set[str]:
     logger.debug(f"Getting distinct album years: {query}")
 
     if query:
@@ -104,13 +138,13 @@ def _get_distinct_dates(config, playlists, web_client, query) -> set[str]:
 
 
 def _get_search(  # noqa: PLR0913
-    config,
-    web_client,
-    query,
+    config: SpotifyConfig,
+    web_client: SpotifyOAuthClient,
+    query: Query[SearchField],
     *,
-    album=False,
-    artist=False,
-    track=False,
+    album: bool = False,
+    artist: bool = False,
+    track: bool = False,
 ) -> SearchResult:
     types = []
     if album:
@@ -131,9 +165,9 @@ def _get_search(  # noqa: PLR0913
 def _get_playlist_tracks(
     config: SpotifyConfig,
     playlists: SpotifyPlaylistsProvider,
-    web_client,  # noqa: ARG001
+    web_client: SpotifyOAuthClient,  # noqa: ARG001
 ) -> Generator[Track]:
-    if not playlists or not config["allow_playlists"]:
+    if not config["allow_playlists"]:
         return
 
     for playlist_ref in playlists.as_list():
