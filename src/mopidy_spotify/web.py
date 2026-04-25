@@ -1,4 +1,5 @@
 import copy
+import itertools
 import logging
 import os
 import re
@@ -120,7 +121,7 @@ class OAuthClient:
             return WebResponse(None, None)
 
         with self._cache_mutex:
-            if self._should_cache_response(cache, result):
+            if cache is not None and self._should_cache_response(result):
                 previous_result = cache.get(path)
                 if previous_result and previous_result.updated(result):
                     result = previous_result
@@ -128,8 +129,8 @@ class OAuthClient:
 
         return result
 
-    def _should_cache_response(self, cache, response):
-        return cache is not None and response.status_ok
+    def _should_cache_response(self, response):
+        return response.status_ok
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?
@@ -603,7 +604,9 @@ class SpotifyOAuthClient(OAuthClient):
             return result
 
         links = list(dict.fromkeys(links))  # Remove duplicates and maintain order
-        for batch in utils.batched(links, API_MAX_IDS_PER_REQUEST[link_type]):
+        for batch in itertools.batched(
+            links, API_MAX_IDS_PER_REQUEST[link_type], strict=False
+        ):
             ids = [u.id for u in batch]
             ids_to_links = {u.id: u for u in batch}
             data = self.get_one(

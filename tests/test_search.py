@@ -6,7 +6,7 @@ from mopidy_spotify import lookup, search, translator
 
 
 def test_search_with_no_query_returns_nothing(provider, caplog):
-    result = provider.search()
+    result = provider.search(query={})
 
     assert isinstance(result, models.SearchResult)
     assert result.uri == "spotify:search"

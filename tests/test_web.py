@@ -411,17 +411,15 @@ def test_web_response_etag_updated_different(web_response_mock_etag, caplog):
 
 
 @pytest.mark.parametrize(
-    ("cache", "ok", "expected"),
+    ("ok", "expected"),
     [
-        (None, False, False),
-        (None, True, False),
-        ({}, False, False),
-        ({}, True, True),
+        (False, False),
+        (True, True),
     ],
 )
-def test_should_cache_response(oauth_client, cache, ok, expected):
+def test_should_cache_response(oauth_client, ok, expected):
     response_mock = mock.Mock(status_ok=ok)
-    result = oauth_client._should_cache_response(cache, response_mock)
+    result = oauth_client._should_cache_response(response_mock)
     assert result == expected
 
 
@@ -475,7 +473,7 @@ def test_cache_miss(web_track_mock, skip_refresh_token, oauth_client):
     result = oauth_client.get("https://api.spotify.com/v1/tracks/abc", cache)
     assert len(responses.calls) == 1
     assert result["uri"] == "spotify:track:abc"
-    assert oauth_client._should_cache_response(cache, result)
+    assert oauth_client._should_cache_response(result)
     assert cache["https://api.spotify.com/v1/tracks/abc"] == result
 
 
@@ -564,7 +562,7 @@ def test_dont_cache_bad_status(web_track_mock, skip_refresh_token, oauth_client)
 
     result = oauth_client.get("https://api.spotify.com/v1/tracks/abc", cache)
     assert result._status_code == 404
-    assert not oauth_client._should_cache_response(cache, result)
+    assert not oauth_client._should_cache_response(result)
     assert "https://api.spotify.com/v1/tracks/abc" not in cache
 
 

@@ -1,6 +1,8 @@
 import pathlib
 from importlib.metadata import version
+from typing import override
 
+import cyclopts
 from mopidy import config, ext
 
 __version__ = version("mopidy-spotify")
@@ -11,10 +13,12 @@ class Extension(ext.Extension):
     ext_name = "spotify"
     version = __version__
 
-    def get_default_config(self):
+    @override
+    def get_default_config(self) -> str:
         return config.read(pathlib.Path(__file__).parent / "ext.conf")
 
-    def get_config_schema(self):
+    @override
+    def get_config_schema(self) -> config.ConfigSchema:
         schema = super().get_config_schema()
 
         schema["username"] = config.Deprecated()  # since 5.0
@@ -46,18 +50,20 @@ class Extension(ext.Extension):
 
         return schema
 
-    def setup(self, registry):
+    @override
+    def setup(self, registry: ext.Registry) -> None:
         from mopidy_spotify.backend import SpotifyBackend  # noqa: PLC0415
 
         registry.add("backend", SpotifyBackend)
 
-    def get_command(self):
+    @override
+    def get_command(self) -> cyclopts.App:
         from .commands import app  # noqa: PLC0415
 
         return app
 
     @classmethod
-    def get_credentials_dir(cls, config) -> pathlib.Path:
+    def get_credentials_dir(cls, config: config.Config) -> pathlib.Path:
         data_dir = cls.get_data_dir(config)
         credentials_dir = data_dir / "credentials-cache"
         credentials_dir.mkdir(mode=0o700, exist_ok=True)

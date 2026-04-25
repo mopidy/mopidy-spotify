@@ -49,8 +49,3 @@ def test_group_by_type_sorts():
         [mocks[4]],
         [mocks[0], mocks[3]],
     ]
-
-
-def test_batched():
-    result = list(utils.batched("ABCDEFG", 3))
-    assert result == [("A", "B", "C"), ("D", "E", "F"), ("G",)]

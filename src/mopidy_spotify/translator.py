@@ -1,29 +1,9 @@
 import logging
-from collections.abc import Hashable
 
-from mopidy import models
+from mopidy.models import Album, Artist, Image, Playlist, Ref, Track
+from mopidy.types import DurationMs
 
 logger = logging.getLogger(__name__)
-
-
-class memoized:  # noqa: N801
-    def __init__(self, func):
-        self.func = func
-        self.cache = {}
-
-    def __call__(self, *args, **kwargs):
-        # NOTE Only args, not kwargs, are part of the memoization key.
-        if not isinstance(args, Hashable):
-            return self.func(*args, **kwargs)
-        if args in self.cache:
-            return self.cache[args]
-        value = self.func(*args, **kwargs)
-        if value is not None:
-            self.cache[args] = value
-        return value
-
-
-# TODO: memoize web functions?
 
 
 def web_to_artist_ref(web_artist):
@@ -31,7 +11,7 @@ def web_to_artist_ref(web_artist):
         return None
 
     uri = web_artist["uri"]
-    return models.Ref.artist(uri=uri, name=web_artist.get("name", uri))
+    return Ref.artist(uri=uri, name=web_artist.get("name", uri))
 
 
 def web_to_artist_refs(web_artists):
@@ -54,7 +34,7 @@ def web_to_album_ref(web_album):
     else:
         name = web_album["uri"]
 
-    return models.Ref.album(uri=web_album["uri"], name=name)
+    return Ref.album(uri=web_album["uri"], name=name)
 
 
 def web_to_album_refs(web_albums):
@@ -87,7 +67,7 @@ def web_to_track_ref(web_track, *, check_playable=True):
         logger.debug(f"{uri!r} is not playable")
         return None
 
-    return models.Ref.track(uri=uri, name=web_track.get("name", uri))
+    return Ref.track(uri=uri, name=web_track.get("name", uri))
 
 
 def web_to_track_refs(web_tracks, *, check_playable=True):
@@ -126,7 +106,11 @@ def to_playlist(
     ]
     tracks = [t for t in tracks if t]
 
-    return models.Playlist(uri=ref.uri, name=ref.name, tracks=tracks)
+    return Playlist(
+        uri=ref.uri,
+        name=ref.name,
+        tracks=tuple(tracks),
+    )
 
 
 def to_playlist_ref(web_playlist, username=None):
@@ -139,7 +123,7 @@ def to_playlist_ref(web_playlist, username=None):
     if username is not None and owner != username:
         name = f"{name} (by {owner})"
 
-    return models.Ref.playlist(uri=web_playlist["uri"], name=name)
+    return Ref.playlist(uri=web_playlist["uri"], name=name)
 
 
 def to_playlist_refs(web_playlists, username=None):
@@ -198,8 +182,10 @@ def web_to_artist(web_artist):
     ref = web_to_artist_ref(web_artist)
     if ref is None:
         return None
-
-    return models.Artist(uri=ref.uri, name=ref.name)
+    return Artist(
+        uri=ref.uri,
+        name=ref.name,
+    )
 
 
 def web_to_album_tracks(web_album, bitrate=None):
@@ -227,7 +213,11 @@ def web_to_album(web_album):
     artists = [a for a in artists if a]
 
     name = web_album.get("name", "Unknown album")
-    return models.Album(uri=ref.uri, name=name, artists=artists)
+    return Album(
+        uri=ref.uri,
+        name=name,
+        artists=frozenset(artists),
+    )
 
 
 def int_or_none(inp):
@@ -247,12 +237,13 @@ def web_to_track(web_track, bitrate=None, album=None):
     if album is None:
         album = web_to_album(web_track.get("album", {}))
 
-    return models.Track(
+    duration_ms = int_or_none(web_track.get("duration_ms"))
+    return Track(
         uri=ref.uri,
         name=ref.name,
-        artists=artists,
+        artists=frozenset(artists),
         album=album,
-        length=int_or_none(web_track.get("duration_ms")),
+        length=DurationMs(duration_ms) if duration_ms is not None else None,
         disc_no=int_or_none(web_track.get("disc_number")),
         track_no=int_or_none(web_track.get("track_number")),
         bitrate=bitrate,
@@ -260,7 +251,7 @@ def web_to_track(web_track, bitrate=None, album=None):
 
 
 def web_to_image(web_image):
-    return models.Image(
+    return Image(
         uri=web_image["url"],
         height=int_or_none(web_image.get("height")),
         width=int_or_none(web_image.get("width")),
