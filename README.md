@@ -117,9 +117,9 @@ The following configuration values are available:
 - `spotify/search_track_count`: Maximum number of tracks returned in search
   results. Number between 0 and 50. Defaults to 50.
 
-- `spotify/username`: Deprecated since v5.0.0a3.
+- `spotify/username`: Deprecated since v5.0.0. Please remove from your configuration file.
 
-- `spotify/password`: Deprecated since v5.0.0a3.
+- `spotify/password`: Deprecated since v5.0.0. Please remove from your configuration file.
 
 ## Project resources
 
