@@ -121,7 +121,7 @@ class OAuthClient:
             return WebResponse(None, None)
 
         with self._cache_mutex:
-            if self._should_cache_response(cache, result):
+            if cache is not None and self._should_cache_response(result):
                 previous_result = cache.get(path)
                 if previous_result and previous_result.updated(result):
                     result = previous_result
@@ -129,8 +129,8 @@ class OAuthClient:
 
         return result
 
-    def _should_cache_response(self, cache, response):
-        return cache is not None and response.status_ok
+    def _should_cache_response(self, response):
+        return response.status_ok
 
     def _should_refresh_token(self):
         # TODO: Add jitter to margin?

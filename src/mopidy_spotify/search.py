@@ -2,6 +2,7 @@ import logging
 import urllib.parse
 
 from mopidy import models
+from mopidy.types import Uri
 
 from mopidy_spotify import lookup, translator
 
@@ -21,9 +22,9 @@ def search(  # noqa: PLR0913
 ):
     # TODO: Respect `uris` argument
 
-    if query is None:
+    if not query:
         logger.debug("Ignored search without query")
-        return models.SearchResult(uri="spotify:search")
+        return models.SearchResult(uri=Uri("spotify:search"))
 
     if "uri" in query:
         return _search_by_uri(config, web_client, query)
@@ -31,9 +32,9 @@ def search(  # noqa: PLR0913
     sp_query = translator.sp_search_query(query, exact=exact)
     if not sp_query:
         logger.debug("Ignored search with empty query")
-        return models.SearchResult(uri="spotify:search")
+        return models.SearchResult(uri=Uri("spotify:search"))
 
-    uri = f"spotify:search:{urllib.parse.quote(sp_query)}"
+    uri = Uri(f"spotify:search:{urllib.parse.quote(sp_query)}")
     logger.info(f"Searching Spotify for: {sp_query}")
 
     if web_client is None or not web_client.logged_in:
@@ -97,7 +98,12 @@ def search(  # noqa: PLR0913
     )
     tracks = [x for x in tracks if x]
 
-    return models.SearchResult(uri=uri, albums=albums, artists=artists, tracks=tracks)
+    return models.SearchResult(
+        uri=uri,
+        albums=tuple(albums),
+        artists=tuple(artists),
+        tracks=tuple(tracks),
+    )
 
 
 def _search_by_uri(config, web_client, query):
@@ -106,8 +112,11 @@ def _search_by_uri(config, web_client, query):
     for uri in query["uri"]:
         tracks += results.get(uri, [])
 
-    uri = "spotify:search"
+    uri = Uri("spotify:search")
     if len(query["uri"]) == 1:
         uri = query["uri"][0]
 
-    return models.SearchResult(uri=uri, tracks=tracks)
+    return models.SearchResult(
+        uri=uri,
+        tracks=tuple(tracks),
+    )

@@ -1,51 +1,66 @@
+from __future__ import annotations
+
 import logging
 import threading
+from typing import TYPE_CHECKING, Literal, overload, override
 
 from mopidy import backend
 from mopidy.core import CoreListener
 
 from mopidy_spotify import translator, utils
 
+if TYPE_CHECKING:
+    from mopidy.models import Playlist, Ref
+    from mopidy.types import Uri
+
+    from mopidy_spotify.backend import SpotifyBackend
+
 logger = logging.getLogger(__name__)
 
 
 class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
-    def __init__(self, backend):
+    def __init__(self, backend: SpotifyBackend) -> None:
         self._backend = backend
         self._timeout = self._backend._config["spotify"]["timeout"]
         self._refresh_mutex = threading.Lock()
 
-    def as_list(self):
+    @override
+    def as_list(self) -> list[Ref]:
         with utils.time_logger("playlists.as_list()", logging.DEBUG):
             return list(self._get_flattened_playlist_refs())
 
     def _get_flattened_playlist_refs(self, *, refresh=False):
-        if not self._backend._web_client.logged_in:
+        web_client = self._backend._web_client
+        if web_client is None or not web_client.logged_in:
             return []
 
-        user_playlists = self._backend._web_client.get_user_playlists(refresh=refresh)
-        return translator.to_playlist_refs(
-            user_playlists, self._backend._web_client.user_id
-        )
+        user_playlists = web_client.get_user_playlists(refresh=refresh)
+        return translator.to_playlist_refs(user_playlists, web_client.user_id)
 
-    def get_items(self, uri):
+    @override
+    def get_items(self, uri: Uri) -> list[Ref] | None:
         with utils.time_logger(f"playlist.get_items({uri!r})", logging.DEBUG):
-            return self._get_playlist(uri, as_items=True)
+            return playlist_lookup(
+                self._backend._web_client,
+                uri,
+                bitrate=self._backend._bitrate,
+                as_items=True,
+            )
 
-    def lookup(self, uri):
+    @override
+    def lookup(self, uri: Uri) -> Playlist | None:
         with utils.time_logger(f"playlists.lookup({uri!r})", logging.DEBUG):
-            return self._get_playlist(uri)
+            return playlist_lookup(
+                self._backend._web_client,
+                uri,
+                bitrate=self._backend._bitrate,
+                as_items=False,
+            )
 
-    def _get_playlist(self, uri, *, as_items=False):
-        return playlist_lookup(
-            self._backend._web_client,
-            uri,
-            bitrate=self._backend._bitrate,
-            as_items=as_items,
-        )
-
-    def refresh(self):
-        if not self._backend._web_client.logged_in:
+    @override
+    def refresh(self) -> None:
+        web_client = self._backend._web_client
+        if web_client is None or not web_client.logged_in:
             return
         if not self._refresh_mutex.acquire(blocking=False):
             logger.info("Refreshing Spotify playlists already in progress")
@@ -79,14 +94,37 @@ class SpotifyPlaylistsProvider(backend.PlaylistsProvider):
         finally:
             self._refresh_mutex.release()
 
-    def create(self, name):
+    @override
+    def create(self, name: str) -> Playlist | None:
         pass  # TODO: Implement
 
-    def delete(self, uri):
+    @override
+    def delete(self, uri: Uri) -> bool:
+        return False  # TODO: Implement
+
+    @override
+    def save(self, playlist: Playlist) -> Playlist | None:
         pass  # TODO: Implement
 
-    def save(self, playlist):
-        pass  # TODO: Implement
+
+@overload
+def playlist_lookup(
+    web_client,
+    uri,
+    *,
+    bitrate,
+    as_items: Literal[True],
+) -> list[Ref] | None: ...
+
+
+@overload
+def playlist_lookup(
+    web_client,
+    uri,
+    *,
+    bitrate,
+    as_items: Literal[False] = False,
+) -> Playlist | None: ...
 
 
 def playlist_lookup(
@@ -94,12 +132,12 @@ def playlist_lookup(
     uri,
     *,
     bitrate,
-    as_items=False,
+    as_items: bool = False,
 ):
     if web_client is None or not web_client.logged_in:
         return None
 
-    logger.debug(f'Fetching Spotify playlist "{uri!r}"')
+    logger.debug(f"Fetching Spotify playlist {uri!r}")
     web_playlist = web_client.get_playlist(uri)
 
     if not web_playlist:

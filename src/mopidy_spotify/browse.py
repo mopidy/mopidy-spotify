@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 
-from mopidy import models
+from mopidy.models import Ref
+from mopidy.types import Uri
 
 from mopidy_spotify import playlists, translator
 from mopidy_spotify.utils import flatten
@@ -8,11 +11,11 @@ from mopidy_spotify.web import WebLink
 
 logger = logging.getLogger(__name__)
 
-ROOT_DIR = models.Ref.directory(uri="spotify:directory", name="Spotify")
+ROOT_DIR = Ref.directory(uri=Uri("spotify:directory"), name="Spotify")
 
-_TOP_LIST_DIR = models.Ref.directory(uri="spotify:top", name="Top lists")
-_YOUR_MUSIC_DIR = models.Ref.directory(uri="spotify:your", name="Your music")
-_PLAYLISTS_DIR = models.Ref.directory(uri="spotify:playlists", name="Playlists")
+_TOP_LIST_DIR = Ref.directory(uri=Uri("spotify:top"), name="Top lists")
+_YOUR_MUSIC_DIR = Ref.directory(uri=Uri("spotify:your"), name="Your music")
+_PLAYLISTS_DIR = Ref.directory(uri=Uri("spotify:playlists"), name="Playlists")
 
 _ROOT_DIR_CONTENTS = [
     _TOP_LIST_DIR,
@@ -21,17 +24,17 @@ _ROOT_DIR_CONTENTS = [
 ]
 
 _TOP_LIST_DIR_CONTENTS = [
-    models.Ref.directory(uri="spotify:top:tracks", name="Top tracks"),
-    models.Ref.directory(uri="spotify:top:artists", name="Top artists"),
+    Ref.directory(uri=Uri("spotify:top:tracks"), name="Top tracks"),
+    Ref.directory(uri=Uri("spotify:top:artists"), name="Top artists"),
 ]
 
 _YOUR_MUSIC_DIR_CONTENTS = [
-    models.Ref.directory(uri="spotify:your:tracks", name="Your tracks"),
-    models.Ref.directory(uri="spotify:your:albums", name="Your albums"),
+    Ref.directory(uri=Uri("spotify:your:tracks"), name="Your tracks"),
+    Ref.directory(uri=Uri("spotify:your:albums"), name="Your albums"),
 ]
 
 _PLAYLISTS_DIR_CONTENTS = [
-    models.Ref.directory(uri="spotify:playlists:featured", name="Featured"),
+    Ref.directory(uri=Uri("spotify:playlists:featured"), name="Featured"),
 ]
 
 
@@ -91,12 +94,15 @@ def browse(  # noqa: C901, PLR0911, PLR0912
     return []
 
 
-def _browse_playlist(web_client, uri):
-    return playlists.playlist_lookup(
-        web_client,
-        uri,
-        bitrate=None,
-        as_items=True,
+def _browse_playlist(web_client, uri) -> list[Ref]:
+    return (
+        playlists.playlist_lookup(
+            web_client,
+            uri,
+            bitrate=None,
+            as_items=True,
+        )
+        or []
     )
 
 
