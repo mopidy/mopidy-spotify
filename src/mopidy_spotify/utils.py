@@ -41,16 +41,3 @@ def group_by_type(links):
     link_type_getter = operator.attrgetter("type")
     links = sorted((u for u in links if u), key=link_type_getter)
     yield from itertools.groupby(links, link_type_getter)
-
-
-def batched(iterable, n):
-    """
-    Split into chunks of size n.
-    batched('ABCDEFG', 3) → ABC DEF G
-    """
-    if n < 1:
-        msg = "n must be at least one"
-        raise ValueError(msg)
-    it = iter(iterable)
-    while batch := tuple(itertools.islice(it, n)):
-        yield batch

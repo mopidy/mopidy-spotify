@@ -1,4 +1,5 @@
 import copy
+import itertools
 import logging
 import os
 import re
@@ -603,7 +604,9 @@ class SpotifyOAuthClient(OAuthClient):
             return result
 
         links = list(dict.fromkeys(links))  # Remove duplicates and maintain order
-        for batch in utils.batched(links, API_MAX_IDS_PER_REQUEST[link_type]):
+        for batch in itertools.batched(
+            links, API_MAX_IDS_PER_REQUEST[link_type], strict=False
+        ):
             ids = [u.id for u in batch]
             ids_to_links = {u.id: u for u in batch}
             data = self.get_one(
