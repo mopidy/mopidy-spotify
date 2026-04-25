@@ -195,6 +195,6 @@ build and publish the release to
 
 ## Credits
 
-- Original author: [Stein Magnus Jodal](https://github.com/mopidy)
+- Original author: [Stein Magnus Jodal](https://github.com/jodal)
 - Current maintainer: [Nick Steel](https://github.com/kingosticks)
 - [Contributors](https://github.com/mopidy/mopidy-spotify/graphs/contributors)
