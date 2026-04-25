@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import mock
 
 from mopidy_spotify import Extension
@@ -42,7 +43,7 @@ def test_setup() -> None:
     registry.add.assert_called_with("backend", backend_lib.SpotifyBackend)
 
 
-def test_get_credentials_dir(tmp_path) -> None:
+def test_get_credentials_dir(tmp_path: Path) -> None:
     config = {"core": {"data_dir": tmp_path}}
 
     ext = Extension()

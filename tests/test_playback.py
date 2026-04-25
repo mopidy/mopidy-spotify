@@ -1,3 +1,4 @@
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -8,12 +9,12 @@ from mopidy_spotify import backend, web
 
 
 @pytest.fixture
-def audio_mock():
+def audio_mock() -> mock.Mock:
     return mock.Mock(spec=audio.Audio)
 
 
 @pytest.fixture
-def backend_mock(config):
+def backend_mock(config: dict[str, Any]) -> mock.Mock:
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
     backend_mock._web_client = mock.Mock(spec=web.OAuthClient)
@@ -21,15 +22,19 @@ def backend_mock(config):
 
 
 @pytest.fixture
-def provider(audio_mock, backend_mock):
+def provider(
+    audio_mock: mock.Mock, backend_mock: mock.Mock
+) -> backend.SpotifyPlaybackProvider:
     return backend.SpotifyPlaybackProvider(audio=audio_mock, backend=backend_mock)
 
 
-def test_is_a_playback_provider(provider):
+def test_is_a_playback_provider(provider: backend.SpotifyPlaybackProvider):
     assert isinstance(provider, backend_api.PlaybackProvider)
 
 
-def test_on_source_setup_sets_properties(config, provider):
+def test_on_source_setup_sets_properties(
+    config: dict[str, Any], provider: backend.SpotifyPlaybackProvider
+):
     mock_source = mock.MagicMock()
     provider.on_source_setup(mock_source)
     spotify_cache_dir = backend.Extension.get_cache_dir(config)
@@ -45,7 +50,9 @@ def test_on_source_setup_sets_properties(config, provider):
     ]
 
 
-def test_on_source_setup_without_caching(config, provider):
+def test_on_source_setup_without_caching(
+    config: dict[str, Any], provider: backend.SpotifyPlaybackProvider
+):
     config["spotify"]["allow_cache"] = False
     mock_source = mock.MagicMock()
     provider.on_source_setup(mock_source)
@@ -59,7 +66,9 @@ def test_on_source_setup_without_caching(config, provider):
     ]
 
 
-def test_on_source_setup_bitrate_string(config, provider):
+def test_on_source_setup_bitrate_string(
+    config: dict[str, Any], provider: backend.SpotifyPlaybackProvider
+):
     config["spotify"]["bitrate"] = 320
     mock_source = mock.MagicMock()
     provider.on_source_setup(mock_source)

@@ -97,7 +97,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-    "ANN",     # flake8-annotations
+    "ANN201",  # missing-return-type-undocumented-public-function
+    "ANN202",  # missing-return-type-private-function
+    "ANN204",  # missing-return-type-special-method
     "ARG",     # flake8-unused-arguments
     "D",       # pydocstyle
     "FBT",     # flake8-boolean-trap
