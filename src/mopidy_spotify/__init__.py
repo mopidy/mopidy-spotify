@@ -1,11 +1,14 @@
 import pathlib
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from typing import override
 
 import cyclopts
 from mopidy import config, ext
 
-__version__ = version("mopidy-spotify")
+try:
+    __version__ = version("mopidy-spotify")
+except PackageNotFoundError:
+    __version__ = "0.0.0+local"
 
 
 class Extension(ext.Extension):
