@@ -15,12 +15,12 @@ def clear_cache():
 
 
 @pytest.mark.parametrize(
-    "uri,",
+    "uri",
     [
-        ("invalid"),
-        ("spotify:playlist"),
-        ("spotify:invalid:something"),
-        ("spotify:your:tracks:invalid"),
+        "invalid",
+        "spotify:playlist",
+        "spotify:invalid:something",
+        "spotify:your:tracks:invalid",
     ],
 )
 def test_lookup_of_invalid_uri(
