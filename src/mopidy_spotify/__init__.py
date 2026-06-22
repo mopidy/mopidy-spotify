@@ -71,3 +71,7 @@ class Extension(ext.Extension):
         credentials_dir = data_dir / "credentials-cache"
         credentials_dir.mkdir(mode=0o700, exist_ok=True)
         return credentials_dir
+
+    @classmethod
+    def get_auth_state_path(cls, config: config.Config) -> pathlib.Path:
+        return cls.get_data_dir(config) / "auth.json"

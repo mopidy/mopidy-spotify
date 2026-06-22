@@ -4,7 +4,10 @@ import contextlib
 import itertools
 import logging
 import operator
+import os
+import tempfile
 import time
+from pathlib import Path as PathlibPath
 from typing import TYPE_CHECKING
 
 import requests
@@ -14,6 +17,7 @@ from mopidy_spotify import Extension, __version__
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
+    from pathlib import Path
 
     from mopidy.config import ProxyConfig
 
@@ -43,6 +47,24 @@ def time_logger(name: str, level: int = TRACE) -> Generator[None]:
     yield
     end = time.time() - start
     logger.log(level, f"{name} took {int(end * 1000)}ms")
+
+
+@contextlib.contextmanager
+def replace(
+    path: Path,
+    mode: int | None = None,
+) -> Generator[tempfile._TemporaryFileWrapper[bytes]]:
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as file_handle:
+        if mode is not None:
+            os.fchmod(file_handle.fileno(), mode)
+        temp_path = PathlibPath(file_handle.name)
+        try:
+            yield file_handle
+            temp_path.replace(path)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
 
 
 def flatten[T](list_of_lists: Iterable[Iterable[T]]) -> list[T]:
