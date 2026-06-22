@@ -54,3 +54,9 @@ def test_get_credentials_dir(tmp_path: Path) -> None:
 
     result2 = ext.get_credentials_dir(config)  # check exists_ok
     assert result == result2
+
+
+def test_get_auth_state_path(tmp_path: Path) -> None:
+    config = {"core": {"data_dir": tmp_path}}
+
+    assert Extension.get_auth_state_path(config) == (tmp_path / "spotify" / "auth.json")
