@@ -1382,10 +1382,7 @@ class TestSpotifyOAuthClient:
         assert "Expecting Spotify album URI" in caplog.text
 
     @responses.activate
-    @pytest.mark.parametrize(
-        "all_tracks,",
-        [(True), (False)],
-    )
+    @pytest.mark.parametrize("all_tracks", [True, False])
     def test_get_artist_albums(
         self,
         artist_albums_mock: dict[str, Any],
