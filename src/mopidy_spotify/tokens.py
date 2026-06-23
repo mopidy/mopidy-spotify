@@ -45,23 +45,18 @@ class PkceAuthorizedAuthPayload(AuthPayloadBase):
     refresh_token: str
 
 
-class PkceRevokedAuthPayload(AuthPayloadBase):
-    mode: Literal["pkce"] = "pkce"
-    state: Literal["revoked"] = "revoked"
-
-
 class BridgeConfiguredAuthPayload(AuthPayloadBase):
     mode: Literal["bridge"] = "bridge"
     state: Literal["configured"] = "configured"
 
 
-class BridgeClearedAuthPayload(AuthPayloadBase):
-    mode: Literal["bridge"] = "bridge"
+class ClearedAuthPayload(AuthPayloadBase):
+    mode: Literal["pkce", "bridge"]
     state: Literal["cleared"] = "cleared"
 
 
-class BridgePermanentErrorAuthPayload(AuthPayloadBase):
-    mode: Literal["bridge"] = "bridge"
+class PermanentErrorAuthPayload(AuthPayloadBase):
+    mode: Literal["pkce", "bridge"]
     state: Literal["permanent_error"] = "permanent_error"
     error_code: str
     error_description: str | None = None
@@ -69,10 +64,9 @@ class BridgePermanentErrorAuthPayload(AuthPayloadBase):
 
 type AuthPayload = Annotated[
     PkceAuthorizedAuthPayload
-    | PkceRevokedAuthPayload
     | BridgeConfiguredAuthPayload
-    | BridgeClearedAuthPayload
-    | BridgePermanentErrorAuthPayload,
+    | ClearedAuthPayload
+    | PermanentErrorAuthPayload,
     Field(discriminator="state"),
 ]
 AUTH_PAYLOAD_ADAPTER = TypeAdapter(AuthPayload)
@@ -202,14 +196,11 @@ def refresh_token_request(auth_state_path: Path) -> requests.Request:
     if payload is None:
         msg = "missing refresh_token"
         raise ValueError(msg)
-    if payload.mode != "pkce":
+    if payload.state != "authorized" or payload.mode != "pkce":
         error = (
-            "Spotify auth.json uses unsupported mode for refresh_token: "
-            f"{auth_state_path} ({payload.mode})"
+            "Spotify auth.json uses unsupported state for refresh_token: "
+            f"{auth_state_path} ({payload.mode}/{payload.state})"
         )
-        raise InvalidRefreshTokenError(error)
-    if payload.state == "revoked":
-        error = f"Spotify auth.json is revoked: {auth_state_path}"
         raise InvalidRefreshTokenError(error)
     return requests.Request(
         "POST",
