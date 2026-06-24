@@ -25,6 +25,14 @@ def test_file_auth_state_store_round_trips_cleared_bridge(tmp_path: Path):
     assert store.load() == auth_state.ClearedAuthPayload(mode="bridge")
 
 
+def test_file_auth_state_store_rejects_invalid_json(tmp_path: Path):
+    auth_state_path = tmp_path / "auth.json"
+    auth_state_path.write_text("not-json", encoding="utf-8")
+
+    with pytest.raises(auth_state.InvalidRefreshTokenError):
+        auth_state.FileAuthStateStore(auth_state_path).load()
+
+
 def test_refresh_token_request_requires_pkce_authorized(tmp_path: Path):
     auth_state_path = tmp_path / "auth.json"
     auth_state_path.write_text(
