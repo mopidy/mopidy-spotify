@@ -4,7 +4,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Literal
 
 import requests
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    TypeAdapter,
+    ValidationError,
+    field_serializer,
+)
 
 from mopidy_spotify import utils
 from mopidy_spotify.pkce import CLIENT_ID
@@ -24,7 +32,12 @@ class AuthPayloadBase(BaseModel):
 class PkceAuthorizedAuthPayload(AuthPayloadBase):
     mode: Literal["pkce"] = "pkce"
     state: Literal["authorized"] = "authorized"
-    refresh_token: str
+    refresh_token: SecretStr
+
+    @field_serializer("refresh_token", when_used="json")
+    def serialize_refresh_token(self, value: SecretStr) -> str:
+        # Persist only at the storage sink; repr and diagnostics stay redacted.
+        return value.get_secret_value()
 
 
 class BridgeConfiguredAuthPayload(AuthPayloadBase):
@@ -70,9 +83,11 @@ class FileAuthStateStore:
             return AUTH_PAYLOAD_ADAPTER.validate_json(
                 self.path.read_text(encoding="utf-8")
             )
-        except (ValidationError, ValueError) as exc:
-            msg = f"Invalid Spotify auth.json: {self.path}"
-            raise InvalidRefreshTokenError(msg) from exc
+        except (ValidationError, ValueError):
+            pass
+
+        msg = f"Invalid Spotify auth.json: {self.path}"
+        raise InvalidRefreshTokenError(msg)
 
     def save(self, payload: AuthPayload) -> None:
         content = payload.model_dump_json().encode("utf-8")
@@ -98,6 +113,6 @@ def refresh_token_request(auth_state_path: Path) -> requests.Request:
         data={
             "client_id": CLIENT_ID,
             "grant_type": "refresh_token",
-            "refresh_token": payload.refresh_token,
+            "refresh_token": payload.refresh_token.get_secret_value(),
         },
     )

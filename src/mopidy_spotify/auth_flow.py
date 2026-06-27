@@ -7,13 +7,16 @@ persist the resulting auth state.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
 
 import requests
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError
 
 from mopidy_spotify import auth_state, pkce, utils
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -34,7 +37,7 @@ type OAuthErrorCode = Literal[
 class TokenExchangeResponse(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=True)
 
-    refresh_token: str | None = None
+    refresh_token: SecretStr | None = None
     # The enum covers RFC-defined values; `str` keeps non-compliant provider
     # errors like Spotify's `errorTransient`.
     error: OAuthErrorCode | str | None = None
@@ -123,14 +126,18 @@ def _exchange_authorization_code(
     try:
         result = TokenExchangeResponse.model_validate(payload)
     except ValidationError as exc:
+        logger.debug(
+            "Invalid OAuth token exchange response: %s",
+            exc.errors(include_url=False, include_context=False, include_input=False),
+        )
         msg = "missing refresh_token."
-        raise ValueError(msg) from exc
+    else:
+        if result.error is None and result.refresh_token is None:
+            msg = "missing refresh_token."
+            raise ValueError(msg)
+        return result
 
-    if result.error is None and result.refresh_token is None:
-        msg = "missing refresh_token."
-        raise ValueError(msg)
-
-    return result
+    raise ValueError(msg)
 
 
 class AuthFlow:
@@ -192,12 +199,13 @@ class AuthFlow:
         if result.error is not None:
             raise AuthExchangeError(result.error_description or result.error)
 
-        refresh_token = result.refresh_token
-        if refresh_token is None:
+        secret = result.refresh_token
+        if secret is None:
             msg = "missing refresh_token."
             raise AuthExchangeError(msg)
+        refresh_token = secret.get_secret_value()
 
         self._auth_state_store.save(
-            auth_state.PkceAuthorizedAuthPayload(refresh_token=refresh_token)
+            auth_state.PkceAuthorizedAuthPayload(refresh_token=SecretStr(refresh_token))
         )
         return AuthSuccess(refresh_token)

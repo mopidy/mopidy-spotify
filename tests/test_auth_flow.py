@@ -59,6 +59,37 @@ def test_exchange_authorization_code_uses_configured_timeout(
     )
     assert send.call_args.kwargs["timeout"] == expected
     assert result == TokenExchangeResponse(refresh_token="token-123")  # noqa: S106
+    assert "token-123" not in repr(result)
+
+
+def test_exchange_authorization_code_sanitizes_validation_error(
+    caplog: pytest.LogCaptureFixture,
+):
+    refresh_token = "refresh-token-must-not-leak"  # noqa: S105
+    response = requests.Response()
+    response.status_code = 200
+    response._content = json.dumps(
+        {
+            "refresh_token": refresh_token,
+            "error_description": 1,
+        }
+    ).encode()
+    caplog.set_level("DEBUG", logger="mopidy_spotify.auth_flow")
+
+    with (
+        mock.patch.object(requests.Session, "send", return_value=response),
+        pytest.raises(ValueError, match="missing refresh_token") as exc_info,
+    ):
+        _exchange_authorization_code(
+            Config({"proxy": {}, "spotify": {"timeout": 10}}),
+            "code-123",
+            "verifier-123",
+        )
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert refresh_token not in caplog.text
+    assert "string_type" in caplog.text
 
 
 def test_start_auth_returns_typed_challenge():
