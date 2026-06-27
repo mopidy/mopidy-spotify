@@ -54,16 +54,34 @@ def replace(
     path: Path,
     mode: int | None = None,
 ) -> Generator[tempfile._TemporaryFileWrapper[bytes]]:
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as file_handle:
-        if mode is not None:
-            os.fchmod(file_handle.fileno(), mode)
-        temp_path = PathlibPath(file_handle.name)
-        try:
+    temp_path: PathlibPath | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+        ) as file_handle:
+            temp_path = PathlibPath(file_handle.name)
+            if mode is not None:
+                os.fchmod(file_handle.fileno(), mode)
+
             yield file_handle
-            temp_path.replace(path)
-        finally:
-            if temp_path.exists():
+
+            file_handle.flush()
+            os.fsync(file_handle.fileno())
+
+        temp_path.replace(path)
+
+        if os.name == "posix":
+            dir_fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+    finally:
+        if temp_path is not None:
+            with contextlib.suppress(FileNotFoundError):
                 temp_path.unlink()
 
 
