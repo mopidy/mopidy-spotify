@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest import mock
 
-from mopidy_spotify import Extension
+from mopidy_spotify import Extension, commands
 from mopidy_spotify import backend as backend_lib
 
 
@@ -41,6 +41,10 @@ def test_setup() -> None:
     ext.setup(registry)
 
     registry.add.assert_called_with("backend", backend_lib.SpotifyBackend)
+
+
+def test_get_command_exposes_spotify_commands() -> None:
+    assert Extension().get_command() is commands.app
 
 
 def test_get_credentials_dir(tmp_path: Path) -> None:

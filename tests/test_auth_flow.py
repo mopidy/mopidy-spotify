@@ -59,6 +59,89 @@ def test_exchange_authorization_code_uses_configured_timeout(
     )
     assert send.call_args.kwargs["timeout"] == expected
     assert result == TokenExchangeResponse(refresh_token="token-123")  # noqa: S106
+    assert "token-123" not in repr(result)
+
+
+def test_exchange_authorization_code_sanitizes_validation_error(
+    caplog: pytest.LogCaptureFixture,
+):
+    refresh_token = "refresh-token-must-not-leak"  # noqa: S105
+    response = requests.Response()
+    response.status_code = 200
+    response._content = json.dumps(
+        {
+            "refresh_token": refresh_token,
+            "error_description": 1,
+        }
+    ).encode()
+    caplog.set_level("DEBUG", logger="mopidy_spotify.auth_flow")
+
+    with (
+        mock.patch.object(requests.Session, "send", return_value=response),
+        pytest.raises(ValueError, match="invalid token response") as exc_info,
+    ):
+        _exchange_authorization_code(
+            Config({"proxy": {}, "spotify": {"timeout": 10}}),
+            "code-123",
+            "verifier-123",
+        )
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert refresh_token not in caplog.text
+    assert "string_type" in caplog.text
+
+
+def test_exchange_authorization_code_reports_network_failure():
+    with (
+        mock.patch.object(
+            requests.Session,
+            "send",
+            side_effect=requests.ConnectionError("Spotify is unreachable"),
+        ),
+        pytest.raises(ValueError, match="Spotify is unreachable") as exc_info,
+    ):
+        _exchange_authorization_code(
+            Config({"proxy": {}, "spotify": {"timeout": 10}}),
+            "code-123",
+            "verifier-123",
+        )
+
+    assert isinstance(exc_info.value.__cause__, requests.ConnectionError)
+
+
+def test_exchange_authorization_code_reports_invalid_json():
+    response = requests.Response()
+    response.status_code = 200
+    response._content = b"not-json"
+
+    with (
+        mock.patch.object(requests.Session, "send", return_value=response),
+        pytest.raises(ValueError, match="invalid token response") as exc_info,
+    ):
+        _exchange_authorization_code(
+            Config({"proxy": {}, "spotify": {"timeout": 10}}),
+            "code-123",
+            "verifier-123",
+        )
+
+    assert isinstance(exc_info.value.__cause__, requests.JSONDecodeError)
+
+
+def test_exchange_authorization_code_requires_token_or_error():
+    response = requests.Response()
+    response.status_code = 200
+    response._content = b"{}"
+
+    with (
+        mock.patch.object(requests.Session, "send", return_value=response),
+        pytest.raises(ValueError, match="missing refresh_token"),
+    ):
+        _exchange_authorization_code(
+            Config({"proxy": {}, "spotify": {"timeout": 10}}),
+            "code-123",
+            "verifier-123",
+        )
 
 
 def test_start_auth_returns_typed_challenge():
@@ -178,6 +261,26 @@ def test_finish_auth_reports_provider_error(tmp_path: Path):
     )
 
     with pytest.raises(AuthExchangeError, match="Something went wrong: access_denied"):
+        flow.finish_auth(
+            AuthChallenge("https://example.com", "state-123", "verifier-123"),
+            "ignored",
+        )
+
+
+def test_finish_auth_rejects_success_without_refresh_token(tmp_path: Path):
+    flow = AuthFlow(
+        Config({"proxy": {}}),
+        tmp_path / "auth.json",
+        parse_authorization_result=lambda result: pkce.AuthorizationResult(
+            state="state-123",
+            code="code-123",
+        ),
+        exchange_authorization_code=lambda config, code, verifier: (
+            TokenExchangeResponse()
+        ),
+    )
+
+    with pytest.raises(AuthExchangeError, match="missing refresh_token"):
         flow.finish_auth(
             AuthChallenge("https://example.com", "state-123", "verifier-123"),
             "ignored",
