@@ -73,3 +73,25 @@ def test_replace_without_mode_keeps_tempfile_mode(tmp_path: Path):
 
     assert target.read_text() == "new-token"
     assert target.stat().st_mode & 0o777 == 0o600
+
+
+def test_replace_requires_existing_parent_directory(tmp_path: Path):
+    target = tmp_path / "missing" / "refresh-token.txt"
+
+    with pytest.raises(FileNotFoundError), utils.replace(target) as file_handle:
+        file_handle.write(b"new-token")
+
+
+def test_replace_cleans_up_tempfile_after_write_error(tmp_path: Path):
+    target = tmp_path / "refresh-token.txt"
+    message = "boom"
+
+    def write_then_fail() -> None:
+        with utils.replace(target) as file_handle:
+            file_handle.write(b"new-token")
+            raise RuntimeError(message)
+
+    with pytest.raises(RuntimeError, match=message):
+        write_then_fail()
+
+    assert list(tmp_path.iterdir()) == []

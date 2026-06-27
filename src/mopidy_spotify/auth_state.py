@@ -76,6 +76,7 @@ class FileAuthStateStore:
 
     def save(self, payload: AuthPayload) -> None:
         content = payload.model_dump_json().encode("utf-8")
+        self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         with utils.replace(self.path, mode=0o600) as file_handle:
             file_handle.write(content)
 
