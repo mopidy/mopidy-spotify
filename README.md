@@ -9,6 +9,11 @@
 ## Status
 
 > [!WARNING]
+> Spotify has introduced refresh token expiration as described in this
+> [blogpost](https://developer.spotify.com/blog/2026-06-18-refresh-token-expiration).
+> In practice this means you'll have to re-authenticate every six months going forward.
+
+> [!WARNING]
 > Spotify have recently disabled username and password login for playback
 > ([#394](https://github.com/mopidy/mopidy-spotify/issues/394)) and we now use
 > access token login. You no longer need to provide your Spotify account
