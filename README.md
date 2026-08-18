@@ -9,6 +9,12 @@
 ## Status
 
 > [!WARNING]
+> Spotify has recently disabled streaming via third-party access tokens, like the one
+> Mopidy-Spotify uses. Current workarounds are to obtain a new credentials.json file
+> using librespot and put that where Mopidy-Spotify expects it. Details at
+> [#437](https://github.com/mopidy/mopidy-spotify/issues/437#issuecomment-5328412090).
+
+> [!WARNING]
 > Spotify has introduced refresh token expiration as described in this
 > [blogpost](https://developer.spotify.com/blog/2026-06-18-refresh-token-expiration).
 > In practice this means you'll have to re-authenticate every six months going forward.
