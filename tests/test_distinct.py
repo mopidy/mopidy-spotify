@@ -132,6 +132,7 @@ def test_get_distinct_with_query(
     provider: SpotifyLibraryProvider,
     config: dict[str, Any],
     web_client_mock: mock.MagicMock,
+    *,
     field: str,
     query: dict[str, list[str]],
     expected: set[str],

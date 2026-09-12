@@ -426,12 +426,13 @@ def test_web_response_etag_headers(etag: str | None, expected: dict[str, str]):
     ],
 )
 def test_web_response_etag_updated(
+    caplog: pytest.LogCaptureFixture,
+    *,
     etag: str | None,
     status: int,
     expected: bool,
     expected_etag: str | None,
     expected_msg: str,
-    caplog: pytest.LogCaptureFixture,
 ):
     response = web.WebResponse("https://foo.com", {}, expires=1.0, etag=etag)
     new_response = web.WebResponse(
@@ -694,9 +695,10 @@ def test_cache_expired_with_etag(
     mock_time: mock.Mock,
     skip_refresh_token: mock.Mock,
     oauth_client: web.OAuthClient,
+    caplog: pytest.LogCaptureFixture,
+    *,
     status: int,
     unchanged: bool,
-    caplog: pytest.LogCaptureFixture,
 ):
     cache = {"tracks/abc": web_response_mock_etag}
     responses.add(
