@@ -7,7 +7,7 @@ import operator
 import os
 import tempfile
 import time
-from pathlib import Path as PathlibPath
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import requests
@@ -17,7 +17,6 @@ from mopidy_spotify import Extension, __version__
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
-    from pathlib import Path
 
     from mopidy.config import ProxyConfig
 
@@ -54,7 +53,7 @@ def replace(
     path: Path,
     mode: int | None = None,
 ) -> Generator[tempfile._TemporaryFileWrapper[bytes]]:
-    temp_path: PathlibPath | None = None
+    temp_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="wb",
@@ -62,7 +61,7 @@ def replace(
             prefix=f".{path.name}.",
             delete=False,
         ) as file_handle:
-            temp_path = PathlibPath(file_handle.name)
+            temp_path = Path(file_handle.name)
             if mode is not None:
                 os.fchmod(file_handle.fileno(), mode)
 
