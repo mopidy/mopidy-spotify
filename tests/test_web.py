@@ -111,6 +111,91 @@ def test_token_returns_none_when_refresh_fails(
     assert "OAuth token refresh failed: invalid_client Client not known" in caplog.text
 
 
+def test_parse_token_refresh_response_preserves_zero_expiry():
+    response = web._parse_token_refresh_response(
+        web.WebResponse(
+            None,
+            {
+                "access_token": "access-token",
+                "token_type": "Bearer",
+                "expires_in": 0,
+            },
+        )
+    )
+
+    assert isinstance(response, web.OAuthTokenResponse)
+    assert response.expires_in == 0
+
+
+def test_token_refresh_response_redacts_tokens():
+    access_token = "access-token-secret"  # noqa: S105
+    refresh_token = "refresh-token-secret"  # noqa: S105
+    response = web.OAuthTokenResponse(
+        access_token=access_token,
+        token_type="Bearer",  # noqa: S106
+        refresh_token=refresh_token,
+    )
+
+    assert access_token not in repr(response)
+    assert refresh_token not in repr(response)
+
+
+def test_parse_token_refresh_error_response():
+    response = web._parse_token_refresh_response(
+        web.WebResponse(
+            None,
+            {
+                "error": "invalid_grant",
+                "error_description": "Refresh token expired",
+            },
+        )
+    )
+
+    assert response == web.OAuthErrorResponse(
+        error="invalid_grant",
+        error_description="Refresh token expired",
+    )
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"access_token": ""},
+        {"access_token": "access-token", "token_type": 1},
+    ],
+)
+def test_parse_token_refresh_response_rejects_invalid_payload(data: dict[str, Any]):
+    with pytest.raises(web.OAuthTokenRefreshError):
+        web._parse_token_refresh_response(web.WebResponse(None, data))
+
+
+def test_parse_token_refresh_response_sanitizes_validation_error(
+    caplog: pytest.LogCaptureFixture,
+):
+    access_token = "access-token-must-not-leak"  # noqa: S105
+    refresh_token = "refresh-token-must-not-leak"  # noqa: S105
+    caplog.set_level("DEBUG", logger="mopidy_spotify.web")
+
+    with pytest.raises(web.OAuthTokenRefreshError) as exc_info:
+        web._parse_token_refresh_response(
+            web.WebResponse(
+                None,
+                {
+                    "access_token": access_token,
+                    "token_type": 1,
+                    "refresh_token": refresh_token,
+                },
+            )
+        )
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert access_token not in caplog.text
+    assert refresh_token not in caplog.text
+    assert "string_type" in caplog.text
+
+
 def test_user_agent(oauth_client: web.OAuthClient):
     assert oauth_client._session.headers["user-agent"].startswith(
         f"mopidy-spotify/{mopidy_spotify.__version__}"
