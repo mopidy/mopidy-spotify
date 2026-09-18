@@ -1,3 +1,10 @@
+"""Low-level PKCE helpers for Spotify auth.
+
+This module generates PKCE verifier/challenge values, builds the Spotify
+authorization URL, and parses the pasted redirect payload. It does not
+persist auth state or orchestrate the interactive auth exchange.
+"""
+
 from __future__ import annotations
 
 import base64
