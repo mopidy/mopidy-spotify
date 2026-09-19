@@ -1,9 +1,74 @@
 import base64
+import re
 from dataclasses import dataclass
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
 from mopidy_spotify import pkce
+
+
+def test_generate_pkce_verifier_matches_rfc7636_vector(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # RFC 7636 Appendix B provides an independent S256 test vector.
+    verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+    monkeypatch.setattr(pkce.secrets, "token_urlsafe", lambda _: verifier)
+
+    assert pkce.generate_pkce_verifier() == (
+        verifier,
+        "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+    )
+
+
+def test_generate_pkce_verifier_uses_protocol_safe_length_and_characters() -> None:
+    verifier, challenge = pkce.generate_pkce_verifier()
+
+    assert re.fullmatch(r"[A-Za-z0-9._~-]{43,128}", verifier)
+    assert re.fullmatch(r"[A-Za-z0-9_-]{43}", challenge)
+
+
+def test_generate_authorization_url_preserves_pkce_parameters() -> None:
+    challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+    state = "state+/=&?"
+
+    url = urlsplit(pkce.generate_authorization_url(challenge, state))
+    query = parse_qs(url.query)
+
+    assert (url.scheme, url.netloc, url.path) == (
+        "https",
+        "accounts.spotify.com",
+        "/authorize",
+    )
+    assert not url.fragment
+    assert query == {
+        "client_id": [pkce.CLIENT_ID],
+        "response_type": ["code"],
+        "redirect_uri": [pkce.REDIRECT_URI],
+        "code_challenge_method": ["S256"],
+        "code_challenge": [challenge],
+        "state": [state],
+        "scope": [" ".join(pkce.SCOPES)],
+    }
+
+
+def test_exchange_code_request_encodes_authorization_code_and_verifier() -> None:
+    code = "code+/=&?"
+    verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+    request = pkce.exchange_code_request(code, verifier).prepare()
+
+    assert request.method == "POST"
+    assert request.url == "https://accounts.spotify.com/api/token"
+    assert request.headers["Content-Type"] == "application/x-www-form-urlencoded"
+    assert isinstance(request.body, str)
+    assert parse_qs(request.body) == {
+        "client_id": [pkce.CLIENT_ID],
+        "grant_type": ["authorization_code"],
+        "code": [code],
+        "redirect_uri": [pkce.REDIRECT_URI],
+        "code_verifier": [verifier],
+    }
 
 
 def test_parse_authorization_result_parses_redirect_url() -> None:
