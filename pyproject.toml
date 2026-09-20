@@ -15,9 +15,11 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+    "filelock >= 3.20",
     "mopidy >= 4.0.0",
     "pykka >= 4.1",
     "requests >= 2.32",
+    "uuid-extension >= 0.2",
 ]
 
 [project.optional-dependencies]

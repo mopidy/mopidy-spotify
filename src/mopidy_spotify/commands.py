@@ -7,12 +7,17 @@ import cyclopts
 from mopidy.config import Config
 
 from mopidy_spotify import Extension
-from mopidy_spotify.oauth import flow, state
+from mopidy_spotify.oauth import flow, manifest, store
 
 logger = logging.getLogger(__name__)
 
 
 app = cyclopts.App(help="Spotify extension commands.")
+auth_app = cyclopts.App(
+    name="auth",
+    help="Authorize Spotify access.",
+)
+app.command(auth_app)
 
 
 def run_auth_command(
@@ -46,11 +51,14 @@ def run_auth_command(
     return 0
 
 
-@app.command(help="Store Spotify PKCE authorization.")
-def auth() -> int:
+@auth_app.command(help="Authorize Spotify Web API access with PKCE.")
+def web(
+    *,
+    storage: manifest.StorageType = manifest.StorageType.INLINE,
+) -> int:
     config = Config.get_global()
     auth_state_path = Extension.get_auth_state_path(config)
-    auth_flow = flow.AuthFlow(config, auth_state_path)
+    auth_flow = flow.AuthFlow(config, auth_state_path, storage_type=storage)
     return run_auth_command(auth_flow)
 
 
@@ -79,14 +87,7 @@ def logout() -> None:
 
     auth_state_cleared = True
     try:
-        try:
-            payload = state.FileAuthStateStore(auth_state_path).load()
-        except state.InvalidRefreshTokenError:
-            payload = None
-        mode = payload.mode if payload is not None else "bridge"
-        state.FileAuthStateStore(auth_state_path).save(
-            state.ClearedAuthPayload(mode=mode)
-        )
+        store.Store(auth_state_path).clear()
         logger.debug(f"Cleared file {auth_state_path}")
     except Exception as error:  # noqa: BLE001
         auth_state_cleared = False
