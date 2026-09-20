@@ -42,11 +42,8 @@ class _System:
     """Facade over the optional system keyring package."""
 
     service: str
-    backend: _Backend | None = None
 
     def _backend(self) -> _Backend:
-        if self.backend is not None:
-            return self.backend
         try:
             return importlib.import_module("keyring")  # type: ignore[return-value]
         except ImportError as exc:

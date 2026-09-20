@@ -67,7 +67,7 @@ def test_system_store_wraps_backend_errors(operation: str):
         )
 
 
-def test_system_store_reports_unavailable_backend():
+def test_system_store_reports_unavailable_backend_when_loading():
     store = keyring.system("service")
 
     with (
@@ -75,3 +75,23 @@ def test_system_store_reports_unavailable_backend():
         pytest.raises(keyring.UnavailableError, match="unavailable"),
     ):
         store.load("username")
+
+
+def test_system_store_reports_unavailable_backend_when_saving():
+    store = keyring.system("service")
+
+    with (
+        mock.patch.object(keyring.importlib, "import_module", side_effect=ImportError),
+        pytest.raises(keyring.UnavailableError, match="unavailable"),
+    ):
+        store.save("username", "secret")
+
+
+def test_system_store_reports_unavailable_backend_when_clearing():
+    store = keyring.system("service")
+
+    with (
+        mock.patch.object(keyring.importlib, "import_module", side_effect=ImportError),
+        pytest.raises(keyring.UnavailableError, match="unavailable"),
+    ):
+        store.clear("username")
