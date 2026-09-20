@@ -81,6 +81,36 @@ def test_still_valid_refresh_token(oauth_client: web.OAuthClient, mock_time: moc
         assert not oauth_client._should_refresh_token()
 
 
+@responses.activate
+def test_token_returns_refreshed_access_token(
+    web_oauth_mock: dict[str, Any],
+    oauth_client: web.OAuthClient,
+):
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        json=web_oauth_mock,
+    )
+
+    assert oauth_client.token() == "NgCXRK...MzYjw"
+
+
+@responses.activate
+def test_token_returns_none_when_refresh_fails(
+    oauth_client: web.OAuthClient,
+    caplog: pytest.LogCaptureFixture,
+):
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        json={"error": "invalid_client", "error_description": "Client not known"},
+        status=401,
+    )
+
+    assert oauth_client.token() is None
+    assert "OAuth token refresh failed: invalid_client Client not known" in caplog.text
+
+
 def test_user_agent(oauth_client: web.OAuthClient):
     assert oauth_client._session.headers["user-agent"].startswith(
         f"mopidy-spotify/{mopidy_spotify.__version__}"
