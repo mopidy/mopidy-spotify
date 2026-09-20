@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Literal, Protocol
 import requests
 from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError
 
-from mopidy_spotify import auth_state, pkce, utils
+from mopidy_spotify import utils
+from mopidy_spotify.oauth import pkce, state
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,7 @@ class AuthFlow:
         ),
     ) -> None:
         self._config = config
-        self._auth_state_store = auth_state.FileAuthStateStore(auth_state_path)
+        self._auth_state_store = state.FileAuthStateStore(auth_state_path)
         self._generate_pkce_verifier = generate_pkce_verifier
         self._generate_state = generate_state
         self._generate_authorization_url = generate_authorization_url
@@ -204,6 +205,6 @@ class AuthFlow:
             msg = "missing refresh_token."
             raise AuthExchangeError(msg)
         self._auth_state_store.save(
-            auth_state.PkceAuthorizedAuthPayload(refresh_token=secret)
+            state.PkceAuthorizedAuthPayload(refresh_token=secret)
         )
         return AuthSuccess(secret.get_secret_value())

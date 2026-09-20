@@ -6,8 +6,8 @@ import pytest
 import requests
 from mopidy.config import Config
 
-from mopidy_spotify import pkce
-from mopidy_spotify.auth_flow import (
+from mopidy_spotify.oauth import pkce
+from mopidy_spotify.oauth.flow import (
     AuthChallenge,
     AuthExchangeError,
     AuthFlow,
@@ -74,7 +74,7 @@ def test_exchange_authorization_code_sanitizes_validation_error(
             "error_description": 1,
         }
     ).encode()
-    caplog.set_level("DEBUG", logger="mopidy_spotify.auth_flow")
+    caplog.set_level("DEBUG", logger="mopidy_spotify.oauth.flow")
 
     with (
         mock.patch.object(requests.Session, "send", return_value=response),
