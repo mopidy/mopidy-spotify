@@ -14,8 +14,15 @@ from typing import Literal, Protocol, runtime_checkable
 
 import requests
 
-from mopidy_spotify import web
 from mopidy_spotify.oauth import pkce, state
+from mopidy_spotify.oauth.tokens import (
+    OAuthErrorResponse,
+    OAuthTokenRefreshError,
+    OAuthTokenResponse,
+)
+
+BRIDGE_REFRESH_URL = "https://auth.mopidy.com/spotify/token"
+SPOTIFY_REFRESH_URL = "https://accounts.spotify.com/api/token"
 
 
 @runtime_checkable
@@ -35,7 +42,7 @@ class RefreshProvider(Protocol):
 
     def state_after_success(
         self,
-        response: web.OAuthTokenResponse,
+        response: OAuthTokenResponse,
         auth_state: state.State | None,
     ) -> state.State:
         """Propose the next state; persistence precedes access-token installation."""
@@ -43,7 +50,7 @@ class RefreshProvider(Protocol):
 
     def state_after_error(
         self,
-        response: web.OAuthErrorResponse,
+        response: OAuthErrorResponse,
         auth_state: state.State | None,
         status_code: int | HTTPStatus | None = None,
     ) -> state.State:
@@ -52,7 +59,7 @@ class RefreshProvider(Protocol):
 
 
 def _is_permanent_error(
-    response: web.OAuthErrorResponse,
+    response: OAuthErrorResponse,
     status_code: int | HTTPStatus | None,
 ) -> bool:
     if response.error in {
@@ -82,14 +89,14 @@ def _is_permanent_error(
 
 
 def _state_after_error(
-    response: web.OAuthErrorResponse,
+    response: OAuthErrorResponse,
     status_code: int | HTTPStatus | None,
     *,
     mode: Literal["pkce", "bridge"],
 ) -> state.PermanentError:
     if not _is_permanent_error(response, status_code):
         detail = response.error_description or response.error
-        raise web.OAuthTokenRefreshError(detail)
+        raise OAuthTokenRefreshError(detail)
     return state.PermanentError(
         mode=mode,
         error_code=response.error,
@@ -107,7 +114,7 @@ class PkceRefreshProvider:
 
         return requests.Request(
             "POST",
-            web.SPOTIFY_REFRESH_URL,
+            SPOTIFY_REFRESH_URL,
             data={
                 "client_id": pkce.CLIENT_ID,
                 "grant_type": "refresh_token",
@@ -117,12 +124,12 @@ class PkceRefreshProvider:
 
     def state_after_success(
         self,
-        response: web.OAuthTokenResponse,
+        response: OAuthTokenResponse,
         auth_state: state.State | None,
     ) -> state.State:
         if not isinstance(auth_state, state.PkceAuthorized):
             msg = "missing PKCE authorization state"
-            raise web.OAuthTokenRefreshError(msg)
+            raise OAuthTokenRefreshError(msg)
 
         refresh_token = response.refresh_token
         if refresh_token is None or not refresh_token.get_secret_value():
@@ -131,7 +138,7 @@ class PkceRefreshProvider:
 
     def state_after_error(
         self,
-        response: web.OAuthErrorResponse,
+        response: OAuthErrorResponse,
         auth_state: state.State | None,
         status_code: int | HTTPStatus | None = None,
     ) -> state.State:
@@ -157,14 +164,14 @@ class BridgeRefreshProvider:
 
         return requests.Request(
             "POST",
-            web.BRIDGE_REFRESH_URL,
+            BRIDGE_REFRESH_URL,
             auth=(self.client_id, self.client_secret),
             data={"grant_type": "client_credentials"},
         )
 
     def state_after_success(
         self,
-        response: web.OAuthTokenResponse,
+        response: OAuthTokenResponse,
         auth_state: state.State | None,
     ) -> state.State:
         _ = response, auth_state
@@ -172,7 +179,7 @@ class BridgeRefreshProvider:
 
     def state_after_error(
         self,
-        response: web.OAuthErrorResponse,
+        response: OAuthErrorResponse,
         auth_state: state.State | None,
         status_code: int | HTTPStatus | None = None,
     ) -> state.State:

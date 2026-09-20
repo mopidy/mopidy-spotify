@@ -16,9 +16,16 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import requests
-from pydantic import BaseModel, ConfigDict, SecretStr, TypeAdapter, ValidationError
+from pydantic import SecretStr, TypeAdapter, ValidationError
 
 from mopidy_spotify import utils
+from mopidy_spotify.oauth import providers
+from mopidy_spotify.oauth.tokens import (
+    AccessTokenSource,
+    OAuthErrorResponse,
+    OAuthTokenRefreshError,
+    OAuthTokenResponse,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
@@ -28,47 +35,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-BRIDGE_REFRESH_URL = "https://auth.mopidy.com/spotify/token"
-SPOTIFY_REFRESH_URL = "https://accounts.spotify.com/api/token"
+BRIDGE_REFRESH_URL = providers.BRIDGE_REFRESH_URL
+SPOTIFY_REFRESH_URL = providers.SPOTIFY_REFRESH_URL
 
 
 def _trace(*args: Any, **kwargs: Any) -> None:
     logger.log(utils.TRACE, *args, **kwargs)
 
 
-class OAuthTokenRefreshError(Exception):
-    def __init__(self, reason: str) -> None:
-        message = f"OAuth token refresh failed: {reason}"
-        super().__init__(message)
-
-
 class OAuthClientError(Exception):
     pass
-
-
-class OAuthTokenResponse(BaseModel):
-    """Validated in-memory success, separate from persisted authorization.
-
-    Tokens stay redacted in representations; the authorization store owns
-    whether and where a refresh token is persisted.
-    """
-
-    model_config = ConfigDict(extra="ignore", strict=True)
-
-    access_token: SecretStr
-    token_type: str
-    expires_in: int | float | None = None
-    refresh_token: SecretStr | None = None
-    scope: str | None = None
-
-
-class OAuthErrorResponse(BaseModel):
-    """Validated failure whose code informs provider transition policy."""
-
-    model_config = ConfigDict(extra="ignore", strict=True)
-
-    error: str
-    error_description: str | None = None
 
 
 OAUTH_REFRESH_RESPONSE_ADAPTER = TypeAdapter(OAuthTokenResponse | OAuthErrorResponse)
@@ -105,31 +81,29 @@ def _parse_token_refresh_response(
 
 
 class OAuthClient:
+    """Shared HTTP exchange and in-memory access-token management.
+
+    The token source settles authorization state before the client installs the
+    returned access token under the refresh mutex.
+    """
+
     def __init__(  # noqa: PLR0913
         self,
         *,
         base_url: str,
-        refresh_url: str,
-        client_id: str | None = None,
-        client_secret: str | None = None,
+        token_source: AccessTokenSource,
         proxy_config: ProxyConfig | None = None,
         expiry_margin: int = 60,
         timeout: int = 10,
         retries: int = 3,
         retry_statuses: tuple[int, ...] = (500, 502, 503, 429),
     ) -> None:
-        if client_id and client_secret:
-            self._auth = (client_id, client_secret)
-        else:
-            self._auth = None
-        self._access_token = None
+        self._access_token: SecretStr | None = None
+        self._token_source = token_source
 
         self._base_url = base_url
-        self._refresh_url = refresh_url
-
         self._margin = expiry_margin
         self._expires = 0
-        self._authorization_failed = False
 
         self._timeout = timeout
         self._number_of_retries = retries
@@ -151,7 +125,9 @@ class OAuthClient:
                 logger.error(e)  # noqa: TRY400
                 return None
             else:
-                return self._access_token
+                if self._access_token is None:
+                    return None
+                return self._access_token.get_secret_value()
 
     def get(
         self,
@@ -160,10 +136,6 @@ class OAuthClient:
         *args: Any,
         **kwargs: Any,
     ) -> WebResponse:
-        if self._authorization_failed:
-            logger.debug("Blocking request as previous authorization failed.")
-            return WebResponse(None, None)
-
         params = kwargs.pop("params", None)
         path = self._normalise_query_string(path, params)
 
@@ -213,43 +185,62 @@ class OAuthClient:
         if not self._refresh_mutex.locked():
             msg = "Lock must be held before calling."
             raise OAuthTokenRefreshError(msg)
-        return not self._auth or time.time() > self._expires - self._margin
+        return (
+            "Authorization" not in self._headers and self._expires == 0
+        ) or time.time() > self._expires - self._margin
 
-    def _refresh_token(self) -> None:
-        logger.debug(f"Fetching OAuth token from {self._refresh_url}")
-
-        if not self._refresh_mutex.locked():
-            msg = "Lock must be held before calling."
+    def _exchange_token(
+        self,
+        request: requests.Request,
+    ) -> tuple[OAuthTokenResponse | OAuthErrorResponse, int]:
+        logger.debug(f"Fetching OAuth token from {request.url}")
+        if request.method is None or not isinstance(request.url, str):
+            msg = "invalid token request"
             raise OAuthTokenRefreshError(msg)
-
-        data = {"grant_type": "client_credentials"}
         result = self._request_with_retries(
-            "POST", self._refresh_url, auth=self._auth, data=data
+            request.method,
+            request.url,
+            auth=request.auth,
+            data=request.data,
         )
 
         if result is None:
             msg = "Unknown error."
             raise OAuthTokenRefreshError(msg)
-        if result.get("error"):
-            msg = f"{result['error']} {result.get('error_description', '')}"
-            raise OAuthTokenRefreshError(msg)
-        if not result.get("access_token"):
-            msg = "missing access_token"
-            raise OAuthTokenRefreshError(msg)
-        if result.get("token_type") != "Bearer":
-            msg = f"wrong token_type: {result.get('token_type')}"
+
+        response = _parse_token_refresh_response(result)
+        if isinstance(response, OAuthErrorResponse):
+            return response, result._status_code
+
+        if not result.status_ok:
+            msg = f"token endpoint returned HTTP {result._status_code}"
             raise OAuthTokenRefreshError(msg)
 
-        self._access_token = result["access_token"]
-        self._headers["Authorization"] = f"Bearer {self._access_token}"
-        self._expires = time.time() + result.get("expires_in", float("Inf"))
+        if response.token_type != "Bearer":  # noqa: S105
+            msg = f"wrong token_type: {response.token_type}"
+            raise OAuthTokenRefreshError(msg)
 
-        if result.get("expires_in"):
-            logger.debug(
-                f"Token expires in {result['expires_in']} seconds.",
-            )
-        if result.get("scope"):
-            logger.debug(f"Token scopes: {result['scope']}")
+        return response, result._status_code
+
+    def _install_access_token(self, response: OAuthTokenResponse) -> None:
+        self._access_token = response.access_token
+        self._headers["Authorization"] = (
+            f"Bearer {response.access_token.get_secret_value()}"
+        )
+        lifetime = float("Inf") if response.expires_in is None else response.expires_in
+        self._expires = time.time() + lifetime
+
+        if response.expires_in is not None:
+            logger.debug(f"Token expires in {response.expires_in} seconds.")
+        if response.scope:
+            logger.debug(f"Token scopes: {response.scope}")
+
+    def _refresh_token(self) -> None:
+        if not self._refresh_mutex.locked():
+            msg = "Lock must be held before calling."
+            raise OAuthTokenRefreshError(msg)
+
+        self._install_access_token(self._token_source.refresh(self._exchange_token))
 
     def _request_with_retries(
         self,
@@ -310,7 +301,6 @@ class OAuthClient:
             )
 
         if status_code == HTTPStatus.UNAUTHORIZED:
-            self._authorization_failed = True
             logger.error(
                 "Authorization failed, not attempting Spotify API "
                 "request. Please get new credentials from "
@@ -611,15 +601,12 @@ class SpotifyOAuthClient(OAuthClient):
     def __init__(
         self,
         *,
-        client_id: str,
-        client_secret: str,
+        token_source: AccessTokenSource,
         proxy_config: ProxyConfig | None = None,
     ) -> None:
         super().__init__(
             base_url="https://api.spotify.com/v1",
-            refresh_url="https://auth.mopidy.com/spotify/token",
-            client_id=client_id,
-            client_secret=client_secret,
+            token_source=token_source,
             proxy_config=proxy_config,
         )
         self.user_id: str | None = None

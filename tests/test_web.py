@@ -1,5 +1,8 @@
+import base64
+import json
 import urllib
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from unittest import mock
 
@@ -7,22 +10,69 @@ import pytest
 import requests
 import responses
 from mopidy.types import Uri
+from pydantic import SecretStr
 from responses import matchers
 
 import mopidy_spotify
 from mopidy_spotify import web
+from mopidy_spotify._ext import keyring as keyring_ext
+from mopidy_spotify.oauth import pkce, state
+from mopidy_spotify.oauth import store as auth_store
+from mopidy_spotify.oauth.source import SpotifyAccessTokenSource
+from mopidy_spotify.oauth.tokens import TokenExchange
+
+
+def _spotify_client(
+    *,
+    client_id: str | None,
+    client_secret: str | None,
+    auth_state_path: Path | None = None,
+    proxy_config: Any = None,
+) -> web.SpotifyOAuthClient:
+    return web.SpotifyOAuthClient(
+        token_source=SpotifyAccessTokenSource(
+            client_id=client_id,
+            client_secret=client_secret,
+            auth_state_path=auth_state_path,
+        ),
+        proxy_config=proxy_config,
+    )
 
 
 @pytest.fixture
 def oauth_client(config: dict[str, Any]) -> web.OAuthClient:
-    return web.OAuthClient(
-        base_url="https://api.spotify.com/v1",
-        refresh_url="https://auth.mopidy.com/spotify/token",
+    return _spotify_client(
         client_id=config["spotify"]["client_id"],
         client_secret=config["spotify"]["client_secret"],
         proxy_config=None,
-        expiry_margin=60,
     )
+
+
+@pytest.fixture
+def refresh_token_oauth_client(
+    config: dict[str, Any], tmp_path: Path
+) -> tuple[web.SpotifyOAuthClient, Path]:
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "authorized",
+                "refresh_token": {
+                    "storage": "inline",
+                    "value": "refresh-token-1",
+                },
+            }
+        )
+    )
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        proxy_config=None,
+        auth_state_path=refresh_token_path,
+    )
+    return client, refresh_token_path
 
 
 @pytest.fixture
@@ -93,6 +143,7 @@ def test_token_returns_refreshed_access_token(
     )
 
     assert oauth_client.token() == "NgCXRK...MzYjw"
+    assert isinstance(oauth_client._access_token, SecretStr)
 
 
 @responses.activate
@@ -108,7 +159,7 @@ def test_token_returns_none_when_refresh_fails(
     )
 
     assert oauth_client.token() is None
-    assert "OAuth token refresh failed: invalid_client Client not known" in caplog.text
+    assert "OAuth token refresh failed: Client not known" in caplog.text
 
 
 def test_parse_token_refresh_response_preserves_zero_expiry():
@@ -245,6 +296,262 @@ def test_user_agent(oauth_client: web.OAuthClient):
     )
 
 
+@responses.activate
+def test_generic_oauth_client_exchanges_token_from_injected_source():
+    responses.add(
+        responses.POST,
+        "https://example.com/token",
+        json={"access_token": "other-provider-token", "token_type": "Bearer"},
+    )
+
+    def refresh(exchange: TokenExchange) -> web.OAuthTokenResponse:
+        token, status = exchange(requests.Request("POST", "https://example.com/token"))
+        assert status == 200
+        assert isinstance(token, web.OAuthTokenResponse)
+        return token
+
+    source = mock.Mock()
+    source.refresh.side_effect = refresh
+    client = web.OAuthClient(base_url="https://example.com", token_source=source)
+
+    assert client.token() == "other-provider-token"
+    assert client._headers["Authorization"] == "Bearer other-provider-token"
+    source.refresh.assert_called_once()
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    "token_request",
+    [requests.Request(url="https://example.com/token"), requests.Request("POST")],
+    ids=["missing-method", "missing-url"],
+)
+def test_generic_oauth_client_rejects_incomplete_token_request(
+    token_request: requests.Request, caplog: pytest.LogCaptureFixture
+):
+    def refresh(exchange: TokenExchange) -> web.OAuthTokenResponse:
+        token, _ = exchange(token_request)
+        assert isinstance(token, web.OAuthTokenResponse)
+        return token
+
+    source = mock.Mock()
+    source.refresh.side_effect = refresh
+    client = web.OAuthClient(base_url="https://example.com", token_source=source)
+
+    assert client.token() is None
+    assert not responses.calls
+    assert "OAuth token refresh failed: invalid token request" in caplog.text
+
+
+@responses.activate
+def test_spotify_oauth_client_requires_refresh_provider_without_credentials(
+    caplog: pytest.LogCaptureFixture,
+):
+    client = _spotify_client(
+        client_id=None,
+        client_secret=None,
+        proxy_config=None,
+    )
+
+    assert client.token() is None
+    assert not responses.calls
+    assert "No refresh provider available" in caplog.text
+
+
+@responses.activate
+def test_spotify_oauth_client_supports_bridge_without_auth_state_file(
+    config: dict[str, Any],
+):
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        proxy_config=None,
+    )
+    responses.add(
+        responses.POST,
+        web.BRIDGE_REFRESH_URL,
+        json={
+            "access_token": "access-token-1",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+    )
+
+    assert client.token() == "access-token-1"
+
+
+@responses.activate
+def test_spotify_oauth_client_uses_pkce_refresh_request_when_present(
+    config: dict[str, Any], tmp_path: Path
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "authorized",
+                "refresh_token": {
+                    "storage": "inline",
+                    "value": "refresh-token-123",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        auth_state_path=refresh_token_path,
+        proxy_config=None,
+    )
+    responses.add(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        json={"access_token": "access-token", "token_type": "Bearer"},
+    )
+
+    assert client.token() == "access-token"
+    request = responses.calls[0].request
+    assert request.url == web.SPOTIFY_REFRESH_URL
+    assert "Authorization" not in request.headers
+    assert urllib.parse.parse_qs(request.body) == {
+        "client_id": [pkce.CLIENT_ID],
+        "grant_type": ["refresh_token"],
+        "refresh_token": ["refresh-token-123"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("mode", "authorization_state"),
+    [("bridge", "configured"), ("pkce", "cleared")],
+)
+@responses.activate
+def test_spotify_oauth_client_uses_bridge_for_non_authorized_state(
+    config: dict[str, Any],
+    tmp_path: Path,
+    mode: str,
+    authorization_state: str,
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(
+        json.dumps({"version": 1, "mode": mode, "state": authorization_state}),
+        encoding="utf-8",
+    )
+
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        auth_state_path=refresh_token_path,
+        proxy_config=None,
+    )
+    responses.add(
+        responses.POST,
+        web.BRIDGE_REFRESH_URL,
+        json={"access_token": "access-token", "token_type": "Bearer"},
+    )
+
+    assert client.token() == "access-token"
+    request = responses.calls[0].request
+    assert request.url == web.BRIDGE_REFRESH_URL
+    assert urllib.parse.parse_qs(request.body) == {"grant_type": ["client_credentials"]}
+    credentials = (
+        f"{config['spotify']['client_id']}:{config['spotify']['client_secret']}"
+    )
+    expected = base64.b64encode(credentials.encode()).decode()
+    assert request.headers["Authorization"] == f"Basic {expected}"
+
+
+@responses.activate
+def test_spotify_oauth_client_falls_back_to_auth_proxy_after_auth_json_removed(
+    config: dict[str, Any],
+    tmp_path: Path,
+    mock_time: mock.Mock,
+    web_track_mock: dict[str, Any],
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text("stub")
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        auth_state_path=refresh_token_path,
+        proxy_config=None,
+    )
+    refresh_token_path.unlink()
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        json={
+            "access_token": "access-token-2",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        match=[
+            matchers.urlencoded_params_matcher({"grant_type": "client_credentials"})
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://api.spotify.com/v1/tracks/abc",
+        json=web_track_mock,
+    )
+    mock_time.return_value = 1000
+
+    result = client.get("tracks/abc")
+
+    assert result["uri"] == "spotify:track:abc"
+    assert len(responses.calls) == 2
+    assert responses.calls[0].request.url == "https://auth.mopidy.com/spotify/token"
+
+
+@responses.activate
+def test_get_does_not_store_refresh_token_for_bridge_auth_state(
+    config: dict[str, Any],
+    tmp_path: Path,
+    mock_time: mock.Mock,
+    web_track_mock: dict[str, Any],
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(
+        json.dumps({"version": 1, "mode": "bridge", "state": "configured"}),
+        encoding="utf-8",
+    )
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        auth_state_path=refresh_token_path,
+        proxy_config=None,
+    )
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        json={
+            "access_token": "access-token-2",
+            "refresh_token": "refresh-token-should-be-ignored",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        match=[
+            matchers.urlencoded_params_matcher({"grant_type": "client_credentials"})
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://api.spotify.com/v1/tracks/abc",
+        json=web_track_mock,
+    )
+    mock_time.return_value = 1000
+
+    result = client.get("tracks/abc")
+
+    assert result["uri"] == "spotify:track:abc"
+    assert json.loads(refresh_token_path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "mode": "bridge",
+        "state": "configured",
+    }
+
+
 @pytest.mark.parametrize(
     ("header", "expected"),
     [
@@ -354,6 +661,570 @@ def test_get_uses_existing_access_token(
     assert responses.calls[0].request.headers["Authorization"] == "Bearer 01234...abcde"
 
     assert oauth_client._headers["Authorization"] == "Bearer 01234...abcde"
+    assert result["uri"] == "spotify:track:abc"
+
+
+@responses.activate
+def test_get_uses_stored_refresh_token(
+    web_track_mock: dict[str, Any],
+    mock_time: mock.Mock,
+    refresh_token_oauth_client: tuple[web.OAuthClient, Path],
+):
+    oauth_client, refresh_token_path = refresh_token_oauth_client
+    responses.add(
+        responses.POST,
+        "https://accounts.spotify.com/api/token",
+        json={
+            "access_token": "access-token-2",
+            "refresh_token": "refresh-token-2",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        match=[
+            matchers.urlencoded_params_matcher(
+                {
+                    "client_id": pkce.CLIENT_ID,
+                    "grant_type": "refresh_token",
+                    "refresh_token": "refresh-token-1",
+                }
+            )
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://api.spotify.com/v1/tracks/abc",
+        json=web_track_mock,
+    )
+    mock_time.return_value = 1000
+
+    result = oauth_client.get("tracks/abc")
+
+    assert len(responses.calls) == 2
+    assert (
+        responses.calls[1].request.headers["Authorization"] == "Bearer access-token-2"
+    )
+    assert json.loads(refresh_token_path.read_text()) == {
+        "version": 1,
+        "mode": "pkce",
+        "state": "authorized",
+        "refresh_token": {
+            "storage": "inline",
+            "value": "refresh-token-2",
+        },
+    }
+    assert result["uri"] == "spotify:track:abc"
+
+
+@responses.activate
+def test_get_rotates_keyring_refresh_token(
+    config: dict[str, Any],
+    tmp_path: Path,
+):
+    path = tmp_path / "auth.json"
+    keyring = keyring_ext.memory()
+    keyring.save("original-id", "refresh-token-1")
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "authorized",
+                "refresh_token": {
+                    "storage": "keyring",
+                    "service": "mopidy-spotify",
+                    "username": "original-id",
+                },
+            }
+        )
+    )
+    responses.add(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        json={
+            "access_token": "access-token",
+            "refresh_token": "refresh-token-2",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+    )
+
+    with mock.patch.object(keyring_ext, "system", return_value=keyring):
+        client = _spotify_client(
+            client_id=config["spotify"]["client_id"],
+            client_secret=config["spotify"]["client_secret"],
+            auth_state_path=path,
+        )
+        assert client.token() == "access-token"
+
+    manifest = json.loads(path.read_text())
+    username = manifest["refresh_token"]["username"]
+    assert username != "original-id"
+    assert keyring.values == {username: "refresh-token-2"}
+
+
+@responses.activate
+def test_pkce_refresh_rejects_wrong_token_type(
+    refresh_token_oauth_client: tuple[web.SpotifyOAuthClient, Path],
+):
+    client, refresh_token_path = refresh_token_oauth_client
+    original = refresh_token_path.read_text(encoding="utf-8")
+    responses.add(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        json={
+            "access_token": "access-token-2",
+            "token_type": "MAC",
+            "expires_in": 3600,
+        },
+    )
+
+    assert client.token() is None
+    assert "Authorization" not in client._headers
+    assert refresh_token_path.read_text(encoding="utf-8") == original
+
+
+@responses.activate
+def test_pkce_refresh_rejects_token_body_with_error_status(
+    refresh_token_oauth_client: tuple[web.SpotifyOAuthClient, Path],
+):
+    client, refresh_token_path = refresh_token_oauth_client
+    original = refresh_token_path.read_text(encoding="utf-8")
+    responses.add(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        json={
+            "access_token": "access-token-from-error",
+            "refresh_token": "refresh-token-from-error",
+            "token_type": "Bearer",
+        },
+        status=400,
+    )
+
+    assert client.token() is None
+    assert "Authorization" not in client._headers
+    assert refresh_token_path.read_text(encoding="utf-8") == original
+
+
+@responses.activate
+def test_pkce_refresh_preserves_zero_expiry(
+    mock_time: mock.Mock,
+    refresh_token_oauth_client: tuple[web.SpotifyOAuthClient, Path],
+):
+    client, _ = refresh_token_oauth_client
+    mock_time.return_value = 1000
+    responses.add(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        json={
+            "access_token": "access-token-2",
+            "token_type": "Bearer",
+            "expires_in": 0,
+        },
+    )
+
+    assert client.token() == "access-token-2"
+    assert client._expires == 1000
+    with client._refresh_mutex:
+        assert client._should_refresh_token()
+
+
+@responses.activate
+def test_pkce_refresh_success_does_not_overwrite_newer_authorization(
+    refresh_token_oauth_client: tuple[web.SpotifyOAuthClient, Path],
+):
+    client, refresh_token_path = refresh_token_oauth_client
+    store = auth_store.Store(refresh_token_path)
+    replacement = state.PkceAuthorized(refresh_token=SecretStr("refresh-token-new"))
+
+    def authorize_during_refresh(_: requests.PreparedRequest):
+        store.persist_pkce_authorization(replacement.refresh_token)
+        return (
+            200,
+            {},
+            json.dumps(
+                {
+                    "access_token": "access-token-old",
+                    "refresh_token": "refresh-token-rotated",
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                }
+            ),
+        )
+
+    responses.add_callback(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        callback=authorize_during_refresh,
+        content_type="application/json",
+    )
+
+    assert client.token() is None
+    assert "Authorization" not in client._headers
+    snapshot = store.load()
+    assert snapshot is not None
+    assert snapshot.state == replacement
+
+
+@responses.activate
+def test_pkce_refresh_error_does_not_overwrite_newer_authorization(
+    refresh_token_oauth_client: tuple[web.SpotifyOAuthClient, Path],
+):
+    client, refresh_token_path = refresh_token_oauth_client
+    store = auth_store.Store(refresh_token_path)
+    replacement = state.PkceAuthorized(refresh_token=SecretStr("refresh-token-new"))
+
+    def authorize_during_refresh(_: requests.PreparedRequest):
+        store.persist_pkce_authorization(replacement.refresh_token)
+        return (
+            400,
+            {},
+            json.dumps(
+                {
+                    "error": "invalid_grant",
+                    "error_description": "Old refresh token expired",
+                }
+            ),
+        )
+
+    responses.add_callback(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        callback=authorize_during_refresh,
+        content_type="application/json",
+    )
+
+    assert client.token() is None
+    snapshot = store.load()
+    assert snapshot is not None
+    assert snapshot.state == replacement
+
+
+@responses.activate
+def test_pkce_refresh_does_not_cache_token_when_persistence_fails(
+    refresh_token_oauth_client: tuple[web.SpotifyOAuthClient, Path],
+):
+    client, _ = refresh_token_oauth_client
+    responses.add(
+        responses.POST,
+        web.SPOTIFY_REFRESH_URL,
+        json={
+            "access_token": "access-token-2",
+            "refresh_token": "refresh-token-2",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+    )
+
+    with mock.patch.object(
+        client._token_source._store,
+        "compare_and_set",
+        side_effect=auth_store.Error,
+    ):
+        assert client.token() is None
+
+    assert "Authorization" not in client._headers
+
+
+@responses.activate
+def test_get_clears_expired_refresh_token_and_fails_fast(
+    mock_time: mock.Mock,
+    refresh_token_oauth_client: tuple[web.OAuthClient, Path],
+    caplog: pytest.LogCaptureFixture,
+):
+    oauth_client, refresh_token_path = refresh_token_oauth_client
+    responses.add(
+        responses.POST,
+        "https://accounts.spotify.com/api/token",
+        json={
+            "error": "invalid_grant",
+            "error_description": "Refresh token expired",
+        },
+        status=400,
+    )
+    mock_time.return_value = 1000
+
+    first_result = oauth_client.get("tracks/abc")
+    second_result = oauth_client.get("tracks/abc")
+
+    assert first_result == {}
+    assert second_result == {}
+    assert len(responses.calls) == 1
+    assert json.loads(refresh_token_path.read_text()) == {
+        "version": 1,
+        "mode": "pkce",
+        "state": "permanent_error",
+        "error_code": "invalid_grant",
+        "error_description": "Refresh token expired",
+    }
+    assert "Run `mopidy spotify auth web` to reauthorize" in caplog.text
+
+
+@responses.activate
+def test_get_keeps_refresh_token_on_transient_refresh_failure(
+    config: dict[str, Any],
+    tmp_path: Path,
+    mock_time: mock.Mock,
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "authorized",
+                "refresh_token": {
+                    "storage": "inline",
+                    "value": "refresh-token-1",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    oauth_client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        proxy_config=None,
+        auth_state_path=refresh_token_path,
+    )
+    oauth_client._number_of_retries = 1
+    responses.add(
+        responses.POST,
+        "https://accounts.spotify.com/api/token",
+        json={"error": "temporarily_unavailable"},
+        status=500,
+    )
+    responses.add(
+        responses.POST,
+        "https://accounts.spotify.com/api/token",
+        json={"error": "temporarily_unavailable"},
+        status=500,
+    )
+    mock_time.return_value = 1000
+
+    first_result = oauth_client.get("tracks/abc")
+    second_result = oauth_client.get("tracks/abc")
+
+    assert first_result == {}
+    assert second_result == {}
+    assert len(responses.calls) == 2
+    assert refresh_token_path.exists()
+
+
+def test_get_fails_fast_when_auth_json_is_permanent_error(
+    config: dict[str, Any],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "permanent_error",
+                "error_code": "invalid_grant",
+                "error_description": "Refresh token expired",
+            }
+        ),
+        encoding="utf-8",
+    )
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        proxy_config=None,
+        auth_state_path=refresh_token_path,
+    )
+
+    result = client.get("tracks/abc")
+
+    assert result == {}
+    assert len(responses.calls) == 0
+    assert "OAuth token refresh failed" in caplog.text
+    assert "Refresh token expired" in caplog.text
+
+
+@responses.activate
+def test_get_recovers_after_reauthorizing_with_new_auth_json(
+    web_track_mock: dict[str, Any],
+    mock_time: mock.Mock,
+    refresh_token_oauth_client: tuple[web.OAuthClient, Path],
+):
+    oauth_client, refresh_token_path = refresh_token_oauth_client
+    responses.add(
+        responses.POST,
+        "https://accounts.spotify.com/api/token",
+        json={
+            "error": "invalid_grant",
+            "error_description": "Refresh token expired",
+        },
+        status=400,
+    )
+    mock_time.return_value = 1000
+
+    first_result = oauth_client.get("tracks/abc")
+
+    refresh_token_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "authorized",
+                "refresh_token": {
+                    "storage": "inline",
+                    "value": "refresh-token-2",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    responses.add(
+        responses.POST,
+        "https://accounts.spotify.com/api/token",
+        json={
+            "access_token": "access-token-2",
+            "refresh_token": "refresh-token-3",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        match=[
+            matchers.urlencoded_params_matcher(
+                {
+                    "client_id": pkce.CLIENT_ID,
+                    "grant_type": "refresh_token",
+                    "refresh_token": "refresh-token-2",
+                }
+            )
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://api.spotify.com/v1/tracks/abc",
+        json=web_track_mock,
+    )
+
+    second_result = oauth_client.get("tracks/abc")
+
+    assert first_result == {}
+    assert second_result["uri"] == "spotify:track:abc"
+    assert len(responses.calls) == 3
+    assert json.loads(refresh_token_path.read_text()) == {
+        "version": 1,
+        "mode": "pkce",
+        "state": "authorized",
+        "refresh_token": {
+            "storage": "inline",
+            "value": "refresh-token-3",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "contents",
+    [
+        "{",
+        json.dumps({"version": 2, "refresh_token": "refresh-token-1"}),
+        json.dumps({"version": 1, "refresh_token": "refresh-token-1"}),
+        json.dumps({"version": 1}),
+        json.dumps({"version": 1, "refresh_token": "refresh-token-1", "extra": 1}),
+    ],
+)
+def test_get_fails_fast_when_auth_json_is_invalid(
+    config: dict[str, Any],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    contents: str,
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(contents, encoding="utf-8")
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        proxy_config=None,
+        auth_state_path=refresh_token_path,
+    )
+
+    result = client.get("tracks/abc")
+
+    assert result == {}
+    assert len(responses.calls) == 0
+    assert (
+        "OAuth token refresh failed: Invalid Spotify authorization state" in caplog.text
+    )
+    assert "Run `mopidy spotify auth web` to replace it" in caplog.text
+
+
+def test_get_fails_cleanly_when_auth_json_is_not_utf8(
+    config: dict[str, Any],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_bytes(b"\xff")
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        proxy_config=None,
+        auth_state_path=refresh_token_path,
+    )
+
+    assert client.token() is None
+    assert "Could not load Spotify authorization state" in caplog.text
+
+
+@responses.activate
+def test_get_uses_stored_refresh_token_without_legacy_client_id(
+    web_track_mock: dict[str, Any],
+    mock_time: mock.Mock,
+    tmp_path: Path,
+):
+    refresh_token_path = tmp_path / "auth.json"
+    refresh_token_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "authorized",
+                "refresh_token": {
+                    "storage": "inline",
+                    "value": "refresh-token-1",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    oauth_client = _spotify_client(
+        client_id=None,
+        client_secret=None,
+        proxy_config=None,
+        auth_state_path=refresh_token_path,
+    )
+    responses.add(
+        responses.POST,
+        "https://accounts.spotify.com/api/token",
+        json={
+            "access_token": "access-token-2",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        match=[
+            matchers.urlencoded_params_matcher(
+                {
+                    "client_id": pkce.CLIENT_ID,
+                    "grant_type": "refresh_token",
+                    "refresh_token": "refresh-token-1",
+                }
+            )
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://api.spotify.com/v1/tracks/abc",
+        json=web_track_mock,
+    )
+    mock_time.return_value = 1000
+
+    result = oauth_client.get("tracks/abc")
+
     assert result["uri"] == "spotify:track:abc"
 
 
@@ -968,7 +1839,7 @@ def test_updated_responses_changed(
 
 @pytest.fixture
 def spotify_client(config: dict[str, Any]) -> web.SpotifyOAuthClient:
-    client = web.SpotifyOAuthClient(
+    client = _spotify_client(
         client_id=config["spotify"]["client_id"],
         client_secret=config["spotify"]["client_secret"],
         proxy_config=None,
@@ -1091,15 +1962,6 @@ class TestSpotifyOAuthClient:
     def test_playlist_required_fields(self, field: str):
         assert field in web.SpotifyOAuthClient.PLAYLIST_FIELDS
 
-    def test_configures_auth(self):
-        client = web.SpotifyOAuthClient(
-            client_id="1234567",
-            client_secret="AbCdEfG",  # noqa: S106
-            proxy_config=None,
-        )
-
-        assert client._auth == ("1234567", "AbCdEfG")
-
     def test_configures_proxy(self):
         proxy_config = {
             "scheme": "https",
@@ -1108,7 +1970,7 @@ class TestSpotifyOAuthClient:
             "username": "alice",
             "password": "s3cret",
         }
-        client = web.SpotifyOAuthClient(
+        client = _spotify_client(
             client_id=None, client_secret=None, proxy_config=proxy_config
         )
 
@@ -1117,9 +1979,8 @@ class TestSpotifyOAuthClient:
             == "https://alice:s3cret@my-proxy.example.com:8080"
         )
 
-    def test_configures_urls(self, spotify_client: web.SpotifyOAuthClient):
+    def test_configures_web_api_url(self, spotify_client: web.SpotifyOAuthClient):
         assert spotify_client._base_url == "https://api.spotify.com/v1"
-        assert spotify_client._refresh_url == "https://auth.mopidy.com/spotify/token"
 
     @responses.activate
     def test_login_alice(
@@ -1910,3 +2771,109 @@ def test_weblink_from_uri_raises(uri: Uri):
         web.WebLink.from_uri(uri)
 
     assert f"Could not parse {uri!r} as a Spotify URI" in str(excinfo.value)
+
+
+@responses.activate
+def test_get_persists_proxy_bridge_ready_state(
+    config: dict[str, Any],
+    tmp_path: Path,
+    mock_time: mock.Mock,
+    web_track_mock: dict[str, Any],
+):
+    refresh_token_path = tmp_path / "auth.json"
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        auth_state_path=refresh_token_path,
+        proxy_config=None,
+    )
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        json={
+            "access_token": "access-token-2",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        match=[
+            matchers.urlencoded_params_matcher({"grant_type": "client_credentials"})
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://api.spotify.com/v1/tracks/abc",
+        json=web_track_mock,
+    )
+    mock_time.return_value = 1000
+
+    result = client.get("tracks/abc")
+
+    assert result["uri"] == "spotify:track:abc"
+    assert json.loads(refresh_token_path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "mode": "bridge",
+        "state": "configured",
+    }
+
+
+@responses.activate
+def test_get_recovers_from_bridge_error_with_corrected_credentials(
+    config: dict[str, Any],
+    tmp_path: Path,
+    mock_time: mock.Mock,
+):
+    refresh_token_path = tmp_path / "auth.json"
+    client = _spotify_client(
+        client_id=config["spotify"]["client_id"],
+        client_secret=config["spotify"]["client_secret"],
+        auth_state_path=refresh_token_path,
+        proxy_config=None,
+    )
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        json={
+            "error": "invalid_grant",
+            "error_description": "Bridge token expired",
+        },
+        status=400,
+    )
+    mock_time.return_value = 1000
+
+    first_result = client.token()
+
+    assert first_result is None
+    assert json.loads(refresh_token_path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "mode": "bridge",
+        "state": "permanent_error",
+        "error_code": "invalid_grant",
+        "error_description": "Bridge token expired",
+    }
+
+    corrected_client = _spotify_client(
+        client_id="corrected-client-id",
+        client_secret="corrected-client-secret",  # noqa: S106
+        auth_state_path=refresh_token_path,
+        proxy_config=None,
+    )
+    responses.add(
+        responses.POST,
+        "https://auth.mopidy.com/spotify/token",
+        json={
+            "access_token": "access-token-2",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+    )
+
+    assert corrected_client.token() == "access-token-2"
+    assert len(responses.calls) == 2
+    assert responses.calls[1].request.headers["Authorization"] == (
+        "Basic Y29ycmVjdGVkLWNsaWVudC1pZDpjb3JyZWN0ZWQtY2xpZW50LXNlY3JldA=="
+    )
+    assert json.loads(refresh_token_path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "mode": "bridge",
+        "state": "configured",
+    }
