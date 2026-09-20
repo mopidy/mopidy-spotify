@@ -9,10 +9,10 @@
 ## Status
 
 > [!WARNING]
-> Spotify has recently disabled streaming via third-party access tokens, like the one
-> Mopidy-Spotify uses. Current workarounds are to obtain a new credentials.json file
-> using librespot and put that where Mopidy-Spotify expects it. Details at
-> [#437](https://github.com/mopidy/mopidy-spotify/issues/437#issuecomment-5328412090).
+> Spotify no longer accepts third-party Web API access tokens for librespot
+> playback. Use `mopidy spotify auth playback` to create the separate desktop-client
+> credentials required for playback. Details at
+> [#437](https://github.com/mopidy/mopidy-spotify/issues/437).
 
 > [!WARNING]
 > Spotify has introduced refresh token expiration as described in this
@@ -21,9 +21,8 @@
 
 > [!WARNING]
 > Spotify have recently disabled username and password login for playback
-> ([#394](https://github.com/mopidy/mopidy-spotify/issues/394)) and we now use
-> access token login. You no longer need to provide your Spotify account
-> username or password.
+> ([#394](https://github.com/mopidy/mopidy-spotify/issues/394)). The playback
+> authorization command replaces username and password login.
 
 Mopidy-Spotify currently has no support for the following:
 
@@ -80,15 +79,25 @@ sudo python3 -m pip install --break-system-packages mopidy-spotify
 
 ## Configuration
 
-Authorize Mopidy-Spotify locally before starting Mopidy:
+Mopidy-Spotify uses separate authorization for Spotify's public Web API and for
+librespot playback. Authorize both before starting Mopidy:
 
 ```sh
 mopidy spotify auth web
+mopidy spotify auth playback
 ```
 
-Open the displayed URL, approve access in Spotify, then paste the result shown
-by the browser into the terminal. The command stores the refresh token locally;
-the website never receives it.
+`auth web` displays a URL for the public Web API PKCE flow. Open it, approve
+access in Spotify, then paste the result shown by the browser into the terminal.
+The command stores the refresh token locally; the website never receives it.
+
+`auth playback` runs the `gstspotify-auth` helper installed with recent
+`gst-plugin-spotify` packages. It uses Spotify's desktop-client authorization
+and stores reusable librespot credentials in `credentials-cache`.
+
+These credentials are intentionally not shared. Public Web API tokens fail
+librespot playback with `INVALID_CREDENTIALS`, while desktop-client playback
+credentials cannot be used with Spotify's public Web API.
 
 Inline storage is the default. To keep the refresh token in the operating
 system keyring, install the optional dependency and select keyring storage:
@@ -101,17 +110,28 @@ mopidy spotify auth web --storage keyring
 The selected backend is recorded in `auth.json`. Mopidy-Spotify does not fall
 back to inline storage if a selected keyring entry or backend is unavailable.
 
-Run the command as the same operating-system user that runs Mopidy and with the
-same configuration. For a typical system service installation, use:
+Run both commands as the same operating-system user that runs Mopidy and with
+the same configuration. For a typical system service installation, use:
 
 ```sh
 sudo -u mopidy mopidy --config /etc/mopidy/mopidy.conf spotify auth web
+sudo -u mopidy mopidy --config /etc/mopidy/mopidy.conf spotify auth playback
 ```
 
-The command writes `auth.json` below Mopidy's Spotify data directory, normally
-`core/data_dir/spotify/auth.json`. The directory must be writable by the Mopidy
-service user. Newly created directories use mode `0700`, and `auth.json` is
-atomically replaced with mode `0600`.
+The Web command writes `auth.json` below Mopidy's Spotify data directory,
+normally `core/data_dir/spotify/auth.json`. The playback command writes
+`credentials-cache/credentials.json` beside it. The directory must be writable
+by the Mopidy service user. Newly created directories use mode `0700`, and
+`auth.json` is atomically replaced with mode `0600`.
+
+Check both credential sets independently:
+
+```sh
+mopidy spotify auth status
+```
+
+Running bare `mopidy spotify auth` displays the available authorization
+commands. It is reserved for eventually running both authorization flows.
 
 Legacy bridge credentials remain supported for existing installations:
 
@@ -130,17 +150,10 @@ Authentication is selected in this order:
    `mopidy spotify auth web` again. It does not silently fall back to the bridge.
 4. Corrected bridge credentials are retried after a bridge authorization error.
 
-Run `mopidy spotify logout` to clear playback credentials and local PKCE
-authorization. If bridge credentials remain configured, they become active
-again on the next token refresh. Without bridge credentials, Spotify remains
-logged out until `mopidy spotify auth web` succeeds.
-
-Running bare `mopidy spotify auth` displays the available authorization
-commands. It is reserved for eventually running all authorization flows.
-
-> [!IMPORTANT]
-> Remove any `credentials.json` file you may have manually created.
-> You must also do this if you need to reauthorize playback.
+Run `mopidy spotify logout` to clear both stored credential sets: librespot
+playback credentials and local Web API PKCE authorization. Configured legacy
+bridge credentials are not stored credentials and remain available for Web API
+fallback. Reauthorize each local flow with its corresponding command.
 
 The following configuration values are available:
 
