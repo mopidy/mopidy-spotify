@@ -27,8 +27,8 @@ class Extension(ext.Extension):
         schema["username"] = config.Deprecated()  # since 5.0
         schema["password"] = config.Deprecated()  # since 5.0
 
-        schema["client_id"] = config.String()
-        schema["client_secret"] = config.Secret()
+        schema["client_id"] = config.String(optional=True)
+        schema["client_secret"] = config.Secret(optional=True)
 
         schema["bitrate"] = config.Integer(choices=(96, 160, 320))
         schema["volume_normalization"] = config.Boolean()
