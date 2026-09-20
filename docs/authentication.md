@@ -9,8 +9,23 @@ on a server run by a Mopidy maintainer.
 This document explains the security and recovery decisions for maintainers.
 See the [README](../README.md#configuration) for user setup instructions.
 
-Playback credentials are separate from Web authorization; authorizing one does
-not authorize the other.
+## Separate authorization systems
+
+Spotify's public Web API and librespot playback require different credentials:
+
+- `mopidy spotify auth web` runs the local PKCE flow documented below and
+  stores Web API authorization in `auth.json`.
+- `mopidy spotify auth playback` runs `gstspotify-auth`, which uses Spotify's
+  desktop-client authorization and stores reusable librespot credentials in
+  `credentials-cache/credentials.json`.
+- `mopidy spotify auth status` reports both credential sets independently.
+- Bare `mopidy spotify auth` displays command help. It is reserved for
+  eventually running both authorization flows.
+
+The credentials are not interchangeable. Public Web API tokens fail librespot
+playback with `INVALID_CREDENTIALS`. Desktop-client playback credentials do not
+work with Spotify's public Web API. Runtime therefore never passes the Web API
+access token to `spotifyaudiosrc`; playback uses only its credentials cache.
 
 ## Actors and trust boundaries
 
