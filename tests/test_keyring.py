@@ -25,9 +25,9 @@ def store(request: pytest.FixtureRequest):
         yield keyring.memory()
         return
     with mock.patch.object(
-        keyring.importlib,
-        "import_module",
-        return_value=MemoryBackend(),
+        keyring,
+        "_system_keyring",
+        MemoryBackend(),
     ):
         yield keyring.system("example-extension")
 
@@ -58,7 +58,7 @@ def test_system_store_wraps_backend_errors(operation: str):
     getattr(backend, method_name).side_effect = RuntimeError("backend failed")
 
     with (
-        mock.patch.object(keyring.importlib, "import_module", return_value=backend),
+        mock.patch.object(keyring, "_system_keyring", backend),
         pytest.raises(keyring.Error),
     ):
         getattr(store, operation)(
@@ -71,7 +71,7 @@ def test_system_store_reports_unavailable_backend_when_loading():
     store = keyring.system("service")
 
     with (
-        mock.patch.object(keyring.importlib, "import_module", side_effect=ImportError),
+        mock.patch.object(keyring, "_system_keyring", None),
         pytest.raises(keyring.UnavailableError, match="unavailable"),
     ):
         store.load("username")
@@ -81,7 +81,7 @@ def test_system_store_reports_unavailable_backend_when_saving():
     store = keyring.system("service")
 
     with (
-        mock.patch.object(keyring.importlib, "import_module", side_effect=ImportError),
+        mock.patch.object(keyring, "_system_keyring", None),
         pytest.raises(keyring.UnavailableError, match="unavailable"),
     ):
         store.save("username", "secret")
@@ -91,7 +91,7 @@ def test_system_store_reports_unavailable_backend_when_clearing():
     store = keyring.system("service")
 
     with (
-        mock.patch.object(keyring.importlib, "import_module", side_effect=ImportError),
+        mock.patch.object(keyring, "_system_keyring", None),
         pytest.raises(keyring.UnavailableError, match="unavailable"),
     ):
         store.clear("username")

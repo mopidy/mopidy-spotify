@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass, field
 from typing import Protocol
+
+try:
+    import keyring as _system_keyring  # pyright: ignore[reportMissingImports]
+except ImportError:  # Optional dependency.
+    _system_keyring = None
 
 __all__ = ["Error", "Store", "UnavailableError", "memory", "system"]
 
@@ -20,21 +24,33 @@ class UnavailableError(Error):
 class Store(Protocol):
     """Store raw secret strings by key within a configured namespace."""
 
-    def load(self, key: str) -> str | None: ...
+    def load(self, key: str) -> str | None:
+        """Return the raw value, or ``None`` when ``key`` is absent."""
+        ...
 
-    def save(self, key: str, value: str) -> None: ...
+    def save(self, key: str, value: str) -> None:
+        """Replace the raw value stored at ``key``."""
+        ...
 
-    def clear(self, key: str) -> None: ...
+    def clear(self, key: str) -> None:
+        """Remove ``key``, succeeding when it is already absent."""
+        ...
 
 
 class _Backend(Protocol):
     """Subset of the optional keyring module used by the facade."""
 
-    def get_password(self, service: str, username: str) -> str | None: ...
+    def get_password(self, service: str, username: str) -> str | None:
+        """Return the addressed password, or ``None`` when absent."""
+        ...
 
-    def set_password(self, service: str, username: str, password: str) -> None: ...
+    def set_password(self, service: str, username: str, password: str) -> None:
+        """Replace the addressed password."""
+        ...
 
-    def delete_password(self, service: str, username: str) -> None: ...
+    def delete_password(self, service: str, username: str) -> None:
+        """Remove the addressed password."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -44,11 +60,10 @@ class _System:
     service: str
 
     def _backend(self) -> _Backend:
-        try:
-            return importlib.import_module("keyring")  # type: ignore[return-value]
-        except ImportError as exc:
+        if _system_keyring is None:
             msg = "Keyring backend is unavailable"
-            raise UnavailableError(msg) from exc
+            raise UnavailableError(msg)
+        return _system_keyring  # type: ignore[return-value]
 
     def load(self, key: str) -> str | None:
         """Load a raw secret string.
