@@ -24,11 +24,7 @@ def store(request: pytest.FixtureRequest):
     if request.param == "memory":
         yield keyring.memory()
         return
-    with mock.patch.object(
-        keyring,
-        "_system_keyring",
-        MemoryBackend(),
-    ):
+    with mock.patch.dict("sys.modules", {"keyring": MemoryBackend()}):
         yield keyring.system("example-extension")
 
 
@@ -49,7 +45,6 @@ def test_store_contract(store: keyring.Store):
 @pytest.mark.parametrize("operation", ["load", "save", "clear"])
 def test_system_store_wraps_backend_errors(operation: str):
     backend = mock.Mock()
-    store = keyring.system("service")
     method_name = {
         "load": "get_password",
         "save": "set_password",
@@ -57,41 +52,18 @@ def test_system_store_wraps_backend_errors(operation: str):
     }[operation]
     getattr(backend, method_name).side_effect = RuntimeError("backend failed")
 
-    with (
-        mock.patch.object(keyring, "_system_keyring", backend),
-        pytest.raises(keyring.Error),
-    ):
+    with mock.patch.dict("sys.modules", {"keyring": backend}):
+        store = keyring.system("service")
+    with pytest.raises(keyring.Error):
         getattr(store, operation)(
             "username",
             *("secret",) if operation == "save" else (),
         )
 
 
-def test_system_store_reports_unavailable_backend_when_loading():
-    store = keyring.system("service")
-
+def test_system_store_reports_unavailable_backend():
     with (
-        mock.patch.object(keyring, "_system_keyring", None),
+        mock.patch.dict("sys.modules", {"keyring": None}),
         pytest.raises(keyring.UnavailableError, match="unavailable"),
     ):
-        store.load("username")
-
-
-def test_system_store_reports_unavailable_backend_when_saving():
-    store = keyring.system("service")
-
-    with (
-        mock.patch.object(keyring, "_system_keyring", None),
-        pytest.raises(keyring.UnavailableError, match="unavailable"),
-    ):
-        store.save("username", "secret")
-
-
-def test_system_store_reports_unavailable_backend_when_clearing():
-    store = keyring.system("service")
-
-    with (
-        mock.patch.object(keyring, "_system_keyring", None),
-        pytest.raises(keyring.UnavailableError, match="unavailable"),
-    ):
-        store.clear("username")
+        keyring.system("service")

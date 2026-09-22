@@ -5,20 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-try:
-    import keyring as _system_keyring  # pyright: ignore[reportMissingImports]
-except ImportError:  # Optional dependency.
-    _system_keyring = None
-
 __all__ = ["Error", "Store", "UnavailableError", "memory", "system"]
-
-
-class Error(Exception):
-    """Raised when the keyring cannot complete an operation."""
-
-
-class UnavailableError(Error):
-    """Raised when the optional keyring backend is unavailable."""
 
 
 class Store(Protocol):
@@ -35,6 +22,32 @@ class Store(Protocol):
     def clear(self, key: str) -> None:
         """Remove ``key``, succeeding when it is already absent."""
         ...
+
+
+class Error(Exception):
+    """Raised when the keyring cannot complete an operation."""
+
+
+class UnavailableError(Error):
+    """Raised when the optional keyring backend is unavailable."""
+
+
+def system(service: str) -> Store:
+    """Return storage backed by the optional system keyring package."""
+    try:
+        import keyring as backend  # pyright: ignore[reportMissingImports]  # noqa: PLC0415
+    except ImportError as exc:
+        msg = "Keyring backend is unavailable"
+        raise UnavailableError(msg) from exc
+    return _System(service, backend)  # type: ignore[arg-type]
+
+
+def memory() -> Store:
+    """Return volatile storage intended for tests."""
+    return _Memory()
+
+
+# TODO: Add keyring.file(directory) when a concrete file-backed store is required.
 
 
 class _Backend(Protocol):
@@ -58,12 +71,7 @@ class _System:
     """Facade over the optional system keyring package."""
 
     service: str
-
-    def _backend(self) -> _Backend:
-        if _system_keyring is None:
-            msg = "Keyring backend is unavailable"
-            raise UnavailableError(msg)
-        return _system_keyring  # type: ignore[return-value]
+    backend: _Backend
 
     def load(self, key: str) -> str | None:
         """Load a raw secret string.
@@ -71,7 +79,7 @@ class _System:
         Callers own any redacting wrapper and should apply it immediately.
         """
         try:
-            value = self._backend().get_password(self.service, key)
+            value = self.backend.get_password(self.service, key)
         except Error:
             raise
         except Exception as exc:
@@ -82,7 +90,7 @@ class _System:
     def save(self, key: str, value: str) -> None:
         """Save a raw secret string at this explicit storage sink."""
         try:
-            self._backend().set_password(self.service, key, value)
+            self.backend.set_password(self.service, key, value)
         except Error:
             raise
         except Exception as exc:
@@ -91,10 +99,9 @@ class _System:
 
     def clear(self, key: str) -> None:
         """Remove the addressed secret, succeeding when it is absent."""
-        backend = self._backend()
         try:
-            if backend.get_password(self.service, key) is not None:
-                backend.delete_password(self.service, key)
+            if self.backend.get_password(self.service, key) is not None:
+                self.backend.delete_password(self.service, key)
         except Exception as exc:
             msg = f"Could not clear keyring entry for {self.service}/{key}"
             raise Error(msg) from exc
@@ -114,16 +121,3 @@ class _Memory:
 
     def clear(self, key: str) -> None:
         self.values.pop(key, None)
-
-
-def system(service: str) -> Store:
-    """Return storage backed by the optional system keyring package."""
-    return _System(service)
-
-
-def memory() -> Store:
-    """Return volatile storage intended for tests."""
-    return _Memory()
-
-
-# TODO: Add keyring.file(directory) when a concrete file-backed store is required.
