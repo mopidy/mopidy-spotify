@@ -15,7 +15,7 @@ from pydantic import (
 )
 
 from mopidy_spotify import utils
-from mopidy_spotify.pkce import CLIENT_ID
+from mopidy_spotify.oauth.pkce import CLIENT_ID
 
 if TYPE_CHECKING:
     from pathlib import Path
