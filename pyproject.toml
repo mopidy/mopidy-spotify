@@ -20,6 +20,9 @@ dependencies = [
     "requests >= 2.32",
 ]
 
+[project.optional-dependencies]
+keyring = ["keyring >= 25"]
+
 [project.urls]
 Homepage = "https://github.com/mopidy/mopidy-spotify"
 
