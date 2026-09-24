@@ -34,6 +34,13 @@ def test_get_config_schema() -> None:
     assert "search_track_count" in schema
 
 
+def test_bridge_credentials_are_optional() -> None:
+    schema = Extension().get_config_schema()
+
+    assert schema["client_id"].deserialize("") is None
+    assert schema["client_secret"].deserialize("") is None
+
+
 def test_setup() -> None:
     registry = mock.Mock()
 
