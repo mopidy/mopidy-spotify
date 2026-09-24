@@ -1,4 +1,5 @@
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from unittest import mock
@@ -323,3 +324,101 @@ def test_web_auth_command_uses_global_config_and_extension_state_path(tmp_path: 
 
 def test_bare_auth_is_reserved_for_help():
     assert commands.auth_app.default_command is None
+
+
+def test_playback_auth_runs_gstreamer_helper(tmp_path: Path):
+    config = Config({"core": {"data_dir": tmp_path}})
+    completed = mock.Mock(returncode=0)
+
+    with (
+        mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(
+            commands.shutil,
+            "which",
+            return_value="/usr/bin/gstspotify-auth",
+        ),
+        mock.patch.object(
+            commands.subprocess,
+            "run",
+            return_value=completed,
+        ) as run,
+    ):
+        result = commands.playback()
+
+    assert result == 0
+    run.assert_called_once_with(
+        [
+            "/usr/bin/gstspotify-auth",
+            os.fspath(Extension.get_data_dir(config) / "credentials-cache"),
+        ],
+        check=False,
+    )
+
+
+def test_playback_auth_reports_missing_helper(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    config = Config({"core": {"data_dir": tmp_path}})
+
+    with (
+        mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(commands.shutil, "which", return_value=None),
+    ):
+        result = commands.playback()
+
+    assert result == 1
+    assert "Could not find gstspotify-auth" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("manifest", "bridge", "expected"),
+    [
+        (None, False, "Spotify Web API: not authorized"),
+        (None, True, "Spotify Web API: configured (legacy bridge)"),
+        (
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "authorized",
+                "refresh_token": {
+                    "storage": "inline",
+                    "value": "refresh-token",
+                },
+            },
+            False,
+            "Spotify Web API: authorized (PKCE)",
+        ),
+        (
+            {
+                "version": 1,
+                "mode": "pkce",
+                "state": "permanent_error",
+                "error_code": "invalid_grant",
+            },
+            True,
+            "Spotify Web API: reauthorization required",
+        ),
+    ],
+)
+def test_auth_status_reports_web_and_playback_separately(
+    tmp_path: Path,
+    manifest: dict[str, object] | None,
+    *,
+    bridge: bool,
+    expected: str,
+):
+    spotify = (
+        {"client_id": "client-id", "client_secret": "client-secret"} if bridge else {}
+    )
+    config = Config({"core": {"data_dir": tmp_path}, "spotify": spotify})
+    if manifest is not None:
+        auth_path = Extension.get_auth_state_path(config)
+        auth_path.parent.mkdir(parents=True, exist_ok=True)
+        auth_path.write_text(json.dumps(manifest))
+    credentials = Extension.get_credentials_dir(config) / "credentials.json"
+    credentials.write_text("playback-credentials")
+    assert commands._status_lines(config) == (
+        expected,
+        "Spotify playback: stored",
+    )

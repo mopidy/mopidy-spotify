@@ -5,10 +5,6 @@ OAuth bridge. This document defines the target trust model, runtime selection
 rules, persistence guarantees, and recovery behavior for maintainers. See the
 [README](../README.md#configuration) for user setup instructions.
 
-Web authorization runs as `mopidy spotify auth web`. Bare
-`mopidy spotify auth` displays subcommand help and is reserved for eventually
-coordinating every authorization flow.
-
 ## Goals
 
 - Keep OAuth credentials and tokens under the control of the Mopidy process.
@@ -17,6 +13,26 @@ coordinating every authorization flow.
   and logging.
 - Prevent failed or stale refreshes from destroying usable authorization.
 - Store authorization durably without exposing secrets in diagnostics.
+- Keep public Web API authorization separate from librespot playback
+  credentials.
+
+## Separate authorization systems
+
+Spotify's public Web API and librespot playback require different credentials:
+
+- `mopidy spotify auth web` runs the local PKCE flow documented below and
+  stores Web API authorization in `auth.json`.
+- `mopidy spotify auth playback` runs `gstspotify-auth`, which uses Spotify's
+  desktop-client authorization and stores reusable librespot credentials in
+  `credentials-cache/credentials.json`.
+- `mopidy spotify auth status` reports both credential sets independently.
+- Bare `mopidy spotify auth` displays command help. It is reserved for
+  eventually running both authorization flows.
+
+The credentials are not interchangeable. Public Web API tokens fail librespot
+playback with `INVALID_CREDENTIALS`. Desktop-client playback credentials do not
+work with Spotify's public Web API. Runtime therefore never passes the Web API
+access token to `spotifyaudiosrc`; playback uses only its credentials cache.
 
 ## Actors and trust boundaries
 
@@ -247,8 +263,9 @@ smaller responsibility of making one file replacement durable.
 | Authorization changes during refresh | Newer state is preserved               | Retry using the newer state.                                    |
 | Logout                               | `cleared`                              | Bridge becomes active if configured; otherwise reauthorize.     |
 
-Logout attempts playback-credential cleanup and OAuth-state clearing
-independently. Failure in one does not prevent attempting the other.
+`mopidy spotify logout` clears playback credentials and Web API authorization.
+It attempts both independently, so failure in one does not prevent attempting
+the other. Configured legacy bridge credentials remain in Mopidy configuration.
 
 ## Security invariants
 

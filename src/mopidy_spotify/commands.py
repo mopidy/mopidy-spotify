@@ -1,5 +1,7 @@
 import logging
 import os
+import shutil
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -7,7 +9,8 @@ import cyclopts
 from mopidy.config import Config
 
 from mopidy_spotify import Extension
-from mopidy_spotify.oauth import flow, manifest, store
+from mopidy_spotify._ext import keyring
+from mopidy_spotify.oauth import flow, manifest, state, store
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = cyclopts.App(help="Spotify extension commands.")
 auth_app = cyclopts.App(
     name="auth",
-    help="Authorize Spotify access.",
+    help="Authorize Spotify Web API and playback access.",
 )
 app.command(auth_app)
 
@@ -58,8 +61,68 @@ def web(
 ) -> int:
     config = Config.get_global()
     auth_state_path = Extension.get_auth_state_path(config)
-    auth_flow = flow.AuthFlow(config, auth_state_path, storage_type=storage)
+    auth_flow = flow.AuthFlow(
+        config,
+        auth_state_path,
+        storage_type=storage,
+    )
     return run_auth_command(auth_flow)
+
+
+@auth_app.command(help="Authorize librespot playback credentials.")
+def playback() -> int:
+    config = Config.get_global()
+    credentials_dir = Extension.get_credentials_dir(config)
+    helper = shutil.which("gstspotify-auth")
+    if helper is None:
+        logger.error(
+            "Could not find gstspotify-auth. Install a gst-plugin-spotify "
+            "package that includes the authentication helper."
+        )
+        return 1
+
+    result = subprocess.run(  # noqa: S603
+        [helper, os.fspath(credentials_dir)],
+        check=False,
+    )
+    return result.returncode
+
+
+def _web_status(config: Config) -> str:
+    auth_store = store.Store(Extension.get_auth_state_path(config))
+    try:
+        snapshot = auth_store.load()
+    except store.InvalidManifestError:
+        return "invalid authorization state"
+    except (store.Error, keyring.Error) as exc:
+        return f"unavailable ({exc})"
+
+    spotify = config.get("spotify", {})
+    bridge_available = bool(spotify.get("client_id") and spotify.get("client_secret"))
+    auth_state = snapshot.state if snapshot is not None else None
+
+    if isinstance(auth_state, state.PkceAuthorized):
+        return "authorized (PKCE)"
+    if isinstance(auth_state, state.PermanentError) and auth_state.mode == "pkce":
+        return "reauthorization required"
+    if bridge_available:
+        return "configured (legacy bridge)"
+    return "not authorized"
+
+
+def _status_lines(config: Config) -> tuple[str, str]:
+    credentials_file = Extension.get_credentials_dir(config) / "credentials.json"
+    playback_status = "stored" if credentials_file.is_file() else "not authorized"
+    return (
+        f"Spotify Web API: {_web_status(config)}",
+        f"Spotify playback: {playback_status}",
+    )
+
+
+@auth_app.command(help="Show Web API and playback authorization status.")
+def status() -> None:
+    for line in _status_lines(Config.get_global()):
+        print(line)  # noqa: T201
 
 
 @app.command(help="Logout from Spotify account.")

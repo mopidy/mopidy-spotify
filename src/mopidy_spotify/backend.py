@@ -60,10 +60,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         self,
         source: Any,  # Gst.Element, but want to avoid Gst imports here
     ) -> None:
-        assert self.backend._web_client  # noqa: S101
         source.set_property("bitrate", str(self._config["bitrate"]))
         source.set_property("cache-credentials", self._credentials_dir)
-        source.set_property("access-token", self.backend._web_client.token())
         if self._config["allow_cache"]:
             source.set_property("cache-files", self._cache_location)
             source.set_property("cache-max-size", self._config["cache_size"] * 1048576)
