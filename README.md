@@ -80,8 +80,40 @@ sudo python3 -m pip install --break-system-packages mopidy-spotify
 
 ## Configuration
 
-Before starting Mopidy, you must visit https://mopidy.com/ext/spotify/#authentication
-to authorize this extension against your Spotify account:
+Authorize Mopidy-Spotify locally before starting Mopidy:
+
+```sh
+mopidy spotify auth web
+```
+
+Open the displayed URL, approve access in Spotify, then paste the result shown
+by the browser into the terminal. The command stores the refresh token locally;
+the website never receives it.
+
+Inline storage is the default. To keep the refresh token in the operating
+system keyring, install the optional dependency and select keyring storage:
+
+```sh
+python3 -m pip install 'mopidy-spotify[keyring]'
+mopidy spotify auth web --storage keyring
+```
+
+The selected backend is recorded in `auth.json`. Mopidy-Spotify does not fall
+back to inline storage if a selected keyring entry or backend is unavailable.
+
+Run the command as the same operating-system user that runs Mopidy and with the
+same configuration. For a typical system service installation, use:
+
+```sh
+sudo -u mopidy mopidy --config /etc/mopidy/mopidy.conf spotify auth web
+```
+
+The command writes `auth.json` below Mopidy's Spotify data directory, normally
+`core/data_dir/spotify/auth.json`. The directory must be writable by the Mopidy
+service user. Newly created directories use mode `0700`, and `auth.json` is
+atomically replaced with mode `0600`.
+
+Legacy bridge credentials remain supported for existing installations:
 
 ```ini
 [spotify]
@@ -89,18 +121,37 @@ client_id = ... client_id value you got from mopidy.com ...
 client_secret = ... client_secret value you got from mopidy.com ...
 ```
 
+Authentication is selected in this order:
+
+1. A valid local PKCE authorization is preferred.
+2. If local authorization is absent or cleared, configured bridge credentials
+   are used.
+3. An expired or revoked PKCE refresh token requires running
+   `mopidy spotify auth web` again. It does not silently fall back to the bridge.
+4. Corrected bridge credentials are retried after a bridge authorization error.
+
+Run `mopidy spotify logout` to clear playback credentials and local PKCE
+authorization. If bridge credentials remain configured, they become active
+again on the next token refresh. Without bridge credentials, Spotify remains
+logged out until `mopidy spotify auth web` succeeds.
+
+Running bare `mopidy spotify auth` displays the available authorization
+commands. It is reserved for eventually running all authorization flows.
+
 > [!IMPORTANT]
 > Remove any `credentials.json` file you may have manually created.
-> You must also do this if you need to reauthorize the extension.
+> You must also do this if you need to reauthorize playback.
 
 The following configuration values are available:
 
 - `spotify/enabled`: If the Spotify extension should be enabled or not.
   Defaults to `true`.
 
-- `spotify/client_id`: Your Spotify application client id. You _must_ provide this.
+- `spotify/client_id`: Legacy Mopidy bridge client ID. Optional when local PKCE
+  authorization is configured.
 
-- `spotify/client_secret`: Your Spotify application secret key. You _must_ provide this.
+- `spotify/client_secret`: Legacy Mopidy bridge secret. Optional when local PKCE
+  authorization is configured.
 
 - `spotify/bitrate`: Audio bitrate in kbps. `96`, `160`, or `320`.
   Defaults to `160`.
@@ -137,6 +188,7 @@ The following configuration values are available:
 - [Source code](https://github.com/mopidy/mopidy-spotify)
 - [Issues](https://github.com/mopidy/mopidy-spotify/issues)
 - [Releases](https://github.com/mopidy/mopidy-spotify/releases)
+- [Authentication architecture](docs/authentication.md)
 
 ## Development
 
