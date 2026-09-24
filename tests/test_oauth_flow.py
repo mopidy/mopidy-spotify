@@ -6,14 +6,13 @@ import pytest
 import requests
 from mopidy.config import Config
 
-from mopidy_spotify.oauth import pkce
+from mopidy_spotify.oauth import manifest, pkce
 from mopidy_spotify.oauth.flow import (
     AuthChallenge,
     AuthExchangeError,
     AuthFlow,
-    AuthInvalidStateError,
     AuthMissingCodeError,
-    AuthSuccess,
+    AuthStateMismatchError,
     TokenExchangeResponse,
     _exchange_authorization_code,
 )
@@ -184,13 +183,37 @@ def test_finish_auth_persists_refresh_token_on_success(tmp_path: Path):
         "ignored",
     )
 
-    assert result == AuthSuccess(token_value)
+    assert result is None
     assert json.loads(auth_state_path.read_text(encoding="utf-8")) == {
         "version": 1,
         "mode": "pkce",
         "state": "authorized",
-        "refresh_token": token_value,
+        "refresh_token": {"storage": "inline", "value": token_value},
     }
+
+
+def test_finish_auth_reports_unavailable_selected_keyring(tmp_path: Path):
+    flow = AuthFlow(
+        Config({"proxy": {}}),
+        tmp_path / "auth.json",
+        storage_type=manifest.StorageType.KEYRING,
+        parse_authorization_result=lambda result: pkce.AuthorizationResult(
+            state="state-123",
+            code="code-123",
+        ),
+        exchange_authorization_code=lambda config, code, verifier: exchange_response(
+            refresh_token="refresh-token"  # noqa: S106
+        ),
+    )
+
+    with (
+        mock.patch.dict("sys.modules", {"keyring": None}),
+        pytest.raises(AuthExchangeError, match="Keyring backend is unavailable"),
+    ):
+        flow.finish_auth(
+            AuthChallenge("https://example.com", "state-123", "verifier-123"),
+            "ignored",
+        )
 
 
 def test_finish_auth_rejects_invalid_state(tmp_path: Path):
@@ -203,7 +226,7 @@ def test_finish_auth_rejects_invalid_state(tmp_path: Path):
         ),
     )
 
-    with pytest.raises(AuthInvalidStateError):
+    with pytest.raises(AuthStateMismatchError):
         flow.finish_auth(
             AuthChallenge("https://example.com", "state-123", "verifier-123"),
             "ignored",

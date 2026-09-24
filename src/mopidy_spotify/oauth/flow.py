@@ -1,8 +1,13 @@
-"""Interactive Spotify auth flow orchestration.
+"""Interactive authorization for Spotify's public Web API.
 
-This module coordinates the user-facing PKCE auth exchange: generate the
-challenge, validate the callback, exchange the code for a refresh token, and
-persist the resulting auth state.
+This flow is separate from librespot playback authorization. It creates a PKCE
+challenge and CSRF state, validates the callback pasted back from the website,
+exchanges the authorization code locally, and persists successful authorization
+through :mod:`mopidy_spotify.oauth.store`.
+
+Starting and finishing are separate so the CLI can hand control to the user
+without persisting the verifier or CSRF state. The callback website only
+displays values for the user to copy; it never receives the verifier or tokens.
 """
 
 from __future__ import annotations
@@ -15,7 +20,8 @@ import requests
 from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError
 
 from mopidy_spotify import utils
-from mopidy_spotify.oauth import pkce, state
+from mopidy_spotify._ext import keyring
+from mopidy_spotify.oauth import manifest, pkce, store
 
 logger = logging.getLogger(__name__)
 
@@ -52,16 +58,11 @@ class AuthChallenge:
     verifier: str
 
 
-@dataclass(frozen=True)
-class AuthSuccess:
-    refresh_token: str
-
-
 class AuthFlowError(Exception):
     pass
 
 
-class AuthInvalidStateError(AuthFlowError):
+class AuthStateMismatchError(AuthFlowError):
     def __init__(self) -> None:
         super().__init__("Incorrect state returned, please try again.")
 
@@ -147,6 +148,7 @@ class AuthFlow:
         config: Config,
         auth_state_path: Path,
         *,
+        storage_type: manifest.StorageType = manifest.StorageType.INLINE,
         # Inject collaborators so tests can replace side effects cleanly.
         generate_pkce_verifier: PkceVerifierGenerator = pkce.generate_pkce_verifier,
         generate_state: StateGenerator = pkce.generate_state,
@@ -161,7 +163,8 @@ class AuthFlow:
         ),
     ) -> None:
         self._config = config
-        self._auth_state_store = state.FileAuthStateStore(auth_state_path)
+        self._store = store.Store(auth_state_path)
+        self._storage_type = storage_type
         self._generate_pkce_verifier = generate_pkce_verifier
         self._generate_state = generate_state
         self._generate_authorization_url = generate_authorization_url
@@ -178,14 +181,14 @@ class AuthFlow:
             verifier=verifier,
         )
 
-    def finish_auth(self, challenge: AuthChallenge, pasted_result: str) -> AuthSuccess:
+    def finish_auth(self, challenge: AuthChallenge, pasted_result: str) -> None:
         try:
             params = self._parse_authorization_result(pasted_result)
         except ValueError as exc:
             raise AuthExchangeError(str(exc)) from exc
 
         if params.state != challenge.state:
-            raise AuthInvalidStateError
+            raise AuthStateMismatchError
 
         if not params.code:
             raise AuthMissingCodeError
@@ -204,7 +207,10 @@ class AuthFlow:
         if secret is None:
             msg = "missing refresh_token."
             raise AuthExchangeError(msg)
-        self._auth_state_store.save(
-            state.PkceAuthorizedAuthPayload(refresh_token=secret)
-        )
-        return AuthSuccess(secret.get_secret_value())
+        try:
+            self._store.persist_pkce_authorization(
+                secret,
+                self._storage_type,
+            )
+        except (store.Error, keyring.Error) as exc:
+            raise AuthExchangeError(str(exc)) from exc
