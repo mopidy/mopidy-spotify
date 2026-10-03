@@ -4,7 +4,7 @@ from unittest import mock, skip
 import pytest
 from mopidy import backend as backend_api
 
-from mopidy_spotify import backend, playlists
+from mopidy_spotify import Extension, backend, playlists
 from mopidy_spotify.backend import SpotifyPlaybackProvider
 from mopidy_spotify.library import SpotifyLibraryProvider
 from tests import ThreadJoiner
@@ -69,9 +69,7 @@ def test_on_start_configures_proxy(web_mock: mock.MagicMock, config: dict[str, A
     assert True
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        client_id=mock.ANY,
-        client_secret=mock.ANY,
-        proxy_config=config["proxy"],
+        token_source=mock.ANY, proxy_config=config["proxy"]
     )
 
 
@@ -86,10 +84,32 @@ def test_on_start_configures_web_client(
         backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        client_id="1234567",
-        client_secret="AbCdEfG",  # noqa: S106
-        proxy_config=mock.ANY,
+        token_source=mock.ANY, proxy_config=config["proxy"]
     )
+    source = web_mock.SpotifyOAuthClient.call_args.kwargs["token_source"]
+    assert source._store.path == Extension.get_auth_state_path(config)
+    assert source._providers[1].client_id == "1234567"
+    assert source._providers[1].client_secret == "AbCdEfG"  # noqa: S105
+
+
+def test_on_start_allows_pkce_without_bridge_credentials(
+    web_mock: mock.MagicMock,
+    config: dict[str, Any],
+):
+    config["spotify"]["client_id"] = None
+    config["spotify"]["client_secret"] = None
+
+    backend = get_backend(config)
+    with ThreadJoiner():
+        backend.on_start()
+
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        token_source=mock.ANY, proxy_config=config["proxy"]
+    )
+    source = web_mock.SpotifyOAuthClient.call_args.kwargs["token_source"]
+    assert source._store.path == Extension.get_auth_state_path(config)
+    assert source._providers[1].client_id is None
+    assert source._providers[1].client_secret is None
 
 
 def test_on_start_logs_in(web_mock: mock.MagicMock, config: dict[str, Any]):
