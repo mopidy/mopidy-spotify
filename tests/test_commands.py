@@ -5,16 +5,17 @@ from unittest import mock
 
 import pytest
 from mopidy.config import Config
+from pydantic import SecretStr
 
 from mopidy_spotify import Extension, commands
 from mopidy_spotify.commands import logout, run_auth_command
-from mopidy_spotify.oauth import pkce, state
+from mopidy_spotify.oauth import manifest, pkce, state, store
 from mopidy_spotify.oauth.flow import (
     AuthChallenge,
     AuthExchangeError,
     AuthFlow,
     AuthFlowError,
-    AuthInvalidStateError,
+    AuthStateMismatchError,
     TokenExchangeResponse,
 )
 
@@ -61,7 +62,10 @@ def test_logout_command(tmp_path: Path):
                     "version": 1,
                     "mode": "pkce",
                     "state": "authorized",
-                    "refresh_token": "refresh-token-123",
+                    "refresh_token": {
+                        "storage": "inline",
+                        "value": "refresh-token-123",
+                    },
                 }
             ),
             encoding="utf-8",
@@ -102,10 +106,8 @@ def test_logout_clears_auth_state_when_credentials_cleanup_fails(tmp_path: Path)
     credentials_dir = Extension.get_credentials_dir(config)
     auth_state_path = Extension.get_auth_state_path(config)
     auth_state_path.parent.mkdir(parents=True, exist_ok=True)
-    state.FileAuthStateStore(auth_state_path).save(
-        state.PkceAuthorizedAuthPayload(
-            refresh_token="refresh-token-123"  # noqa: S106
-        )
+    store.Store(auth_state_path).persist_pkce_authorization(
+        SecretStr("refresh-token-123")
     )
 
     with (
@@ -115,9 +117,9 @@ def test_logout_clears_auth_state_when_credentials_cleanup_fails(tmp_path: Path)
         logout()
 
     assert credentials_dir.exists()
-    assert state.FileAuthStateStore(auth_state_path).load() == (
-        state.ClearedAuthPayload(mode="pkce")
-    )
+    snapshot = store.Store(auth_state_path).load()
+    assert snapshot is not None
+    assert snapshot.state == state.Cleared(mode="pkce")
 
 
 def test_logout_clears_credentials_when_auth_state_cleanup_fails(tmp_path: Path):
@@ -128,8 +130,8 @@ def test_logout_clears_credentials_when_auth_state_cleanup_fails(tmp_path: Path)
     with (
         mock.patch.object(Config, "get_global", return_value=config),
         mock.patch.object(
-            state.FileAuthStateStore,
-            "save",
+            store.Store,
+            "clear",
             side_effect=PermissionError,
         ),
     ):
@@ -181,7 +183,10 @@ def test_auth_command_stores_refresh_token(
         "version": 1,
         "mode": "pkce",
         "state": "authorized",
-        "refresh_token": "refresh-token-123",
+        "refresh_token": {
+            "storage": "inline",
+            "value": "refresh-token-123",
+        },
     }
     assert auth_state_path.stat().st_mode & 0o777 == 0o600
 
@@ -222,7 +227,10 @@ def test_auth_command_replaces_existing_refresh_token(
                         "version": 1,
                         "mode": "pkce",
                         "state": "authorized",
-                        "refresh_token": "refresh-token-456",
+                        "refresh_token": {
+                            "storage": "inline",
+                            "value": "refresh-token-456",
+                        },
                     }
                 ),
                 encoding="utf-8",
@@ -237,7 +245,10 @@ def test_auth_command_replaces_existing_refresh_token(
                 "version": 1,
                 "mode": "pkce",
                 "state": "authorized",
-                "refresh_token": "refresh-token-123",
+                "refresh_token": {
+                    "storage": "inline",
+                    "value": "refresh-token-123",
+                },
             }
         ),
         encoding="utf-8",
@@ -249,7 +260,10 @@ def test_auth_command_replaces_existing_refresh_token(
         "version": 1,
         "mode": "pkce",
         "state": "authorized",
-        "refresh_token": "refresh-token-456",
+        "refresh_token": {
+            "storage": "inline",
+            "value": "refresh-token-456",
+        },
     }
 
 
@@ -266,7 +280,7 @@ def test_auth_command_reports_auth_errors(capsys: pytest.CaptureFixture[str]):
 
 
 def test_auth_command_reports_invalid_state(capsys: pytest.CaptureFixture[str]):
-    flow = StubAuthFlow(finish_error=AuthInvalidStateError())
+    flow = StubAuthFlow(finish_error=AuthStateMismatchError())
 
     result = run_auth_command(
         flow, read_input=lambda: "https://mopidy.com/auth/spotify"
@@ -287,7 +301,7 @@ def test_auth_command_handles_aborted_input(capsys: pytest.CaptureFixture[str]):
     assert "Authentication aborted." in captured.out
 
 
-def test_auth_command_uses_global_config_and_extension_state_path(tmp_path: Path):
+def test_web_auth_command_uses_global_config_and_extension_state_path(tmp_path: Path):
     config = Config({"core": {"data_dir": tmp_path}})
     flow = mock.Mock(spec=AuthFlow)
 
@@ -296,8 +310,16 @@ def test_auth_command_uses_global_config_and_extension_state_path(tmp_path: Path
         mock.patch.object(commands.flow, "AuthFlow", return_value=flow) as create,
         mock.patch.object(commands, "run_auth_command", return_value=7) as run,
     ):
-        result = commands.auth()
+        result = commands.web()
 
     assert result == 7
-    create.assert_called_once_with(config, Extension.get_auth_state_path(config))
+    create.assert_called_once_with(
+        config,
+        Extension.get_auth_state_path(config),
+        storage_type=manifest.StorageType.INLINE,
+    )
     run.assert_called_once_with(flow)
+
+
+def test_bare_auth_is_reserved_for_help():
+    assert commands.auth_app.default_command is None

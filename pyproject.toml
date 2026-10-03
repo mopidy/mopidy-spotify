@@ -15,6 +15,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+    "filelock >= 3.18",
     "mopidy >= 4.0.0",
     "pykka >= 4.1",
     "requests >= 2.32",
@@ -117,6 +118,7 @@ ignore = [
 
 [tool.setuptools.package-data]
 "*" = ["*.conf"]
+"mopidy_spotify._ext" = ["licenses/*.txt"]
 
 
 [tool.setuptools_scm]
