@@ -2,7 +2,7 @@
 
 These DTOs are exposed by `mopidy_spotify.oauth.store` after it resolves a
 persisted manifest. In particular, authorized PKCE state contains a redacted
-``SecretStr`` rather than an inline value or keyring address.
+`SecretStr` rather than an inline value or keyring address.
 
 Refresh providers consume these states and return proposed next states. They do
 not depend on the persisted manifest schema or external secret backend.

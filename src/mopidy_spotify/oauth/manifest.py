@@ -1,13 +1,13 @@
 """Persisted schema for Spotify Web authorization.
 
-The manifest is the authoritative JSON representation stored in ``auth.json``.
+The manifest is the authoritative JSON representation stored in `auth.json`.
 It records the authorization mode and lifecycle state, but PKCE refresh tokens
 are represented by inline or keyring descriptors rather than a resolved runtime
 secret.
 
 Use `validate_json` to parse persisted content and `dump_json` to
 serialize it. The explicit dump function is the only serialization path allowed
-to unwrap an inline ``SecretStr``.
+to unwrap an inline `SecretStr`.
 """
 
 from __future__ import annotations

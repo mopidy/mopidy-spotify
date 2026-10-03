@@ -253,7 +253,7 @@ class Store:
         expected: Snapshot | None,
         next_state: state.State,
     ) -> bool:
-        """Persist ``next_state`` only if the current manifest matches ``expected``."""
+        """Persist `next_state` only if the current manifest matches `expected`."""
         with self._locked():
             current_manifest = self._load_manifest()
             expected_manifest = expected.manifest if expected is not None else None
