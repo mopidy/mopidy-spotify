@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Literal, assert_never
 
 from filelock import FileLock
 from pydantic import SecretStr, ValidationError
-from uuid_extension import uuid7
 
 from mopidy_spotify._ext import atomic, keyring
+from mopidy_spotify._ext.uuid import uuid7
 from mopidy_spotify.oauth import manifest, state
 
 if TYPE_CHECKING:
