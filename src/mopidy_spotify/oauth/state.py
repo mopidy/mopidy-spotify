@@ -1,6 +1,6 @@
 """Resolved runtime states for Spotify Web authorization.
 
-These DTOs are exposed by :mod:`mopidy_spotify.oauth.store` after it resolves a
+These DTOs are exposed by `mopidy_spotify.oauth.store` after it resolves a
 persisted manifest. In particular, authorized PKCE state contains a redacted
 ``SecretStr`` rather than an inline value or keyring address.
 

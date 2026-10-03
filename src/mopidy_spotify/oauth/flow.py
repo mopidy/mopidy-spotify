@@ -3,7 +3,7 @@
 This flow is separate from librespot playback authorization. It creates a PKCE
 challenge and CSRF state, validates the callback pasted back from the website,
 exchanges the authorization code locally, and persists successful authorization
-through :mod:`mopidy_spotify.oauth.store`.
+through `mopidy_spotify.oauth.store`.
 
 Starting and finishing are separate so the CLI can hand control to the user
 without persisting the verifier or CSRF state. The callback website only

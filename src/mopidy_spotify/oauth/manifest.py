@@ -5,7 +5,7 @@ It records the authorization mode and lifecycle state, but PKCE refresh tokens
 are represented by inline or keyring descriptors rather than a resolved runtime
 secret.
 
-Use :func:`validate_json` to parse persisted content and :func:`dump_json` to
+Use `validate_json` to parse persisted content and `dump_json` to
 serialize it. The explicit dump function is the only serialization path allowed
 to unwrap an inline ``SecretStr``.
 """
