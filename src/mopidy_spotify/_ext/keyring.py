@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, override
 
 __all__ = ["Error", "Store", "UnavailableError", "memory", "system"]
 
@@ -67,12 +67,13 @@ class _Backend(Protocol):
 
 
 @dataclass(frozen=True)
-class _System:
+class _System(Store):
     """Facade over the optional system keyring package."""
 
     service: str
     backend: _Backend
 
+    @override
     def load(self, key: str) -> str | None:
         """Load a raw secret string.
 
@@ -87,6 +88,7 @@ class _System:
             raise Error(msg) from exc
         return value
 
+    @override
     def save(self, key: str, value: str) -> None:
         """Save a raw secret string at this explicit storage sink."""
         try:
@@ -97,6 +99,7 @@ class _System:
             msg = f"Could not save keyring entry for {self.service}/{key}"
             raise Error(msg) from exc
 
+    @override
     def clear(self, key: str) -> None:
         """Remove the addressed secret, succeeding when it is absent."""
         try:
@@ -108,16 +111,19 @@ class _System:
 
 
 @dataclass
-class _Memory:
+class _Memory(Store):
     """Volatile keyring implementation intended for tests."""
 
     values: dict[str, str] = field(default_factory=dict)
 
+    @override
     def load(self, key: str) -> str | None:
         return self.values.get(key)
 
+    @override
     def save(self, key: str, value: str) -> None:
         self.values[key] = value
 
+    @override
     def clear(self, key: str) -> None:
         self.values.pop(key, None)
