@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from mopidy_spotify import pkce
+from mopidy_spotify.oauth import pkce
 
 
 def test_generate_pkce_verifier_matches_rfc7636_vector(

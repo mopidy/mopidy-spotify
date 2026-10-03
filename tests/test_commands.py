@@ -6,8 +6,10 @@ from unittest import mock
 import pytest
 from mopidy.config import Config
 
-from mopidy_spotify import Extension, auth_state, commands, pkce
-from mopidy_spotify.auth_flow import (
+from mopidy_spotify import Extension, commands
+from mopidy_spotify.commands import logout, run_auth_command
+from mopidy_spotify.oauth import pkce, state
+from mopidy_spotify.oauth.flow import (
     AuthChallenge,
     AuthExchangeError,
     AuthFlow,
@@ -15,7 +17,6 @@ from mopidy_spotify.auth_flow import (
     AuthInvalidStateError,
     TokenExchangeResponse,
 )
-from mopidy_spotify.commands import logout, run_auth_command
 
 type FinishCallback = Callable[[AuthChallenge, str], None]
 
@@ -101,8 +102,8 @@ def test_logout_clears_auth_state_when_credentials_cleanup_fails(tmp_path: Path)
     credentials_dir = Extension.get_credentials_dir(config)
     auth_state_path = Extension.get_auth_state_path(config)
     auth_state_path.parent.mkdir(parents=True, exist_ok=True)
-    auth_state.FileAuthStateStore(auth_state_path).save(
-        auth_state.PkceAuthorizedAuthPayload(
+    state.FileAuthStateStore(auth_state_path).save(
+        state.PkceAuthorizedAuthPayload(
             refresh_token="refresh-token-123"  # noqa: S106
         )
     )
@@ -114,8 +115,8 @@ def test_logout_clears_auth_state_when_credentials_cleanup_fails(tmp_path: Path)
         logout()
 
     assert credentials_dir.exists()
-    assert auth_state.FileAuthStateStore(auth_state_path).load() == (
-        auth_state.ClearedAuthPayload(mode="pkce")
+    assert state.FileAuthStateStore(auth_state_path).load() == (
+        state.ClearedAuthPayload(mode="pkce")
     )
 
 
@@ -127,7 +128,7 @@ def test_logout_clears_credentials_when_auth_state_cleanup_fails(tmp_path: Path)
     with (
         mock.patch.object(Config, "get_global", return_value=config),
         mock.patch.object(
-            auth_state.FileAuthStateStore,
+            state.FileAuthStateStore,
             "save",
             side_effect=PermissionError,
         ),
@@ -292,7 +293,7 @@ def test_auth_command_uses_global_config_and_extension_state_path(tmp_path: Path
 
     with (
         mock.patch.object(Config, "get_global", return_value=config),
-        mock.patch.object(commands.auth_flow, "AuthFlow", return_value=flow) as create,
+        mock.patch.object(commands.flow, "AuthFlow", return_value=flow) as create,
         mock.patch.object(commands, "run_auth_command", return_value=7) as run,
     ):
         result = commands.auth()
