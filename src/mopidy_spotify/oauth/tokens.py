@@ -30,8 +30,9 @@ class OAuthPermanentRefreshError(OAuthTokenRefreshError):
     """The endpoint rejected authorization, or persisted authorization is unusable.
 
     PKCE rejection blocks refresh until reauthorization. Bridge credentials live
-    in configuration, so bridge policy permits another attempt to allow recovery
-    after configuration changes, without detecting whether they changed.
+    in configuration; a fingerprint saved with bridge rejection blocks the rejected
+    pair while allowing another attempt after either credential changes. Legacy
+    rejections without a fingerprint permit retry until a new rejection records one.
     """
 
 

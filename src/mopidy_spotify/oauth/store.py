@@ -133,6 +133,7 @@ class Store:
             mode=stored_manifest.mode,
             error_code=stored_manifest.error_code,
             error_description=stored_manifest.error_description,
+            credential_fingerprint=stored_manifest.credential_fingerprint,
         )
 
     def load(self) -> Snapshot | None:
@@ -301,6 +302,7 @@ class Store:
                         mode=next_state.mode,
                         error_code=next_state.error_code,
                         error_description=next_state.error_description,
+                        credential_fingerprint=next_state.credential_fingerprint,
                     )
                 case _:
                     assert_never(next_state)

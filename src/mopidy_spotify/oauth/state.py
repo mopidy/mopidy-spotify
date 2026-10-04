@@ -10,10 +10,13 @@ not depend on the persisted manifest schema or external secret backend.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, SecretStr
+
+if TYPE_CHECKING:
+    from mopidy_spotify.oauth.credentials import Fingerprint
 
 
 class PkceAuthorized(BaseModel):
@@ -42,6 +45,7 @@ class PermanentError:
     error_code: str
     error_description: str | None = None
     state: Literal["permanent_error"] = "permanent_error"
+    credential_fingerprint: Fingerprint | None = field(default=None, repr=False)
 
 
 type State = PkceAuthorized | BridgeConfigured | Cleared | PermanentError

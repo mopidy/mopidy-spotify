@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 import pytest
 
-from mopidy_spotify.oauth import pkce, providers, state
+from mopidy_spotify.oauth import credentials, pkce, providers, state
 from mopidy_spotify.oauth.tokens import (
     OAuthErrorResponse,
     OAuthTokenRefreshError,
@@ -177,12 +177,15 @@ def test_bridge_provider_marks_invalid_client_as_permanent_error(
     response = OAuthErrorResponse(
         error="invalid_client", error_description="Client not known."
     )
-    assert bridge.process(
-        None, response, HTTPStatus.UNAUTHORIZED
-    ) == state.PermanentError(
-        mode="bridge",
-        error_code="invalid_client",
-        error_description="Client not known.",
+    next_state = bridge.process(None, response, HTTPStatus.UNAUTHORIZED)
+
+    assert isinstance(next_state, state.PermanentError)
+    assert next_state.mode == "bridge"
+    assert next_state.error_code == "invalid_client"
+    assert next_state.error_description == "Client not known."
+    assert next_state.credential_fingerprint is not None
+    assert credentials.matches(
+        next_state.credential_fingerprint, "client-id", "client-secret"
     )
 
 

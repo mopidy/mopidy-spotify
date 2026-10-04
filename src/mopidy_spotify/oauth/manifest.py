@@ -23,6 +23,11 @@ from pydantic import (
     SerializationInfo,
     TypeAdapter,
     field_serializer,
+    model_validator,
+)
+
+from mopidy_spotify.oauth import (
+    credentials,  # noqa: TC001  # Pydantic resolves annotations.
 )
 
 AUTH_FILE_VERSION = 1
@@ -95,6 +100,22 @@ class PermanentError(_ManifestBase):
     state: Literal["permanent_error"] = "permanent_error"
     error_code: str
     error_description: str | None = None
+    credential_fingerprint: credentials.Fingerprint | None = Field(
+        default=None,
+        repr=False,
+        pattern=r"^scrypt-v1\$[0-9a-f]{32}\$[0-9a-f]{64}$",
+        min_length=107,
+        max_length=107,
+        strict=True,
+    )
+
+    @model_validator(mode="after")
+    def validate_fingerprint_mode(self) -> PermanentError:
+        if self.mode != "bridge" and self.credential_fingerprint is not None:
+            msg = "Credential fingerprints apply only to bridge rejection"
+            raise ValueError(msg)
+
+        return self
 
 
 type Manifest = Annotated[
@@ -111,4 +132,8 @@ def validate_json(content: str) -> Manifest:
 
 def dump_json(value: Manifest) -> bytes:
     """Serialize a manifest, unwrapping inline secrets at this explicit sink."""
-    return _ADAPTER.dump_json(value, context=_SECRET_SERIALIZATION_PASSKEY)
+    # Nullable manifest fields default to None, so omission preserves round trips.
+    # TODO: Consider field-level exclude_if when minimum Pydantic reaches 2.12.
+    return _ADAPTER.dump_json(
+        value, context=_SECRET_SERIALIZATION_PASSKEY, exclude_none=True
+    )

@@ -8,7 +8,7 @@ never selects a different provider.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from http import HTTPStatus
 from typing import (
     TYPE_CHECKING,
@@ -21,7 +21,7 @@ from typing import (
 
 import requests
 
-from mopidy_spotify.oauth import pkce, state
+from mopidy_spotify.oauth import credentials, pkce, state
 from mopidy_spotify.oauth.tokens import (
     OAuthErrorResponse,
     OAuthTokenRefreshError,
@@ -107,25 +107,29 @@ class BridgeProvider(RefreshProvider):
 
     @override
     def supports(self, auth_state: state.State | None) -> bool:
-        # Each refresh attempts the bridge again after permanent rejection,
-        # even with unchanged credentials, to allow configuration-based recovery.
-        # The credential-fingerprint follow-up will block unchanged credentials.
-        # PKCE rejection stays blocked until reauthorization.
-        # TODO: Bind bridge rejection to a safely stored credential fingerprint
-        # so only changed credentials permit retry; include it in stale-result checks.
-        first_time = auth_state is None
-        authorization_reset = isinstance(auth_state, state.Cleared)
-        bridge_configured = isinstance(auth_state, state.BridgeConfigured)
-        rejected_credentials_may_have_changed = (
-            isinstance(auth_state, state.PermanentError) and auth_state.mode == "bridge"
-        )
+        configured_credentials = self._credentials()
+        if configured_credentials is None:
+            return False
 
-        return self._credentials() is not None and (
-            first_time
-            or authorization_reset
-            or bridge_configured
-            or rejected_credentials_may_have_changed
-        )
+        match auth_state:
+            case None:
+                return True  # First run or missing authorization state.
+
+            case state.Cleared() | state.BridgeConfigured():
+                return True  # Authorization reset or bridge already configured.
+
+            case state.PermanentError(mode="bridge"):
+                # Legacy errors lack a fingerprint; the next rejection records one.
+                if auth_state.credential_fingerprint is None:
+                    return True  # Rejected credentials are unknown; permit a retry.
+
+                # Retry only if configured credentials differ from the rejected pair.
+                return not credentials.matches(
+                    auth_state.credential_fingerprint, *configured_credentials
+                )
+
+            case _:
+                return False  # PKCE authorization belongs to the PKCE provider.
 
     @override
     def request(self, auth_state: state.State | None) -> requests.Request:
@@ -148,12 +152,17 @@ class BridgeProvider(RefreshProvider):
         response: OAuthTokenResponse | OAuthErrorResponse,
         status_code: int,
     ) -> state.State:
-        if not self.supports(auth_state):
+        configured_credentials = self._credentials()
+        if configured_credentials is None or not self.supports(auth_state):
             msg = "bridge authorization unavailable"
             raise OAuthTokenRefreshError(msg)
 
         if isinstance(response, OAuthErrorResponse):
-            return _state_after_error(response, status_code, mode="bridge")
+            next_state = _state_after_error(response, status_code, mode="bridge")
+            return replace(
+                next_state,
+                credential_fingerprint=credentials.create(*configured_credentials),
+            )
 
         return state.BridgeConfigured()
 
