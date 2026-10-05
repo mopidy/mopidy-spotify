@@ -2,11 +2,15 @@ from typing import Any
 from unittest import mock, skip
 
 import pytest
+import requests
 from mopidy import backend as backend_api
+from pydantic import SecretStr
 
-from mopidy_spotify import backend, playlists
+from mopidy_spotify import Extension, backend, playlists
 from mopidy_spotify.backend import SpotifyPlaybackProvider
 from mopidy_spotify.library import SpotifyLibraryProvider
+from mopidy_spotify.oauth import pkce, state, store
+from mopidy_spotify.oauth.tokens import OAuthTokenResponse
 from tests import ThreadJoiner
 
 
@@ -69,9 +73,7 @@ def test_on_start_configures_proxy(web_mock: mock.MagicMock, config: dict[str, A
     assert True
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        client_id=mock.ANY,
-        client_secret=mock.ANY,
-        proxy_config=config["proxy"],
+        token_source=mock.ANY, proxy_config=config["proxy"]
     )
 
 
@@ -86,9 +88,59 @@ def test_on_start_configures_web_client(
         backend.on_start()
 
     web_mock.SpotifyOAuthClient.assert_called_once_with(
-        client_id="1234567",
-        client_secret="AbCdEfG",  # noqa: S106
-        proxy_config=mock.ANY,
+        token_source=mock.ANY, proxy_config=config["proxy"]
+    )
+    source = web_mock.SpotifyOAuthClient.call_args.kwargs["token_source"]
+
+    def exchange(request: requests.Request) -> tuple[OAuthTokenResponse, int]:
+        assert request.auth == ("1234567", "AbCdEfG")
+        return OAuthTokenResponse(
+            access_token="bridge-access-token",  # noqa: S106
+            token_type="Bearer",  # noqa: S106
+        ), 200
+
+    assert (
+        source.refresh(exchange).access_token.get_secret_value()
+        == "bridge-access-token"
+    )
+    snapshot = store.Store(Extension.get_auth_state_path(config)).load()
+    assert snapshot is not None
+    assert snapshot.state == state.BridgeConfigured()
+
+
+def test_on_start_allows_pkce_without_bridge_credentials(
+    web_mock: mock.MagicMock,
+    config: dict[str, Any],
+):
+    config["spotify"]["client_id"] = None
+    config["spotify"]["client_secret"] = None
+    store.Store(Extension.get_auth_state_path(config)).persist_pkce_authorization(
+        SecretStr("refresh-token")
+    )
+
+    backend = get_backend(config)
+    with ThreadJoiner():
+        backend.on_start()
+
+    web_mock.SpotifyOAuthClient.assert_called_once_with(
+        token_source=mock.ANY, proxy_config=config["proxy"]
+    )
+    source = web_mock.SpotifyOAuthClient.call_args.kwargs["token_source"]
+
+    def exchange(request: requests.Request) -> tuple[OAuthTokenResponse, int]:
+        assert request.auth is None
+        assert request.data == {
+            "client_id": pkce.CLIENT_ID,
+            "grant_type": "refresh_token",
+            "refresh_token": "refresh-token",
+        }
+        return OAuthTokenResponse(
+            access_token="pkce-access-token",  # noqa: S106
+            token_type="Bearer",  # noqa: S106
+        ), 200
+
+    assert (
+        source.refresh(exchange).access_token.get_secret_value() == "pkce-access-token"
     )
 
 

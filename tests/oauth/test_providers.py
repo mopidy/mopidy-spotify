@@ -2,21 +2,30 @@ from http import HTTPStatus
 
 import pytest
 
-from mopidy_spotify import web
 from mopidy_spotify.oauth import pkce, providers, state
+from mopidy_spotify.oauth.tokens import (
+    OAuthErrorResponse,
+    OAuthTokenRefreshError,
+    OAuthTokenResponse,
+)
 
 
-def test_pkce_refresh_provider_builds_refresh_token_request():
-    provider = providers.PkceRefreshProvider()
+@pytest.fixture
+def authorized() -> state.PkceAuthorized:
+    return state.PkceAuthorized(refresh_token="refresh-token-1")  # noqa: S106
 
-    request = provider.request_for(
-        state.PkceAuthorized(
-            refresh_token="refresh-token-1"  # noqa: S106
-        )
-    )
 
-    assert request is not None
-    assert request.url == web.SPOTIFY_REFRESH_URL
+@pytest.fixture
+def bridge() -> providers.BridgeProvider:
+    return providers.BridgeProvider("client-id", "client-secret")
+
+
+def test_pkce_provider_builds_refresh_token_request(authorized: state.PkceAuthorized):
+    provider = providers.PkceProvider()
+    assert provider.supports(authorized)
+    request = provider.request(authorized)
+    assert request.method == "POST"
+    assert request.url == providers.SPOTIFY_REFRESH_URL
     assert request.auth is None
     assert request.data == {
         "client_id": pkce.CLIENT_ID,
@@ -25,229 +34,161 @@ def test_pkce_refresh_provider_builds_refresh_token_request():
     }
 
 
-def test_pkce_refresh_provider_declines_non_authorized_state():
-    assert providers.PkceRefreshProvider().request_for(None) is None
+def test_pkce_provider_requires_authorized_state():
+    provider = providers.PkceProvider()
+    assert not provider.supports(None)
+    with pytest.raises(OAuthTokenRefreshError, match="missing PKCE"):
+        provider.request(None)
+    with pytest.raises(OAuthTokenRefreshError, match="missing PKCE"):
+        provider.process(None, OAuthErrorResponse(error="invalid_grant"), 400)
 
 
-def test_pkce_refresh_provider_keeps_existing_refresh_token_when_not_rotated():
-    provider = providers.PkceRefreshProvider()
-    auth_state = state.PkceAuthorized(
-        refresh_token="refresh-token-1"  # noqa: S106
+@pytest.mark.parametrize("replacement", [None, "", "refresh-token-2"])
+def test_pkce_provider_retains_or_rotates_refresh_token(
+    authorized: state.PkceAuthorized, replacement: str | None
+):
+    response = OAuthTokenResponse(
+        access_token="access-token-1",  # noqa: S106
+        token_type="Bearer",  # noqa: S106
+        refresh_token=replacement,
     )
+    expected = replacement or "refresh-token-1"
+    assert providers.PkceProvider().process(
+        authorized, response, HTTPStatus.OK
+    ) == state.PkceAuthorized(refresh_token=expected)
 
-    next_state = provider.state_after_success(
-        web.OAuthTokenResponse(
-            access_token="access-token-1",  # noqa: S106
-            token_type="Bearer",  # noqa: S106
-        ),
-        auth_state,
+
+def test_pkce_provider_marks_invalid_grant_as_permanent_error(
+    authorized: state.PkceAuthorized,
+):
+    response = OAuthErrorResponse(
+        error="invalid_grant", error_description="Refresh token expired"
     )
-
-    assert next_state == auth_state
-
-
-def test_pkce_refresh_provider_requires_authorized_state_for_success():
-    with pytest.raises(web.OAuthTokenRefreshError, match="missing PKCE"):
-        providers.PkceRefreshProvider().state_after_success(
-            web.OAuthTokenResponse(
-                access_token="access-token",  # noqa: S106
-                token_type="Bearer",  # noqa: S106
-            ),
-            None,
-        )
-
-
-def test_pkce_refresh_provider_persists_rotated_refresh_token():
-    provider = providers.PkceRefreshProvider()
-
-    next_state = provider.state_after_success(
-        web.OAuthTokenResponse(
-            access_token="access-token-1",  # noqa: S106
-            token_type="Bearer",  # noqa: S106
-            refresh_token="refresh-token-2",  # noqa: S106
-        ),
-        state.PkceAuthorized(
-            refresh_token="refresh-token-1"  # noqa: S106
-        ),
-    )
-
-    assert next_state == state.PkceAuthorized(
-        refresh_token="refresh-token-2"  # noqa: S106
-    )
-
-
-def test_pkce_refresh_provider_marks_invalid_grant_as_permanent_error():
-    provider = providers.PkceRefreshProvider()
-
-    next_state = provider.state_after_error(
-        web.OAuthErrorResponse(
-            error="invalid_grant",
-            error_description="Refresh token expired",
-        ),
-        state.PkceAuthorized(
-            refresh_token="refresh-token-1"  # noqa: S106
-        ),
-        HTTPStatus.BAD_REQUEST,
-    )
-
-    assert next_state == state.PermanentError(
+    assert providers.PkceProvider().process(
+        authorized, response, HTTPStatus.BAD_REQUEST
+    ) == state.PermanentError(
         mode="pkce",
         error_code="invalid_grant",
         error_description="Refresh token expired",
     )
 
 
-def test_pkce_refresh_provider_raises_transient_error_transient():
-    provider = providers.PkceRefreshProvider()
-
-    with pytest.raises(web.OAuthTokenRefreshError, match="errorTransient"):
-        provider.state_after_error(
-            web.OAuthErrorResponse(error="errorTransient"),
-            state.PkceAuthorized(
-                refresh_token="refresh-token-1"  # noqa: S106
-            ),
-            HTTPStatus.BAD_REQUEST,
+@pytest.mark.parametrize(
+    ("error", "status"),
+    [
+        ("errorTransient", HTTPStatus.BAD_REQUEST),
+        ("temporarily_unavailable", HTTPStatus.BAD_REQUEST),
+        ("invalid_grant", HTTPStatus.INTERNAL_SERVER_ERROR),
+    ],
+)
+def test_pkce_provider_preserves_authorization_on_transient_error(
+    authorized: state.PkceAuthorized, error: str, status: int
+):
+    with pytest.raises(OAuthTokenRefreshError, match=error):
+        providers.PkceProvider().process(
+            authorized, OAuthErrorResponse(error=error), status
         )
 
 
-def test_pkce_refresh_provider_treats_temporary_unavailability_as_transient():
-    with pytest.raises(web.OAuthTokenRefreshError, match="temporarily_unavailable"):
-        providers.PkceRefreshProvider().state_after_error(
-            web.OAuthErrorResponse(error="temporarily_unavailable"),
-            state.PkceAuthorized(refresh_token="refresh-token"),  # noqa: S106
-            HTTPStatus.BAD_REQUEST,
-        )
-
-
-def test_pkce_refresh_provider_treats_server_error_status_as_transient():
-    provider = providers.PkceRefreshProvider()
-
-    with pytest.raises(web.OAuthTokenRefreshError, match="invalid_grant"):
-        provider.state_after_error(
-            web.OAuthErrorResponse(error="invalid_grant"),
-            state.PkceAuthorized(
-                refresh_token="refresh-token-1"  # noqa: S106
-            ),
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-        )
-
-
-def test_bridge_refresh_provider_builds_client_credentials_request():
-    provider = providers.BridgeRefreshProvider(
-        client_id="client-id",
-        client_secret="client-secret",  # noqa: S106
-    )
-
-    request = provider.request_for(None)
-
-    assert request is not None
-    assert request.url == web.BRIDGE_REFRESH_URL
+def test_bridge_provider_builds_client_credentials_request(
+    bridge: providers.BridgeProvider,
+):
+    assert bridge.supports(None)
+    request = bridge.request(None)
+    assert request.method == "POST"
+    assert request.url == providers.BRIDGE_REFRESH_URL
     assert request.auth == ("client-id", "client-secret")
     assert request.data == {"grant_type": "client_credentials"}
 
 
-def test_bridge_refresh_provider_returns_none_without_credentials():
-    provider = providers.BridgeRefreshProvider(
-        client_id=None,
-        client_secret=None,
-    )
+@pytest.mark.parametrize(
+    ("client_id", "client_secret"),
+    [(None, None), ("client-id", None), (None, "client-secret")],
+)
+def test_bridge_provider_requires_complete_credentials(
+    client_id: str | None, client_secret: str | None
+):
+    provider = providers.BridgeProvider(client_id, client_secret)
+    assert not provider.supports(None)
+    with pytest.raises(
+        OAuthTokenRefreshError, match="bridge authorization unavailable"
+    ):
+        provider.request(None)
 
-    assert provider.request_for(None) is None
 
-
-def test_bridge_refresh_provider_ignores_unexpected_refresh_token():
-    provider = providers.BridgeRefreshProvider(
-        client_id="client-id",
-        client_secret="client-secret",  # noqa: S106
-    )
-
-    next_state = provider.state_after_success(
-        web.OAuthTokenResponse(
-            access_token="access-token-1",  # noqa: S106
-            token_type="Bearer",  # noqa: S106
-            refresh_token="unexpected-refresh-token",  # noqa: S106
-        ),
+@pytest.mark.parametrize(
+    "auth_state",
+    [
         None,
+        state.Cleared(mode="pkce"),
+        state.Cleared(mode="bridge"),
+        state.BridgeConfigured(),
+        state.PermanentError(mode="bridge", error_code="invalid_client"),
+    ],
+)
+def test_bridge_provider_supports_fallback_states(
+    bridge: providers.BridgeProvider, auth_state: state.State | None
+):
+    assert bridge.supports(auth_state)
+
+
+@pytest.mark.parametrize(
+    "auth_state",
+    [
+        state.PkceAuthorized(refresh_token="refresh-token-1"),  # noqa: S106
+        state.PermanentError(mode="pkce", error_code="invalid_grant"),
+    ],
+)
+def test_bridge_provider_rejects_pkce_authorization(
+    bridge: providers.BridgeProvider, auth_state: state.State
+):
+    assert not bridge.supports(auth_state)
+    with pytest.raises(
+        OAuthTokenRefreshError, match="bridge authorization unavailable"
+    ):
+        bridge.request(auth_state)
+    with pytest.raises(
+        OAuthTokenRefreshError, match="bridge authorization unavailable"
+    ):
+        bridge.process(auth_state, OAuthErrorResponse(error="invalid_client"), 401)
+
+
+def test_bridge_provider_ignores_unexpected_refresh_token(
+    bridge: providers.BridgeProvider,
+):
+    response = OAuthTokenResponse(
+        access_token="access-token-1",  # noqa: S106
+        token_type="Bearer",  # noqa: S106
+        refresh_token="unexpected-refresh-token",  # noqa: S106
     )
+    assert bridge.process(None, response, HTTPStatus.OK) == state.BridgeConfigured()
 
-    assert next_state == state.BridgeConfigured()
+
+def test_providers_implement_refresh_provider_protocol(
+    bridge: providers.BridgeProvider,
+):
+    assert isinstance(providers.PkceProvider(), providers.RefreshProvider)
+    assert isinstance(bridge, providers.RefreshProvider)
 
 
-def test_bridge_refresh_provider_defers_to_pkce():
-    provider = providers.BridgeRefreshProvider(
-        client_id="client-id",
-        client_secret="client-secret",  # noqa: S106
+def test_bridge_provider_marks_invalid_client_as_permanent_error(
+    bridge: providers.BridgeProvider,
+):
+    response = OAuthErrorResponse(
+        error="invalid_client", error_description="Client not known."
     )
-
-    assert (
-        provider.request_for(
-            state.PkceAuthorized(
-                refresh_token="refresh-token-1"  # noqa: S106
-            )
-        )
-        is None
-    )
-
-
-def test_bridge_refresh_provider_does_not_fall_back_after_pkce_failure():
-    provider = providers.BridgeRefreshProvider(
-        client_id="client-id",
-        client_secret="client-secret",  # noqa: S106
-    )
-
-    assert (
-        provider.request_for(
-            state.PermanentError(mode="pkce", error_code="invalid_grant")
-        )
-        is None
-    )
-
-
-def test_providers_implement_refresh_provider_protocol():
-    assert isinstance(
-        providers.PkceRefreshProvider(),
-        providers.RefreshProvider,
-    )
-    assert isinstance(
-        providers.BridgeRefreshProvider(
-            client_id="client-id",
-            client_secret="client-secret",  # noqa: S106
-        ),
-        providers.RefreshProvider,
-    )
-
-
-def test_bridge_refresh_provider_marks_invalid_client_as_permanent_error():
-    provider = providers.BridgeRefreshProvider(
-        client_id="client-id",
-        client_secret="client-secret",  # noqa: S106
-    )
-
-    next_state = provider.state_after_error(
-        web.OAuthErrorResponse(
-            error="invalid_client",
-            error_description="Client not known.",
-        ),
-        None,
-        HTTPStatus.UNAUTHORIZED,
-    )
-
-    assert next_state == state.PermanentError(
+    assert bridge.process(
+        None, response, HTTPStatus.UNAUTHORIZED
+    ) == state.PermanentError(
         mode="bridge",
         error_code="invalid_client",
         error_description="Client not known.",
     )
 
 
-def test_bridge_refresh_provider_treats_unknown_error_as_transient():
-    provider = providers.BridgeRefreshProvider(
-        client_id="client-id",
-        client_secret="client-secret",  # noqa: S106
-    )
-
-    with pytest.raises(web.OAuthTokenRefreshError, match="unexpected_error"):
-        provider.state_after_error(
-            web.OAuthErrorResponse(error="unexpected_error"),
-            None,
-            HTTPStatus.BAD_REQUEST,
-        )
+@pytest.mark.parametrize("status", [HTTPStatus.BAD_REQUEST, 599])
+def test_bridge_provider_treats_unknown_error_as_transient(
+    bridge: providers.BridgeProvider, status: int
+):
+    with pytest.raises(OAuthTokenRefreshError, match="unexpected_error"):
+        bridge.process(None, OAuthErrorResponse(error="unexpected_error"), status)

@@ -1,60 +1,178 @@
-"""Refresh policies for Spotify Web authorization.
+"""Refresh providers for Spotify Web authorization.
 
-Providers choose grants and propose transitions from resolved runtime state.
-They neither send HTTP requests nor handle persisted manifests or token storage;
-those responsibilities belong to the executor and authorization store. This
-keeps PKCE rotation and legacy bridge fallback separate from HTTP handling.
+A provider owns grant-specific eligibility, request construction, and response
+processing so the coordinator can persist transitions without knowing grant
+details. Providers perform neither HTTP nor persistence. An exchange failure
+never selects a different provider.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Literal, Protocol, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+    Protocol,
+    TypeGuard,
+    override,
+    runtime_checkable,
+)
 
 import requests
 
-from mopidy_spotify import web
 from mopidy_spotify.oauth import pkce, state
+from mopidy_spotify.oauth.tokens import (
+    OAuthErrorResponse,
+    OAuthTokenRefreshError,
+    OAuthTokenResponse,
+)
+
+if TYPE_CHECKING:
+    from pydantic import SecretStr
+
+BRIDGE_REFRESH_URL = "https://auth.mopidy.com/spotify/token"
+SPOTIFY_REFRESH_URL = "https://accounts.spotify.com/api/token"
 
 
 @runtime_checkable
 class RefreshProvider(Protocol):
-    """Grant-specific policy consulted by the access-token refresh executor.
+    """Grant policy selected once for the current authorization snapshot."""
 
-    Providers see resolved runtime state; the executor and store own HTTP
-    exchange and persisted manifests.
-    """
+    def supports(self, auth_state: state.State | None) -> bool: ...
 
-    def request_for(
+    def request(self, auth_state: state.State | None) -> requests.Request: ...
+
+    def process(
         self,
         auth_state: state.State | None,
-    ) -> requests.Request | None:
-        """Defer to the next provider when this grant does not apply."""
-        ...
-
-    def state_after_success(
-        self,
-        response: web.OAuthTokenResponse,
-        auth_state: state.State | None,
+        response: OAuthTokenResponse | OAuthErrorResponse,
+        status_code: int,
     ) -> state.State:
-        """Propose the next state; persistence precedes access-token installation."""
+        """Propose state for persistence, or raise to preserve it for retry."""
         ...
 
-    def state_after_error(
+
+class PkceProvider(RefreshProvider):
+    """Refresh locally authorized PKCE tokens, retaining or rotating the secret."""
+
+    @override
+    def supports(
+        self, auth_state: state.State | None
+    ) -> TypeGuard[state.PkceAuthorized]:
+        return isinstance(auth_state, state.PkceAuthorized)
+
+    @override
+    def request(self, auth_state: state.State | None) -> requests.Request:
+        if not self.supports(auth_state):
+            msg = "missing PKCE authorization state"
+            raise OAuthTokenRefreshError(msg)
+
+        return requests.Request(
+            "POST",
+            SPOTIFY_REFRESH_URL,
+            data={
+                "client_id": pkce.CLIENT_ID,
+                "grant_type": "refresh_token",
+                "refresh_token": auth_state.refresh_token.get_secret_value(),
+            },
+        )
+
+    @override
+    def process(
         self,
-        response: web.OAuthErrorResponse,
         auth_state: state.State | None,
-        status_code: int | HTTPStatus | None = None,
+        response: OAuthTokenResponse | OAuthErrorResponse,
+        status_code: int,
     ) -> state.State:
-        """Propose permanent failure or raise to preserve state for retry."""
-        ...
+        if not self.supports(auth_state):
+            msg = "missing PKCE authorization state"
+            raise OAuthTokenRefreshError(msg)
+
+        if isinstance(response, OAuthErrorResponse):
+            return _state_after_error(response, status_code, mode="pkce")
+
+        if _has_secret(response.refresh_token):
+            return state.PkceAuthorized(refresh_token=response.refresh_token)
+
+        return state.PkceAuthorized(refresh_token=auth_state.refresh_token)
+
+
+@dataclass(frozen=True)
+class BridgeProvider(RefreshProvider):
+    """Exchange configured bridge credentials without adopting refresh tokens."""
+
+    client_id: str | None
+    client_secret: str | None
+
+    @override
+    def supports(self, auth_state: state.State | None) -> bool:
+        # Each refresh attempts the bridge again after permanent rejection,
+        # even with unchanged credentials, to allow configuration-based recovery.
+        # The credential-fingerprint follow-up will block unchanged credentials.
+        # PKCE rejection stays blocked until reauthorization.
+        # TODO: Bind bridge rejection to a safely stored credential fingerprint
+        # so only changed credentials permit retry; include it in stale-result checks.
+        first_time = auth_state is None
+        authorization_reset = isinstance(auth_state, state.Cleared)
+        bridge_configured = isinstance(auth_state, state.BridgeConfigured)
+        rejected_credentials_may_have_changed = (
+            isinstance(auth_state, state.PermanentError) and auth_state.mode == "bridge"
+        )
+
+        return self._credentials() is not None and (
+            first_time
+            or authorization_reset
+            or bridge_configured
+            or rejected_credentials_may_have_changed
+        )
+
+    @override
+    def request(self, auth_state: state.State | None) -> requests.Request:
+        credentials = self._credentials()
+        if credentials is None or not self.supports(auth_state):
+            msg = "bridge authorization unavailable"
+            raise OAuthTokenRefreshError(msg)
+
+        return requests.Request(
+            "POST",
+            BRIDGE_REFRESH_URL,
+            auth=credentials,
+            data={"grant_type": "client_credentials"},
+        )
+
+    @override
+    def process(
+        self,
+        auth_state: state.State | None,
+        response: OAuthTokenResponse | OAuthErrorResponse,
+        status_code: int,
+    ) -> state.State:
+        if not self.supports(auth_state):
+            msg = "bridge authorization unavailable"
+            raise OAuthTokenRefreshError(msg)
+
+        if isinstance(response, OAuthErrorResponse):
+            return _state_after_error(response, status_code, mode="bridge")
+
+        return state.BridgeConfigured()
+
+    def _credentials(self) -> tuple[str, str] | None:
+        if not self.client_id or not self.client_secret:
+            return None
+
+        return self.client_id, self.client_secret
+
+
+def _has_secret(secret: SecretStr | None) -> TypeGuard[SecretStr]:
+    return secret is not None and bool(secret.get_secret_value())
 
 
 def _is_permanent_error(
-    response: web.OAuthErrorResponse,
-    status_code: int | HTTPStatus | None,
+    response: OAuthErrorResponse,
+    status_code: int,
 ) -> bool:
+    # Keep raw integer codes: endpoints may return statuses outside HTTPStatus.
     if response.error in {
         "temporarily_unavailable",
         "server_error",
@@ -82,99 +200,17 @@ def _is_permanent_error(
 
 
 def _state_after_error(
-    response: web.OAuthErrorResponse,
-    status_code: int | HTTPStatus | None,
+    response: OAuthErrorResponse,
+    status_code: int,
     *,
     mode: Literal["pkce", "bridge"],
 ) -> state.PermanentError:
     if not _is_permanent_error(response, status_code):
         detail = response.error_description or response.error
-        raise web.OAuthTokenRefreshError(detail)
+        raise OAuthTokenRefreshError(detail)
+
     return state.PermanentError(
         mode=mode,
         error_code=response.error,
         error_description=response.error_description,
     )
-
-
-class PkceRefreshProvider:
-    def request_for(
-        self,
-        auth_state: state.State | None,
-    ) -> requests.Request | None:
-        if not isinstance(auth_state, state.PkceAuthorized):
-            return None
-
-        return requests.Request(
-            "POST",
-            web.SPOTIFY_REFRESH_URL,
-            data={
-                "client_id": pkce.CLIENT_ID,
-                "grant_type": "refresh_token",
-                "refresh_token": auth_state.refresh_token.get_secret_value(),
-            },
-        )
-
-    def state_after_success(
-        self,
-        response: web.OAuthTokenResponse,
-        auth_state: state.State | None,
-    ) -> state.State:
-        if not isinstance(auth_state, state.PkceAuthorized):
-            msg = "missing PKCE authorization state"
-            raise web.OAuthTokenRefreshError(msg)
-
-        refresh_token = response.refresh_token
-        if refresh_token is None or not refresh_token.get_secret_value():
-            refresh_token = auth_state.refresh_token
-        return state.PkceAuthorized(refresh_token=refresh_token)
-
-    def state_after_error(
-        self,
-        response: web.OAuthErrorResponse,
-        auth_state: state.State | None,
-        status_code: int | HTTPStatus | None = None,
-    ) -> state.State:
-        _ = auth_state
-        return _state_after_error(response, status_code, mode="pkce")
-
-
-@dataclass(frozen=True)
-class BridgeRefreshProvider:
-    client_id: str | None
-    client_secret: str | None
-
-    def request_for(
-        self,
-        auth_state: state.State | None,
-    ) -> requests.Request | None:
-        if isinstance(auth_state, state.PkceAuthorized) or (
-            isinstance(auth_state, state.PermanentError) and auth_state.mode == "pkce"
-        ):
-            return None
-        if not self.client_id or not self.client_secret:
-            return None
-
-        return requests.Request(
-            "POST",
-            web.BRIDGE_REFRESH_URL,
-            auth=(self.client_id, self.client_secret),
-            data={"grant_type": "client_credentials"},
-        )
-
-    def state_after_success(
-        self,
-        response: web.OAuthTokenResponse,
-        auth_state: state.State | None,
-    ) -> state.State:
-        _ = response, auth_state
-        return state.BridgeConfigured()
-
-    def state_after_error(
-        self,
-        response: web.OAuthErrorResponse,
-        auth_state: state.State | None,
-        status_code: int | HTTPStatus | None = None,
-    ) -> state.State:
-        _ = auth_state
-        return _state_after_error(response, status_code, mode="bridge")
