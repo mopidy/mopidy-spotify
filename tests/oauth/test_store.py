@@ -6,12 +6,40 @@ import pytest
 from pydantic import SecretStr
 
 from mopidy_spotify._ext import keyring as keyring_ext
-from mopidy_spotify.oauth import manifest, state
+from mopidy_spotify.oauth import credentials, manifest, state
 from mopidy_spotify.oauth import store as auth_store
 
 
 def test_store_returns_none_for_missing_file(tmp_path: Path):
     assert auth_store.Store(tmp_path / "auth.json").load() is None
+
+
+def test_error_fingerprint_round_trip_and_stale_transition_rejection(tmp_path: Path):
+    store = auth_store.Store(tmp_path / "auth.json")
+    first = state.PermanentError(
+        mode="bridge",
+        error_code="invalid_client",
+        credential_fingerprint=credentials.Fingerprint(
+            f"scrypt-v1${'00' * 16}${'00' * 32}"
+        ),
+    )
+    second = state.PermanentError(
+        mode="bridge",
+        error_code="invalid_client",
+        credential_fingerprint=credentials.Fingerprint(
+            f"scrypt-v1${'11' * 16}${'11' * 32}"
+        ),
+    )
+    assert store.compare_and_set(None, first)
+    snapshot = store.load()
+    assert snapshot is not None
+    assert snapshot.state == first
+    assert first.credential_fingerprint not in repr(snapshot)
+    assert store.compare_and_set(snapshot, second)
+    assert not store.compare_and_set(snapshot, state.BridgeConfigured())
+    loaded = store.load()
+    assert loaded is not None
+    assert loaded.state == second
 
 
 def test_store_reports_unreadable_manifest_as_io_failure(tmp_path: Path):

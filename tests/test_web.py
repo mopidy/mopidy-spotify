@@ -2847,7 +2847,9 @@ def test_get_recovers_from_bridge_error_with_corrected_credentials(
     first_result = client.token()
 
     assert first_result is None
-    assert json.loads(refresh_token_path.read_text(encoding="utf-8")) == {
+    rejection = json.loads(refresh_token_path.read_text(encoding="utf-8"))
+    assert rejection.pop("credential_fingerprint")
+    assert rejection == {
         "version": 1,
         "mode": "bridge",
         "state": "permanent_error",
