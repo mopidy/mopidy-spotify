@@ -86,6 +86,8 @@ class PkceAuthorized(_ManifestBase):
 
 
 class BridgeConfigured(_ManifestBase):
+    """Persisted bridge intent, not evidence of a successful token exchange."""
+
     mode: Literal["bridge"] = "bridge"
     state: Literal["configured"] = "configured"
 

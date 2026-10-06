@@ -47,7 +47,7 @@ reactivating old bridge credentials.
 | Mode               | State             | Meaning                                                                        |
 | ------------------ | ----------------- | ------------------------------------------------------------------------------ |
 | `pkce`             | `authorized`      | A local Spotify refresh-token descriptor is available.                         |
-| `bridge`           | `configured`      | The last bridge refresh succeeded. Credentials remain in Mopidy configuration. |
+| `bridge`           | `configured`      | Intent to use the bridge, whether or not its credentials are present or valid. |
 | `pkce` or `bridge` | `cleared`         | Logout intentionally cleared this mode.                                        |
 | `pkce`             | `permanent_error` | The rejected grant requires reauthorization.                                   |
 | `bridge`           | `permanent_error` | The rejected credential pair is blocked until credentials change or state is cleared. |
@@ -80,11 +80,35 @@ compatibility path rather than a second credential source for the same request.
 
 Switching to PKCE is sticky: keeping or changing configured bridge credentials
 does not override local authorization or a permanent PKCE error. To return to
-the bridge, configure both `client_id` and `client_secret` and run
-`mopidy spotify logout`. This clears local Web authorization and any saved bridge
-rejection, but also removes cached playback credentials. The bridge becomes
-eligible on the next refresh. Logout does not disable configured bridge access;
-remove both credentials to remain logged out.
+the bridge, run `mopidy spotify auth web --legacy`. The command records explicit
+`bridge/configured` intent, retires any superseded local refresh token, and leaves
+cached playback credentials untouched. Missing credentials do not prevent
+selection: the command warns that both `client_id` and `client_secret` must be
+configured. Runtime reports missing credentials without an HTTP request or state
+change; supplying them permits refresh after restarting Mopidy. Selecting the
+bridge again preserves an existing bridge rejection and its credential fingerprint.
+Selection is not validation: the command does not contact the bridge.
+
+`oauth.store.Store.configure_bridge()` owns the locked transition and token
+retirement. The CLI only requests this transition and reports configuration needs;
+the PKCE browser flow remains separate. Unlike `clear()`, selection records intent
+and does not reset bridge rejection. Successful bridge refresh retains configured
+intent; permanent rejection records bridge error state. Both retain the chosen
+provider without claiming credential validity.
+
+`--storage` applies only to local authorization and cannot be combined with
+`--legacy` except for the default `auto` choice. Bridge credentials remain in
+Mopidy configuration. The bridge becomes eligible on the next refresh; restart
+Mopidy to switch immediately.
+
+If retiring a keyring token fails after bridge intent was saved, the command
+reports failure but the bridge may already be selected. Restore keyring access
+before cleaning up the orphaned entry; see
+[orphaned files and keyring entries](#orphaned-files-and-keyring-entries).
+
+Logout also clears Web authorization, but additionally removes playback
+credentials. It does not disable configured bridge access; remove both bridge
+credentials to remain logged out.
 
 ## Refresh and token rotation
 
@@ -145,8 +169,31 @@ a complete file can still contain an obsolete authorization state.
 
 ### Refresh-token storage
 
-By default, the refresh token is stored in plaintext in `auth.json`, protected
-by file permissions. This is called inline storage:
+The command defaults to `--storage auto`: initial authorization tries to save
+the actual refresh token in keyring and trusts the backend's write result.
+There is no readback check or disposable probe entry. If the write fails, the
+setup flow warns before explicitly saving the token as plaintext instead.
+
+Initial storage policy is distinct from the backend recorded in the manifest.
+`oauth.flow.StoragePolicy` describes the user's initial authorization choice:
+strict plaintext, strict keyring, or keyring with plaintext fallback.
+`AuthFlow` receives an `AuthorizationWriter` callable, not a storage policy or
+file path. This keeps storage decisions and error translation outside the browser
+flow, and keeps `auto` out of the persisted schema.
+
+The initial-storage helper falls back only after `KeyringWriteError`, which means
+the keyring manifest has not been published. Manifest-write, locking, and cleanup
+errors are not reasons to switch storage. This keeps fallback policy out of the
+generic keyring facade and the store's explicit persistence operations.
+
+Only the chosen `inline` or `keyring` backend is recorded in the manifest, never
+`auto`. The runtime does not re-detect storage or fall back from keyring to a file.
+Automatic file selection warns on every
+authorization attempt, including the first; runtime refreshes do not repeat this
+setup warning.
+
+`--storage plaintext` explicitly selects plaintext in `auth.json`, protected by
+file permissions. Internally, the manifest calls this `inline` storage:
 
 ```json
 {
@@ -193,9 +240,15 @@ To use keyring storage, install `keyring` in Mopidy's Python environment:
 
 Then run `mopidy spotify auth web --storage keyring`, or
 `sudo mopidyctl spotify auth web --storage keyring` for a system service.
-The keyring must be accessible and unlocked for the Mopidy user; installing
-the package alone is not enough, especially for headless services. Keep the
-default file storage unless a suitable keyring is available.
+The keyring must be accessible and unlocked for the Mopidy user, especially for
+headless services. `--storage keyring` is strict: failure to save the returned
+token fails authorization without selecting plaintext storage. `--storage plaintext`
+is also strict: it stores the new token only in the protected file. When replacing
+keyring authorization, it still attempts best-effort cleanup of the old keyring entry.
+
+For services without a desktop session, follow
+[keyring's headless Linux setup guide](https://pypi.org/project/keyring/#user-content-using-keyring-on-headless-linux-systems)
+as the operating-system user that runs Mopidy.
 
 The manifest records the chosen storage backend until authorization is replaced.
 Incompatible manifest versions require reauthorization.
@@ -250,6 +303,7 @@ and coordinate with active writers through the store lock.
 | Situation                            | Persisted state                        | Recovery                                                        |
 | ------------------------------------ | -------------------------------------- | --------------------------------------------------------------- |
 | Missing auth state                   | Unchanged                              | Use configured bridge credentials, if complete.                 |
+| Selected bridge without credentials  | `bridge/configured`                    | Configure both bridge credentials and restart Mopidy.           |
 | Invalid or unreadable auth state     | Unchanged                              | Replace it with `mopidy spotify auth web`.                      |
 | Missing keyring entry                | Unchanged                              | Restore keyring access or reauthorize; never fall back inline.  |
 | Unavailable keyring backend          | Unchanged                              | Restore the backend or reauthorize with an explicit backend.    |

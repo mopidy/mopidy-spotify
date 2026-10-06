@@ -74,6 +74,13 @@ class SpotifyAccessTokenSource:
                 detail = auth_state.error_description or auth_state.error_code
                 raise OAuthPermanentRefreshError(detail)
 
+            if isinstance(auth_state, state.BridgeConfigured):
+                msg = (
+                    "Legacy authentication is selected. Configure both "
+                    "spotify/client_id and spotify/client_secret."
+                )
+                raise OAuthTokenRefreshError(msg)
+
             msg = "No refresh provider available."
             raise OAuthTokenRefreshError(msg)
 

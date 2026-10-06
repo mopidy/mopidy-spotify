@@ -9,7 +9,9 @@ from mopidy_spotify.oauth import providers, state, store
 from mopidy_spotify.oauth.source import SpotifyAccessTokenSource
 
 
-def client(path: Path, client_id: str, client_secret: str) -> web.OAuthClient:
+def client(
+    path: Path, client_id: str | None, client_secret: str | None
+) -> web.OAuthClient:
     return web.OAuthClient(
         base_url="https://api.spotify.com/v1",
         token_source=SpotifyAccessTokenSource(
@@ -18,6 +20,37 @@ def client(path: Path, client_id: str, client_secret: str) -> web.OAuthClient:
             auth_store=store.Store(path),
         ),
     )
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    ("client_id", "client_secret"),
+    [(None, None), ("bridge-id", None), (None, "bridge-secret")],
+)
+def test_configured_bridge_intent_survives_missing_credentials_until_supplied(
+    tmp_path: Path,
+    client_id: str | None,
+    client_secret: str | None,
+    caplog: pytest.LogCaptureFixture,
+):
+    path = tmp_path / "auth.json"
+    auth_store = store.Store(path)
+    auth_store.configure_bridge()
+    selected = auth_store.load()
+
+    assert client(path, client_id, client_secret).token() is None
+
+    assert len(responses.calls) == 0
+    assert auth_store.load() == selected
+    assert "Configure both spotify/client_id and spotify/client_secret" in caplog.text
+
+    responses.post(
+        web.BRIDGE_REFRESH_URL,
+        json={"access_token": "bridge-token", "token_type": "Bearer"},
+    )
+    assert client(path, "bridge-id", "bridge-secret").token() == "bridge-token"
+    assert len(responses.calls) == 1
+    assert auth_store.load() == selected
 
 
 @responses.activate
@@ -31,6 +64,8 @@ def test_rejected_credentials_stay_blocked_across_client_restarts(tmp_path: Path
     first = client(path, "rejected-id", "rejected-secret")
     assert first.token() is None
     saved = path.read_bytes()
+
+    store.Store(path).configure_bridge()
 
     assert first.token() is None
     assert client(path, "rejected-id", "rejected-secret").token() is None
