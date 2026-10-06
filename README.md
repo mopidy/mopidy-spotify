@@ -50,7 +50,7 @@ Working support for the following features is currently available:
 - A Spotify Premium subscription. Mopidy-Spotify **will not** work with Spotify
   Free, just Spotify Premium.
 
-- Mopidy >= 3.4. The music server that Mopidy-Spotify extends.
+- Mopidy >= 4.0. The music server that Mopidy-Spotify extends.
 
 - `gst-plugins-spotify`, the
   [GStreamer Rust Plugin](https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs) for Spotify
@@ -80,27 +80,62 @@ sudo python3 -m pip install --break-system-packages mopidy-spotify
 
 ## Configuration
 
-Before starting Mopidy, you must visit https://mopidy.com/ext/spotify/#authentication
-to authorize this extension against your Spotify account:
+Before starting Mopidy, authorize Mopidy-Spotify to access your Spotify library:
 
-```ini
-[spotify]
-client_id = ... client_id value you got from mopidy.com ...
-client_secret = ... client_secret value you got from mopidy.com ...
+```sh
+mopidy spotify auth web
 ```
+
+Open the displayed URL, approve access in Spotify, then paste the result shown
+by the browser into the terminal. Then start Mopidy. Run the command again if
+Spotify access expires or is revoked. This authorizes library access, not playback.
+
+Run the command as the same operating-system user that runs Mopidy and with the
+same configuration. If you run Mopidy as a system service, use:
+
+```sh
+sudo mopidyctl spotify auth web
+```
+
+Run `mopidy spotify logout` (or `sudo mopidyctl spotify logout` for a system
+service) to clear library authorization and cached playback credentials.
+
+### Migrating from the old setup
+
+Existing `client_id` and `client_secret` settings in the `[spotify]` section
+still work, but depend on an authentication server run by a Mopidy maintainer.
+We recommend removing both settings and running the authorization command above
+instead.
+
+Once authorized with the command, Mopidy keeps using that authorization even if
+`client_id` and `client_secret` remain configured. If access expires or is revoked,
+run the command again; Mopidy will not automatically switch back to the old
+authentication server.
+
+To switch back, keep both settings configured and run `mopidy spotify logout`
+(or `sudo mopidyctl spotify logout` for a system service). This also clears cached
+playback credentials. Mopidy uses the old authentication server on the next
+token refresh. To stay logged out instead, remove both settings as well.
+
+See the [authentication docs](docs/authentication.md) for storage options and
+troubleshooting.
 
 > [!IMPORTANT]
 > Remove any `credentials.json` file you may have manually created.
-> You must also do this if you need to reauthorize the extension.
+> You must also do this if you need to reauthorize playback.
+
+### Configuration values
 
 The following configuration values are available:
 
 - `spotify/enabled`: If the Spotify extension should be enabled or not.
   Defaults to `true`.
 
-- `spotify/client_id`: Your Spotify application client id. You _must_ provide this.
+- `spotify/client_id`: Client ID for the old authentication server. We recommend
+  removing this setting and using the authorization command above.
 
-- `spotify/client_secret`: Your Spotify application secret key. You _must_ provide this.
+- `spotify/client_secret`: Client secret for the old authentication server. We
+  recommend removing this setting and using the authorization command above.
 
 - `spotify/bitrate`: Audio bitrate in kbps. `96`, `160`, or `320`.
   Defaults to `160`.
@@ -137,6 +172,7 @@ The following configuration values are available:
 - [Source code](https://github.com/mopidy/mopidy-spotify)
 - [Issues](https://github.com/mopidy/mopidy-spotify/issues)
 - [Releases](https://github.com/mopidy/mopidy-spotify/releases)
+- [Authentication architecture](docs/authentication.md)
 
 ## Development
 
