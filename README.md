@@ -90,6 +90,12 @@ Open the displayed URL, approve access in Spotify, then paste the result shown
 by the browser into the terminal. Then start Mopidy. Run the command again if
 Spotify access expires or is revoked. This authorizes library access, not playback.
 
+The command prefers your operating-system keyring for storing authorization.
+If the token cannot be saved in keyring, it warns before using a local plaintext file
+protected by file permissions. Use `--storage keyring` to require keyring storage.
+For headless Linux services, see
+[keyring's setup guide](https://pypi.org/project/keyring/#user-content-using-keyring-on-headless-linux-systems).
+
 Run the command as the same operating-system user that runs Mopidy and with the
 same configuration. If you run Mopidy as a system service, use:
 
@@ -112,10 +118,15 @@ Once authorized with the command, Mopidy keeps using that authorization even if
 run the command again; Mopidy will not automatically switch back to the old
 authentication server.
 
-To switch back, keep both settings configured and run `mopidy spotify logout`
-(or `sudo mopidyctl spotify logout` for a system service). This also clears cached
-playback credentials. Mopidy uses the old authentication server on the next
-token refresh. To stay logged out instead, remove both settings as well.
+To switch back, run `mopidy spotify auth web --legacy`
+(or `sudo mopidyctl spotify auth web --legacy` for a system service). This removes
+local library authorization but leaves playback credentials unchanged. It records
+your choice even if `client_id` and `client_secret` are missing, and warns you to
+configure both. With both settings present, Mopidy uses the old authentication
+server on the next token refresh; restart Mopidy to switch immediately.
+
+Logout also permits using the old authentication server again. To stay logged
+out instead, remove both settings as well.
 
 See the [authentication docs](docs/authentication.md) for storage options and
 troubleshooting.

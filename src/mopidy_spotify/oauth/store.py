@@ -45,6 +45,10 @@ class MissingKeyringRefreshTokenError(Error):
     """Raised when a keyring descriptor points to no refresh token."""
 
 
+class KeyringWriteError(Error):
+    """Raised before manifest replacement when a keyring token cannot be staged."""
+
+
 class Store:
     """Persist Web authorization and reject stale state transitions."""
 
@@ -82,10 +86,17 @@ class Store:
 
     def _save_keyring_token(self, username: str, token: SecretStr) -> None:
         try:
-            self._keyring_store().save(username, token.get_secret_value())
+            backend = self._keyring_store()
+        except Error as exc:
+            raise KeyringWriteError(str(exc)) from exc
+        try:
+            backend.save(username, token.get_secret_value())
         except keyring.Error as exc:
+            self._clear_descriptor(
+                manifest.KeyringDescriptor(username=username), suppress_errors=True
+            )
             msg = "Could not save Spotify refresh token to keyring"
-            raise Error(msg) from exc
+            raise KeyringWriteError(msg) from exc
 
     @contextmanager
     def _locked(self) -> Iterator[None]:
@@ -247,6 +258,31 @@ class Store:
                 ),
                 staged_descriptor=staged_descriptor,
                 previous_manifest=previous_manifest,
+            )
+
+    def configure_bridge(self) -> None:
+        """Select bridge intent without asserting credential availability or validity.
+
+        Existing bridge rejection is preserved so selecting the same mode does
+        not reset its retry policy. Replacing PKCE authorization retires its
+        token only after the bridge intent has been saved.
+        """
+        with self._locked():
+            try:
+                previous_manifest = self._load_manifest()
+            except InvalidManifestError:
+                previous_manifest = None
+
+            match previous_manifest:
+                case manifest.BridgeConfigured():
+                    return
+                case manifest.PermanentError(mode="bridge"):
+                    return
+
+            self._replace_manifest(
+                manifest.BridgeConfigured(version=manifest.AUTH_FILE_VERSION),
+                previous_manifest=previous_manifest,
+                strict_cleanup=True,
             )
 
     def compare_and_set(

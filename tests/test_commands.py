@@ -8,15 +8,18 @@ from mopidy.config import Config
 from pydantic import SecretStr
 
 from mopidy_spotify import Extension, commands
+from mopidy_spotify._ext import keyring
 from mopidy_spotify.commands import logout, run_auth_command
-from mopidy_spotify.oauth import manifest, pkce, state, store
+from mopidy_spotify.oauth import manifest, pkce, providers, state, store, tokens
 from mopidy_spotify.oauth.flow import (
     AuthChallenge,
     AuthExchangeError,
     AuthFlow,
     AuthFlowError,
     AuthStateMismatchError,
+    StoragePolicy,
     TokenExchangeResponse,
+    authorization_writer,
 )
 
 type FinishCallback = Callable[[AuthChallenge, str], None]
@@ -151,7 +154,9 @@ def test_auth_command_stores_refresh_token(
 
     flow = AuthFlow(
         Config({"proxy": {}}),
-        auth_state_path,
+        persist_authorization=authorization_writer(
+            store.Store(auth_state_path), StoragePolicy.PLAINTEXT
+        ),
         generate_pkce_verifier=lambda: ("verifier-123", "challenge-123"),
         generate_state=lambda: "state-123",
         generate_authorization_url=lambda challenge, state: (
@@ -304,22 +309,222 @@ def test_auth_command_handles_aborted_input(capsys: pytest.CaptureFixture[str]):
 def test_web_auth_command_uses_global_config_and_extension_state_path(tmp_path: Path):
     config = Config({"core": {"data_dir": tmp_path}})
     flow = mock.Mock(spec=AuthFlow)
+    writer = mock.Mock()
 
     with (
         mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(
+            commands.flow, "authorization_writer", return_value=writer
+        ) as compose,
         mock.patch.object(commands.flow, "AuthFlow", return_value=flow) as create,
         mock.patch.object(commands, "run_auth_command", return_value=7) as run,
     ):
         result = commands.web()
 
     assert result == 7
-    create.assert_called_once_with(
-        config,
-        Extension.get_auth_state_path(config),
-        storage_type=manifest.StorageType.INLINE,
-    )
+    create.assert_called_once_with(config, persist_authorization=writer)
+    assert compose.call_count == 1
+    auth_store, policy = compose.call_args.args
+    assert auth_store.path == Extension.get_auth_state_path(config)
+    assert policy == StoragePolicy.AUTO
     run.assert_called_once_with(flow)
 
 
 def test_bare_auth_is_reserved_for_help():
     assert commands.auth_app.default_command is None
+
+
+def test_legacy_flag_switches_from_pkce_without_clearing_playback(tmp_path: Path):
+    config = Config(
+        {
+            "core": {"data_dir": tmp_path},
+            "spotify": {"client_id": "bridge-id", "client_secret": "bridge-secret"},
+        }
+    )
+    auth_store = store.Store(Extension.get_auth_state_path(config))
+    auth_store.persist_pkce_authorization(SecretStr("refresh-token"))
+    previous = auth_store.load()
+    credentials = Extension.get_credentials_dir(config) / "credentials.json"
+    credentials.write_text("playback-credentials")
+
+    with mock.patch.object(Config, "get_global", return_value=config):
+        with pytest.raises(SystemExit) as result:
+            commands.app(["auth", "web", "--legacy"])
+        assert result.value.code == 0
+
+    snapshot = auth_store.load()
+    assert snapshot is not None
+    assert snapshot.state == state.BridgeConfigured()
+    assert json.loads(auth_store.path.read_text()) == {
+        "version": 1,
+        "mode": "bridge",
+        "state": "configured",
+    }
+    provider = providers.BridgeProvider("bridge-id", "bridge-secret")
+    assert provider.supports(snapshot.state)
+    assert not providers.PkceProvider().supports(snapshot.state)
+    assert not auth_store.compare_and_set(
+        previous, state.PkceAuthorized(refresh_token=SecretStr("stale-token"))
+    )
+    assert credentials.read_text() == "playback-credentials"
+
+
+@pytest.mark.parametrize(
+    ("client_id", "client_secret"),
+    [(None, None), ("bridge-id", None), (None, "bridge-secret"), ("", "bridge-secret")],
+)
+def test_legacy_flag_persists_intent_without_complete_credentials(
+    tmp_path: Path,
+    client_id: str | None,
+    client_secret: str | None,
+    caplog: pytest.LogCaptureFixture,
+):
+    config = Config(
+        {
+            "core": {"data_dir": tmp_path},
+            "spotify": {"client_id": client_id, "client_secret": client_secret},
+        }
+    )
+    auth_store = store.Store(Extension.get_auth_state_path(config))
+    auth_store.persist_pkce_authorization(SecretStr("refresh-token"))
+    with mock.patch.object(Config, "get_global", return_value=config):
+        assert commands.web(legacy=True) == 0
+
+    snapshot = auth_store.load()
+    assert snapshot is not None
+    assert snapshot.state == state.BridgeConfigured()
+    assert "Configure both" in caplog.text
+
+
+def test_legacy_flag_preserves_saved_rejection(tmp_path: Path):
+    config = Config(
+        {
+            "core": {"data_dir": tmp_path},
+            "spotify": {"client_id": "bridge-id", "client_secret": "bridge-secret"},
+        }
+    )
+    auth_store = store.Store(Extension.get_auth_state_path(config))
+    provider = providers.BridgeProvider("bridge-id", "bridge-secret")
+    rejection = provider.process(
+        None, tokens.OAuthErrorResponse(error="invalid_grant"), 400
+    )
+    assert auth_store.compare_and_set(None, rejection)
+    assert not provider.supports(rejection)
+
+    with mock.patch.object(Config, "get_global", return_value=config):
+        assert commands.web(legacy=True) == 0
+
+    snapshot = auth_store.load()
+    assert snapshot is not None
+    assert snapshot.state == rejection
+    assert not provider.supports(snapshot.state)
+
+
+def test_legacy_flag_retires_keyring_token(tmp_path: Path):
+    config = Config(
+        {
+            "core": {"data_dir": tmp_path},
+            "spotify": {"client_id": "bridge-id", "client_secret": "bridge-secret"},
+        }
+    )
+    memory_keyring = keyring.memory()
+    with (
+        mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(keyring, "system", return_value=memory_keyring),
+    ):
+        auth_store = store.Store(
+            Extension.get_auth_state_path(config),
+            generate_keyring_username=lambda: "token-id",
+        )
+        auth_store.persist_pkce_authorization(
+            SecretStr("refresh-token"), manifest.StorageType.KEYRING
+        )
+        assert memory_keyring.load("token-id") == "refresh-token"
+
+        assert commands.web(legacy=True) == 0
+
+    assert memory_keyring.load("token-id") is None
+
+
+def test_legacy_flag_reports_storage_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+):
+    config = Config(
+        {
+            "core": {"data_dir": tmp_path},
+            "spotify": {"client_id": "bridge-id", "client_secret": "bridge-secret"},
+        }
+    )
+    auth_store = store.Store(Extension.get_auth_state_path(config))
+    auth_store.persist_pkce_authorization(SecretStr("refresh-token"))
+    previous = auth_store.load()
+
+    with (
+        mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(
+            store.Store, "configure_bridge", side_effect=store.Error("unavailable")
+        ),
+    ):
+        assert commands.web(legacy=True) == 1
+
+    assert auth_store.load() == previous
+    assert "Could not complete the switch" in caplog.text
+
+
+@pytest.mark.parametrize("policy", list(StoragePolicy))
+def test_web_auth_storage_flag_selects_setup_policy(
+    tmp_path: Path, policy: StoragePolicy
+):
+    config = Config({"core": {"data_dir": tmp_path}})
+    writer = mock.Mock()
+    with (
+        mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(
+            commands.flow, "authorization_writer", return_value=writer
+        ) as compose,
+        mock.patch.object(commands.flow, "AuthFlow") as create,
+        mock.patch.object(commands, "run_auth_command", return_value=0),
+    ):
+        with pytest.raises(SystemExit) as result:
+            commands.app(["auth", "web", "--storage", policy.value])
+        assert result.value.code == 0
+
+    create.assert_called_once_with(config, persist_authorization=writer)
+    assert compose.call_count == 1
+    auth_store, selected = compose.call_args.args
+    assert auth_store.path == Extension.get_auth_state_path(config)
+    assert selected == policy
+
+
+def test_legacy_flag_does_not_access_keyring_without_local_authorization(
+    tmp_path: Path,
+):
+    config = Config({"core": {"data_dir": tmp_path}})
+    with (
+        mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(keyring, "system") as create,
+    ):
+        assert commands.web(legacy=True) == 0
+
+    create.assert_not_called()
+
+
+@pytest.mark.parametrize("storage_choice", ["plaintext", "keyring"])
+def test_legacy_flag_rejects_storage_option_without_clearing(
+    tmp_path: Path, storage_choice: str
+):
+    config = Config(
+        {
+            "core": {"data_dir": tmp_path},
+            "spotify": {"client_id": "bridge-id", "client_secret": "bridge-secret"},
+        }
+    )
+    auth_store = store.Store(Extension.get_auth_state_path(config))
+    auth_store.persist_pkce_authorization(SecretStr("previous-token"))
+    previous = auth_store.load()
+    with mock.patch.object(Config, "get_global", return_value=config):
+        with pytest.raises(SystemExit) as result:
+            commands.app(["auth", "web", "--legacy", "--storage", storage_choice])
+        assert result.value.code == 1
+
+    assert auth_store.load() == previous
