@@ -1,22 +1,16 @@
 # Spotify authentication architecture
 
-Mopidy-Spotify supports local Spotify PKCE authorization and the legacy Mopidy
-OAuth bridge. This document describes the trust model, runtime selection
-rules, persistence guarantees, and recovery behavior for maintainers. See the
-[README](../README.md#configuration) for user setup instructions.
+`mopidy spotify auth web` authorizes Spotify Web API access using OAuth's Proof
+Key for Code Exchange (PKCE). Mopidy exchanges the authorization code directly
+with Spotify and stores the refresh token locally. The legacy Mopidy OAuth
+bridge remains supported for existing installations; it holds the Spotify grant
+on a server run by a Mopidy maintainer.
 
-Web authorization runs as `mopidy spotify auth web`. Bare
-`mopidy spotify auth` displays subcommand help. Playback credentials are separate
-from Web authorization; authorizing one does not authorize the other.
+This document explains the security and recovery decisions for maintainers.
+See the [README](../README.md#configuration) for user setup instructions.
 
-## Goals
-
-- Keep OAuth credentials and tokens under the control of the Mopidy process.
-- Prefer local PKCE authorization without breaking existing bridge users.
-- Use one refresh executor for response validation, expiry, token assignment,
-  and logging.
-- Prevent failed or stale refreshes from destroying usable authorization.
-- Store authorization durably without exposing secrets in diagnostics.
+Playback credentials are separate from Web authorization; authorizing one does
+not authorize the other.
 
 ## Actors and trust boundaries
 
@@ -46,7 +40,9 @@ token. The Mopidy process owns the complete OAuth exchange.
 
 ## Authentication modes and states
 
-`auth.json` contains a versioned, discriminated authorization manifest.
+`auth.json` records the authorization mode and its state. Keeping rejected and
+cleared authorization distinct prevents an expired local grant from silently
+reactivating old bridge credentials.
 
 | Mode               | State             | Meaning                                                                        |
 | ------------------ | ----------------- | ------------------------------------------------------------------------------ |
@@ -82,26 +78,22 @@ selection. They never trigger bridge fallback.
 PKCE is therefore preferred when authorized, while bridge credentials remain a
 compatibility path rather than a second credential source for the same request.
 
-## Refresh providers and execution
+Switching to PKCE is sticky: keeping or changing configured bridge credentials
+does not override local authorization or a permanent PKCE error. To return to
+the bridge, configure both `client_id` and `client_secret` and run
+`mopidy spotify logout`. This clears local Web authorization and any saved bridge
+rejection, but also removes cached playback credentials. The bridge becomes
+eligible on the next refresh. Logout does not disable configured bridge access;
+remove both credentials to remain logged out.
 
-`SpotifyAccessTokenSource` receives an authorization store, a `PkceProvider`,
-and a `BridgeProvider`. The backend supplies these explicitly. The coordinator
-owns selection: providers do not try another grant after a rejected exchange.
+## Refresh and token rotation
 
-`RefreshProvider` owns grant-specific eligibility, request construction, and
-response processing. Each provider supplies:
+`SpotifyAccessTokenSource` coordinates provider selection and persistence.
+Providers handle grant-specific requests and state changes; `OAuthClient`
+handles HTTP exchange, response validation, and access-token expiry. This keeps
+bridge compatibility policy out of the shared HTTP client.
 
-- `supports(auth_state)`: whether the authorization and configured credentials
-  permit this grant;
-- `request(auth_state)`: the grant-specific token request;
-- `process(auth_state, response, status_code)`: the proposed next authorization state,
-  or an exception for a transient failure that must leave state unchanged.
-
-The HTTP status remains an integer because endpoints can return codes outside
-Python's `HTTPStatus` enum. Policies compare recognized codes against enum
-constants without rejecting unrecognized codes at the transport seam.
-
-The coordinator's transaction is:
+A refresh follows this sequence:
 
 ```mermaid
 flowchart TD
@@ -121,31 +113,19 @@ Selection is the only point at which bridge fallback is allowed. A transient
 failure, permanent rejection, or failed conditional persistence does not start
 an exchange with another provider.
 
-The generic `OAuthClient` exchanges requests through shared HTTP logic and owns:
-
-- bounded HTTP requests and retries;
-- strict success and error response parsing;
-- Bearer token validation;
-- exact expiry calculation, including immediate expiry for `expires_in = 0`;
-- access-token assignment and authorization headers; and
-- scope and expiry logging.
-
 The PKCE provider proposes a replacement when Spotify supplies a non-empty
 refresh token; otherwise it retains the existing token. The coordinator and
-store persist that proposal. The bridge provider
-uses the `client_credentials` grant and ignores unexpected refresh tokens.
+store persist that proposal. The bridge provider uses the `client_credentials`
+grant and ignores unexpected refresh tokens.
 
-`SpotifyAccessTokenSource.refresh(exchange)` persists the proposed transition
-before returning a successful access token. The OAuth client installs the token
-only after that return. The Web client contains Spotify Web behavior, not grant
-selection or persisted authorization-state policy.
+The new state is persisted before the access token is installed. Otherwise,
+library access could appear to work while the rotated refresh token
+was lost, leaving the next refresh unable to recover.
 
-PKCE rejection requires reauthorization. Bridge rejection instead records which
-configured credentials failed: matching credentials remain blocked across
-restarts, while changed credentials can recover. Success or reset removes the
-fingerprint; transient failure preserves it. See [bridge rejection](bridge-rejection.md)
-for Spotify's expiry policy, the legacy workaround, and downgrade behavior.
-The fingerprint handles token-endpoint rejection, not Web API 401/403 responses.
+Bridge rejection records a fingerprint of the failed credentials so unchanged
+credentials remain blocked across restarts without blocking corrected ones.
+See [bridge rejection](bridge-rejection.md) for the rationale, Spotify's expiry
+policy, and downgrade behavior.
 
 ## Persistence
 
@@ -153,37 +133,20 @@ The fingerprint handles token-endpoint rejection, not Web API 401/403 responses.
 manifest. Changing the refresh-token backend does not move or replace the
 manifest.
 
-### Atomic replacement
+The manifest lives at `<core/data_dir>/spotify/auth.json`, where `<core/data_dir>`
+is Mopidy's configured `[core] data_dir`. Typical paths are
+`~/.local/share/mopidy/spotify/auth.json` for a user installation and
+`/var/lib/mopidy/spotify/auth.json` for a system service. This directory must be
+writable by the Mopidy user.
 
-The `atomic` module provides durable binary replacement:
+Atomic replacement protects against partial files; compare-and-set under a
+store lock protects against stale writers. These solve different problems:
+a complete file can still contain an obsolete authorization state.
 
-- create the temporary file beside the destination;
-- apply permissions before content becomes visible;
-- flush and synchronize file contents;
-- atomically replace the destination;
-- synchronize the containing directory where supported; and
-- remove temporary files after failures.
+### Refresh-token storage
 
-Atomic replacement prevents partial files. It does not coordinate competing
-writers or decide which complete value is semantically newer.
-
-### Storage layers
-
-| Layer               | Owns                                                                    | Does not own                    |
-| ------------------- | ----------------------------------------------------------------------- | ------------------------------- |
-| Authorization state | Manifest schema, versioning, validation, locking, and transitions.      | External secret-backend I/O.    |
-| Keyring facade      | Optional keyring import and explicit-address keyring I/O.                | Descriptors, manifests, or OAuth state. |
-| Atomic replacement  | Durable replacement of one complete byte sequence.                      | Conflict or transition policy.  |
-
-The manifest is a versioned JSON document. Every variant records its mode and
-state. Permanent-error state records an error code and optional description.
-Bridge errors can also contain `credential_fingerprint`, a salted scrypt hash
-of the rejected credential pair. Legacy errors can omit it; PKCE errors cannot
-contain it. Absent optional values are omitted when writing JSON and read back
-as `None`. Bridge credentials and access tokens are never part of the manifest.
-
-Authorized PKCE state contains a discriminated refresh-token descriptor. Inline
-storage keeps the token directly in the manifest:
+By default, the refresh token is stored in plaintext in `auth.json`, protected
+by file permissions. This is called inline storage:
 
 ```json
 {
@@ -214,55 +177,34 @@ at that address:
 ```
 
 The service and username are not secret. Recording both makes the expected
-keyring entry discoverable without opening the keyring. The service is the fixed
-value `mopidy-spotify`; it is not configurable. The username is a new UUIDv7 for
-each initially stored or rotated token. UUIDv7 combines creation time with random
-bits for collision-resistant names. The Python 3.13 fallback does not guarantee
-ordering within a millisecond or across clock adjustments.
-
-`oauth.store.Store` owns the manifest and always reads and writes
-`<core/data_dir>/spotify/auth.json`, where `<core/data_dir>` is a placeholder for
-Mopidy's configured `[core] data_dir` value. It stores inline values directly and uses
-the generic keyring facade for keyring descriptors. The facade performs
-explicit-address keyring I/O only; it does not create descriptors or interpret
-the manifest or OAuth state. Its interface uses raw strings to match the
-underlying keyring library; `oauth.store.Store` wraps loaded values in `SecretStr`
-immediately and unwraps them only at the save sink.
+keyring entry discoverable without opening the keyring. Each new or rotated
+token gets a fresh UUIDv7 address under the fixed `mopidy-spotify` service,
+so saving one token does not overwrite another instance's token.
 
 Missing inline values, missing keyring entries, and unavailable keyring backends
 are distinct errors. A manifest that selects keyring storage must never fall
 back to an inline token or another file.
 
-Runtime accepts only this versioned manifest shape;
-incompatible state requires reauthorization. Inline or keyring storage is
-chosen explicitly when authorization is created. `mopidy spotify auth web`
-uses inline storage by default; `--storage keyring` selects keyring storage
-when the optional `keyring` dependency is installed in Mopidy's Python
-environment. The keyring backend must also be accessible and unlocked for the
-Mopidy user; installing the package alone is not enough, especially for headless
-services. The descriptor in the manifest remains authoritative until
-authorization is replaced.
+To use keyring storage, install `keyring` in Mopidy's Python environment:
 
-`SecretStr` prevents accidental disclosure through Python representations and
-validation diagnostics; it does not encrypt an inline serialized token. Generic
-Pydantic serialization cannot unwrap inline values. Only
-`oauth.manifest.dump_json()` supplies the private serialization context needed
-at the manifest write sink.
+- For a system installation, use your distribution's package manager, for
+  example `sudo apt install python3-keyring` on Debian.
+- For a Python installation, install the optional `mopidy-spotify[keyring]` extra.
+
+Then run `mopidy spotify auth web --storage keyring`, or
+`sudo mopidyctl spotify auth web --storage keyring` for a system service.
+The keyring must be accessible and unlocked for the Mopidy user; installing
+the package alone is not enough, especially for headless services. Keep the
+default file storage unless a suitable keyring is available.
+
+The manifest records the chosen storage backend until authorization is replaced.
+Incompatible manifest versions require reauthorization.
+
+`SecretStr` and an explicit manifest serializer prevent accidental disclosure
+through Python representations, validation diagnostics, or generic serialization.
+They do not encrypt an inline token.
 Filesystem permissions are the inline token's at-rest protection: `auth.json`
 uses mode `0600` and a newly created parent directory uses mode `0700`.
-
-| Data                         | Location                                              | Persisted form                                  |
-| ---------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
-| Authorization mode and state | `<core/data_dir>/spotify/auth.json`                   | Versioned UTF-8 JSON manifest.                  |
-| Inline PKCE refresh token    | Token descriptor in `auth.json`                       | Plaintext JSON protected by file permissions.   |
-| Keyring PKCE refresh token   | Address recorded in `auth.json`                       | Secret value in the named keyring entry.        |
-| OAuth access token           | OAuth client memory                                   | Not persisted.                                  |
-| PKCE verifier and CSRF state | Auth command memory                                   | Not persisted.                                  |
-| Bridge client credentials    | Mopidy configuration                                  | Not copied into `auth.json`.                    |
-| Rejected bridge credential fingerprint | Bridge permanent-error state in `auth.json`                  | Salted scrypt hash; removed on success or reset. |
-| Playback credentials         | `<core/data_dir>/spotify/credentials-cache`           | Managed separately from OAuth state.            |
-| Auth-state lock              | `<core/data_dir>/spotify/auth.json.lock`              | Coordination file; contains no authorization.   |
-| Atomic temporary file        | Beside `auth.json`; may remain after abrupt termination | Replacement content; removed on normal completion or exception. |
 
 ## Concurrency
 
@@ -297,24 +239,11 @@ Keyring entries can also remain after interrupted token staging or failed
 cleanup of replaced entries. When a failed manifest write leaves uncertainty,
 the store keeps the staged entry rather than risk deleting a referenced token.
 
-There is no automatic sweep for either kind of orphan. The keyring service is a
-shared namespace within the user's keyring, not private to one Mopidy instance.
-Its name is currently hardcoded to `mopidy-spotify`; multiple instances using
-the same keyring use that service. UUIDv7 entry names make collisions unlikely,
-so instances can coexist without overwriting each other's tokens. Those names
-do not establish ownership, however. Each instance's `auth.json` identifies only
-its active entry, so an unreferenced entry may belong to another instance rather
-than be orphaned. There is no per-instance ownership marker for safe sweeping.
-Future cleanup must establish that ownership and coordinate with active writers
-through the store lock.
-
-If sharing the service becomes a problem, its name could become configurable so
-instances can use separate namespaces. Existing descriptors would still need to
-retain their recorded service names so stored tokens remain discoverable.
-
-The lock belongs to the auth-state store rather than the `atomic` module because
-it protects a semantic compare-and-set transition. Atomic replacement has the
-smaller responsibility of making one file replacement durable.
+There is no automatic sweep for either kind of orphan. Multiple Mopidy instances
+can share the `mopidy-spotify` keyring service. UUIDv7 entry names prevent
+collisions but do not establish ownership: an entry absent from one instance's
+manifest may belong to another. Safe cleanup would need to establish ownership
+and coordinate with active writers through the store lock.
 
 ## Failure and recovery
 
@@ -334,39 +263,3 @@ smaller responsibility of making one file replacement durable.
 
 Logout attempts playback-credential cleanup and OAuth-state clearing
 independently. Failure in one does not prevent attempting the other.
-
-## Security invariants
-
-- OAuth callback state is validated before exchanging a code.
-- The PKCE verifier and all tokens remain outside the website.
-- Access tokens, parsed refresh tokens, and inline token values use `SecretStr`.
-- Secrets are unwrapped only at explicit request, storage, and header sinks.
-- Validation diagnostics omit input values and do not retain Pydantic errors in
-  public exception chains.
-- File-backed authorization is written with mode `0600`; newly created parent
-  directories use mode `0700`.
-- Keyring unavailability is an explicit error, not a reason to downgrade
-  storage.
-
-## Module ownership
-
-| Module                 | Responsibility                                                                            |
-| ---------------------- | ----------------------------------------------------------------------------------------- |
-| `oauth/flow.py`        | Interactive PKCE challenge, callback validation, and code exchange.                       |
-| `oauth/pkce.py`        | PKCE primitives and Spotify authorization requests.                                      |
-| `oauth/manifest.py`    | Persisted schema, refresh-token descriptors, parsing, and explicit secret serialization.   |
-| `oauth/state.py`       | Resolved runtime authorization DTOs consumed by refresh providers.                        |
-| `oauth/store.py`       | Manifest I/O, locking, keyring rotation, and compare-and-set transitions.                |
-| `oauth/providers.py`   | Bridge and PKCE eligibility, requests, and response-to-state policy.                       |
-| `oauth/credentials.py` | Fingerprints binding bridge rejection to the credential pair that failed.                 |
-| `oauth/source.py`      | Spotify provider selection, resolved-state loading, and persistence before token use.     |
-| `oauth/tokens.py`      | Shared exchange values, errors, and token-source interface.                               |
-| `web.py`               | Shared OAuth execution and Spotify Web API access.                                        |
-| `commands.py`          | User-facing authorization and logout commands.                                            |
-| `_ext/atomic.py`        | Durable binary file replacement.                                                          |
-| `_ext/keyring.py`      | Optional keyring dependency and explicit-address keyring I/O.                             |
-
-Provider policy should remain outside the shared executor, and persistence
-format knowledge should remain outside generic storage adapters. These seams
-keep bridge compatibility, PKCE behavior, HTTP execution, and storage failures
-independently testable.
