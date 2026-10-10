@@ -2,12 +2,13 @@ import logging
 import os
 from collections.abc import Callable
 from pathlib import Path
+from typing import Annotated
 
 import cyclopts
 from mopidy.config import Config
 
 from mopidy_spotify import Extension
-from mopidy_spotify.oauth import flow, manifest, store
+from mopidy_spotify.oauth import flow, store
 
 logger = logging.getLogger(__name__)
 
@@ -51,14 +52,35 @@ def run_auth_command(
     return 0
 
 
-@auth_app.command(help="Authorize Spotify Web API access with PKCE.")
+@auth_app.command(help="Authorize Spotify Web API access.")
 def web(
     *,
-    storage: manifest.StorageType = manifest.StorageType.INLINE,
+    storage: Annotated[
+        flow.StoragePolicy,
+        cyclopts.Parameter(
+            help="Refresh-token storage: auto tries keyring and warns before "
+            "falling back to plaintext; plaintext always uses a file; "
+            "keyring never falls back."
+        ),
+    ] = flow.StoragePolicy.AUTO,
+    legacy: Annotated[
+        bool,
+        cyclopts.Parameter(
+            help="Use the legacy Mopidy authentication server with configured "
+            "client_id and client_secret, replacing local authorization."
+        ),
+    ] = False,
 ) -> int:
     config = Config.get_global()
+    if legacy:
+        if storage != flow.StoragePolicy.AUTO:
+            logger.error("--storage applies to local authorization, not --legacy.")
+            return 1
+        return _use_legacy_bridge(config)
+
     auth_state_path = Extension.get_auth_state_path(config)
-    auth_flow = flow.AuthFlow(config, auth_state_path, storage_type=storage)
+    writer = flow.authorization_writer(store.Store(auth_state_path), storage)
+    auth_flow = flow.AuthFlow(config, persist_authorization=writer)
     return run_auth_command(auth_flow)
 
 
@@ -95,3 +117,28 @@ def logout() -> None:
 
     if credentials_cleared and auth_state_cleared:
         logger.info("Logged out from Spotify")
+
+
+def _use_legacy_bridge(config: Config) -> int:
+    auth_state_path = Extension.get_auth_state_path(config)
+    try:
+        store.Store(auth_state_path).configure_bridge()
+    except store.Error as exc:
+        logger.warning(
+            "Could not complete the switch to legacy authentication: %s", exc
+        )
+        return 1
+
+    spotify_config = config.get("spotify", {})
+    if not spotify_config.get("client_id") or not spotify_config.get("client_secret"):
+        logger.warning(
+            "Legacy authentication selected. Configure both spotify/client_id and "
+            "spotify/client_secret before starting Mopidy. Playback credentials "
+            "are unchanged."
+        )
+    else:
+        logger.info(
+            "Legacy authentication selected for the next token refresh. "
+            "Playback credentials are unchanged."
+        )
+    return 0

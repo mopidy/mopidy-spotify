@@ -42,6 +42,18 @@ def test_store_contract(store: keyring.Store):
     store.clear("secret-id")
 
 
+def test_system_save_trusts_backend_without_readback():
+    backend = mock.Mock()
+    backend.get_password.side_effect = AssertionError("save must not read")
+    with mock.patch.dict("sys.modules", {"keyring": backend}):
+        store = keyring.system("service")
+
+    store.save("secret-id", "secret-value")
+
+    backend.set_password.assert_called_once_with("service", "secret-id", "secret-value")
+    backend.get_password.assert_not_called()
+
+
 @pytest.mark.parametrize("operation", ["load", "save", "clear"])
 def test_system_store_wraps_backend_errors(operation: str):
     backend = mock.Mock()

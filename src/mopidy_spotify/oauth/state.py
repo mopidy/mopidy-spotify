@@ -29,6 +29,8 @@ class PkceAuthorized(BaseModel):
 
 @dataclass(frozen=True)
 class BridgeConfigured:
+    """Intent to use the bridge, independent of credential availability or validity."""
+
     mode: Literal["bridge"] = "bridge"
     state: Literal["configured"] = "configured"
 
