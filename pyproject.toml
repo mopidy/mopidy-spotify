@@ -39,12 +39,13 @@ build-backend = "setuptools.build_meta"
 [dependency-groups]
 dev = [
     "tox",
+    "tox-uv",
     { include-group = "ruff" },
     { include-group = "tests" },
     { include-group = "typing" },
 ]
 ruff = ["ruff"]
-tests = ["pytest", "pytest-cov", "responses"]
+tests = ["pytest >= 8.3", "pytest-cov >= 5.0", "responses >= 0.25"]
 typing = ["pyright"]
 
 
@@ -127,8 +128,10 @@ ignore = [
 
 [tool.tox]
 env_list = [
+    "3.13-lowest",
     "3.13",
     "3.14",
+    "3.15",
     "pyright",
     "ruff-check",
     "ruff-format",
@@ -146,6 +149,10 @@ commands = [
         { replace = "posargs", extend = true },
     ],
 ]
+
+[tool.tox.env."3.13-lowest"]
+base_python = ["python3.13"]
+uv_resolution = "lowest-direct"
 
 [tool.tox.env.pyright]
 dependency_groups = ["typing"]

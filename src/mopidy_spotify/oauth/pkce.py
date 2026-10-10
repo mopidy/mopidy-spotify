@@ -102,6 +102,10 @@ def _parse_authorization_url(result: str) -> dict[str, str] | None:
 
 
 def _parse_base64_query_string(result: str) -> dict[str, str] | None:
+    if "+" in result or "/" in result:
+        # Not URL-safe base64.
+        return None
+
     try:
         padded_result = result + "=" * (-len(result) % 4)
         decoded_result = base64.urlsafe_b64decode(padded_result).decode("utf-8")
