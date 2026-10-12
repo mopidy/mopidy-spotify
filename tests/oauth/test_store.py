@@ -5,6 +5,7 @@ from unittest import mock
 import pytest
 from pydantic import SecretStr
 
+from mopidy_spotify._ext import atomic
 from mopidy_spotify._ext import keyring as keyring_ext
 from mopidy_spotify.oauth import credentials, manifest, state
 from mopidy_spotify.oauth import store as auth_store
@@ -545,6 +546,94 @@ def test_clear_removes_keyring_token_and_persists_cleared_state(tmp_path: Path):
         "mode": "pkce",
         "state": "cleared",
     }
+
+
+@pytest.mark.parametrize(
+    "previous",
+    [
+        None,
+        "not-json",
+        '{"version":1,"mode":"pkce","state":"permanent_error","error_code":"invalid_grant"}',
+        '{"version":1,"mode":"pkce","state":"cleared"}',
+        '{"version":1,"mode":"bridge","state":"cleared"}',
+    ],
+)
+def test_configure_bridge_records_intent_without_resolving_credentials(
+    tmp_path: Path, previous: str | None
+):
+    path = tmp_path / "auth.json"
+    if previous is not None:
+        path.write_text(previous)
+    store = auth_store.Store(path)
+
+    store.configure_bridge()
+
+    snapshot = store.load()
+    assert snapshot is not None
+    assert snapshot.state == state.BridgeConfigured()
+    assert json.loads(path.read_text()) == {
+        "version": 1,
+        "mode": "bridge",
+        "state": "configured",
+    }
+
+
+def test_configure_bridge_preserves_existing_bridge_intent(tmp_path: Path):
+    store = auth_store.Store(tmp_path / "auth.json")
+    store.configure_bridge()
+    previous = store.load()
+
+    store.configure_bridge()
+
+    assert store.load() == previous
+
+
+def test_configure_bridge_write_failure_keeps_pkce_token(tmp_path: Path):
+    path = tmp_path / "auth.json"
+    keyring = keyring_ext.memory()
+    store = auth_store.Store(
+        path,
+        keyring_store=keyring,
+        generate_keyring_username=lambda: "token-id",
+    )
+    store.persist_pkce_authorization(
+        SecretStr("refresh-token"), manifest.StorageType.KEYRING
+    )
+    previous = store.load()
+
+    with (
+        mock.patch.object(atomic, "write", side_effect=OSError),
+        pytest.raises(auth_store.Error, match="Could not save"),
+    ):
+        store.configure_bridge()
+
+    assert store.load() == previous
+    assert keyring.load("token-id") == "refresh-token"
+
+
+def test_configure_bridge_reports_token_cleanup_failure_after_saving_intent(
+    tmp_path: Path,
+):
+    keyring = keyring_ext.memory()
+    store = auth_store.Store(
+        tmp_path / "auth.json",
+        keyring_store=keyring,
+        generate_keyring_username=lambda: "token-id",
+    )
+    store.persist_pkce_authorization(
+        SecretStr("refresh-token"), manifest.StorageType.KEYRING
+    )
+
+    with (
+        mock.patch.object(keyring, "clear", side_effect=keyring_ext.Error),
+        pytest.raises(auth_store.Error, match="Could not clear"),
+    ):
+        store.configure_bridge()
+
+    snapshot = store.load()
+    assert snapshot is not None
+    assert snapshot.state == state.BridgeConfigured()
+    assert keyring.load("token-id") == "refresh-token"
 
 
 def test_clear_reports_keyring_cleanup_failure_after_persisting_cleared_state(

@@ -1,9 +1,10 @@
-"""Interactive authorization for Spotify's public Web API.
+"""Initial authorization for Spotify's public Web API.
 
 This flow is separate from librespot playback authorization. It creates a PKCE
 challenge and CSRF state, validates the callback pasted back from the website,
-exchanges the authorization code locally, and persists successful authorization
-through `mopidy_spotify.oauth.store`.
+exchanges the authorization code locally, and passes the refresh token to an
+injected authorization writer. The writer factory composes initial storage
+policy; the browser flow itself does not select backends or own persistence.
 
 Starting and finishing are separate so the CLI can hand control to the user
 without persisting the verifier or CSRF state. The callback website only
@@ -14,7 +15,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol
+from enum import StrEnum
+from typing import TYPE_CHECKING, Literal, Protocol, assert_never
 
 import requests
 from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError
@@ -25,9 +27,15 @@ from mopidy_spotify.oauth import manifest, pkce, store
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from mopidy.config import Config
+
+
+class StoragePolicy(StrEnum):
+    """Initial authorization choices, distinct from the persisted storage backend."""
+
+    AUTO = "auto"
+    PLAINTEXT = "plaintext"
+    KEYRING = "keyring"
 
 
 type OAuthErrorCode = Literal[
@@ -108,6 +116,12 @@ class AuthorizationCodeExchanger(Protocol):
     ) -> TokenExchangeResponse: ...
 
 
+class AuthorizationWriter(Protocol):
+    """Persist an initial refresh token, or raise `AuthFlowError` on failure."""
+
+    def __call__(self, token: SecretStr, /) -> None: ...
+
+
 def _exchange_authorization_code(
     config: Config, code: str, verifier: str
 ) -> TokenExchangeResponse:
@@ -145,9 +159,8 @@ class AuthFlow:
     def __init__(  # noqa: PLR0913
         self,
         config: Config,
-        auth_state_path: Path,
         *,
-        storage_type: manifest.StorageType = manifest.StorageType.INLINE,
+        persist_authorization: AuthorizationWriter,
         # Inject collaborators so tests can replace side effects cleanly.
         generate_pkce_verifier: PkceVerifierGenerator = pkce.generate_pkce_verifier,
         generate_state: StateGenerator = pkce.generate_state,
@@ -162,8 +175,7 @@ class AuthFlow:
         ),
     ) -> None:
         self._config = config
-        self._store = store.Store(auth_state_path)
-        self._storage_type = storage_type
+        self._persist_authorization = persist_authorization
         self._generate_pkce_verifier = generate_pkce_verifier
         self._generate_state = generate_state
         self._generate_authorization_url = generate_authorization_url
@@ -206,10 +218,54 @@ class AuthFlow:
         if secret is None:
             msg = "missing refresh_token."
             raise AuthExchangeError(msg)
+        self._persist_authorization(secret)
+
+
+def authorization_writer(
+    auth_store: store.Store,
+    policy: StoragePolicy = StoragePolicy.AUTO,
+) -> AuthorizationWriter:
+    """Build an initial authorization writer with flow-facing errors.
+
+    Auto retries as plaintext only if keyring staging fails before manifest
+    publication. Manifest persistence errors never change the chosen backend.
+    """
+
+    def write(token: SecretStr) -> None:
         try:
-            self._store.persist_pkce_authorization(
-                secret,
-                self._storage_type,
-            )
+            _persist_initial(auth_store, token, policy)
         except store.Error as exc:
             raise AuthExchangeError(str(exc)) from exc
+
+    return write
+
+
+def _persist_initial(
+    auth_store: store.Store,
+    token: SecretStr,
+    policy: StoragePolicy,
+) -> None:
+    """Apply the initial storage policy without fallback after manifest failure."""
+    match policy:
+        case StoragePolicy.PLAINTEXT:
+            auth_store.persist_pkce_authorization(token, manifest.StorageType.INLINE)
+        case StoragePolicy.KEYRING:
+            auth_store.persist_pkce_authorization(token, manifest.StorageType.KEYRING)
+        case StoragePolicy.AUTO:
+            try:
+                auth_store.persist_pkce_authorization(
+                    token, manifest.StorageType.KEYRING
+                )
+            except store.KeyringWriteError:
+                logger.warning(
+                    "Could not store the refresh token in keyring. It will be stored "
+                    "in plaintext in auth.json, protected by file permissions. "
+                    "For keyring storage, install mopidy-spotify[keyring] and "
+                    "configure an accessible keyring, or use --storage keyring "
+                    "to require it."
+                )
+                auth_store.persist_pkce_authorization(
+                    token, manifest.StorageType.INLINE
+                )
+        case _:
+            assert_never(policy)
