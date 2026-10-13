@@ -32,6 +32,28 @@ the credentials file exists, not that Spotify still accepts it. Web status repor
 saved bridge rejection until the configured credentials change. Storage failure
 in one credential set does not prevent reporting the other.
 
+`authorization rejected` describes a saved permanent error, not a requirement to
+authorize again using the same mode. Recovery may replace authorization or select
+another mode; the status report does not make that choice.
+
+`status.describe()` owns local Web and playback inspection, error reporting, and
+display wording. It accepts Mopidy configuration and returns both status lines;
+the CLI only prints them. Web eligibility uses the runtime bridge policy.
+
+### Playback helper availability
+
+Playback authorization requires a `gst-plugin-spotify` build that installs
+`gstspotify-auth` on `PATH`. Upstream releases through 0.15.4 do not include
+the helper; its [source](https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/-/blob/main/audio/spotify/auth/main.rs)
+is available on upstream `main`. Debian 13's main repository does not provide
+the Spotify plugin or helper. Check third-party packages for helper availability
+rather than assuming that installing the playback plugin also installs it.
+
+The helper accepts the credentials-cache directory as its first argument and
+saves reusable librespot credentials in `credentials.json` there. The current
+upstream implementation prints the playback access token, so its terminal output
+must not be collected in logs or shared in bug reports.
+
 ## Actors and trust boundaries
 
 ```mermaid

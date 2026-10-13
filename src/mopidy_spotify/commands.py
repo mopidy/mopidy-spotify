@@ -10,7 +10,8 @@ import cyclopts
 from mopidy.config import Config
 
 from mopidy_spotify import Extension
-from mopidy_spotify.oauth import flow, providers, state, store
+from mopidy_spotify import status as auth_status
+from mopidy_spotify.oauth import flow, store
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ def playback() -> int:
 
 @auth_app.command(help="Show Web API and playback authorization status.")
 def status() -> None:
-    for line in _status_lines(Config.get_global()):
+    for line in auth_status.describe(Config.get_global()):
         print(line)  # noqa: T201
 
 
@@ -148,47 +149,6 @@ def logout() -> None:
 
     if credentials_cleared and auth_state_cleared:
         logger.info("Logged out from Spotify")
-
-
-def _web_status(config: Config) -> str:
-    try:
-        auth_store = store.Store(Extension.get_auth_state_path(config))
-        snapshot = auth_store.load()
-    except store.InvalidManifestError:
-        return "invalid authorization state"
-    except (store.Error, OSError) as exc:
-        return f"unavailable ({exc})"
-
-    spotify = config.get("spotify", {})
-    bridge = providers.BridgeProvider(
-        client_id=spotify.get("client_id"),
-        client_secret=spotify.get("client_secret"),
-    )
-    auth_state = snapshot.state if snapshot is not None else None
-
-    if isinstance(auth_state, state.PkceAuthorized):
-        return "authorized (PKCE)"
-    if bridge.supports(auth_state):
-        return "configured (legacy bridge)"
-    if isinstance(auth_state, state.PermanentError):
-        return (
-            "reauthorization required (legacy bridge)"
-            if auth_state.mode == "bridge"
-            else "reauthorization required"
-        )
-    return "not authorized"
-
-
-def _status_lines(config: Config) -> tuple[str, str]:
-    try:
-        credentials_file = Extension.get_credentials_dir(config) / "credentials.json"
-        playback_status = "stored" if credentials_file.is_file() else "not authorized"
-    except OSError as exc:
-        playback_status = f"unavailable ({exc})"
-    return (
-        f"Spotify Web API: {_web_status(config)}",
-        f"Spotify playback: {playback_status}",
-    )
 
 
 def _use_legacy_bridge(config: Config) -> int:

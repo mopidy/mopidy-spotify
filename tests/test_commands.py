@@ -596,7 +596,7 @@ def test_playback_auth_reports_missing_helper(
     ("manifest", "bridge", "expected"),
     [
         (None, False, "Spotify Web API: not authorized"),
-        (None, True, "Spotify Web API: configured (legacy bridge)"),
+        (None, True, "Spotify Web API: configured (legacy)"),
         (
             {
                 "version": 1,
@@ -618,7 +618,7 @@ def test_playback_auth_reports_missing_helper(
                 "error_code": "invalid_grant",
             },
             True,
-            "Spotify Web API: reauthorization required",
+            "Spotify Web API: PKCE authorization rejected",
         ),
     ],
 )
@@ -680,9 +680,9 @@ def test_auth_status_distinguishes_rejected_bridge_credentials(
         commands.status()
 
     expected = (
-        "configured (legacy bridge)"
+        "configured (legacy)"
         if changed_credentials
-        else "reauthorization required (legacy bridge)"
+        else "legacy authorization rejected"
     )
     assert capsys.readouterr().out.splitlines() == [
         f"Spotify Web API: {expected}",

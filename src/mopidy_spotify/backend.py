@@ -68,6 +68,8 @@ class SpotifyPlaybackProvider(backend.PlaybackProvider):
         source: Any,  # Gst.Element, but want to avoid Gst imports here
     ) -> None:
         source.set_property("bitrate", str(self._config["bitrate"]))
+        # Spotify rejects Web API access tokens for playback. Authenticate only
+        # with cached librespot credentials created by `mopidy spotify auth playback`.
         source.set_property("cache-credentials", self._credentials_dir)
         if self._config["allow_cache"]:
             source.set_property("cache-files", self._cache_location)
