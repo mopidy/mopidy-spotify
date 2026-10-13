@@ -10,7 +10,7 @@ import cyclopts
 from mopidy.config import Config
 
 from mopidy_spotify import Extension
-from mopidy_spotify.oauth import flow, state, store
+from mopidy_spotify.oauth import flow, providers, state, store
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,6 @@ def web(
 @auth_app.command(help="Authorize librespot playback credentials.")
 def playback() -> int:
     config = Config.get_global()
-    credentials_dir = Extension.get_credentials_dir(config)
     helper = shutil.which("gstspotify-auth")
     if helper is None:
         logger.error(
@@ -98,42 +97,16 @@ def playback() -> int:
         )
         return 1
 
-    result = subprocess.run(  # noqa: S603
-        [helper, os.fspath(credentials_dir)],
-        check=False,
-    )
-    return result.returncode
-
-
-def _web_status(config: Config) -> str:
-    auth_store = store.Store(Extension.get_auth_state_path(config))
     try:
-        snapshot = auth_store.load()
-    except store.InvalidManifestError:
-        return "invalid authorization state"
-    except store.Error as exc:
-        return f"unavailable ({exc})"
-
-    spotify = config.get("spotify", {})
-    bridge_available = bool(spotify.get("client_id") and spotify.get("client_secret"))
-    auth_state = snapshot.state if snapshot is not None else None
-
-    if isinstance(auth_state, state.PkceAuthorized):
-        return "authorized (PKCE)"
-    if isinstance(auth_state, state.PermanentError) and auth_state.mode == "pkce":
-        return "reauthorization required"
-    if bridge_available:
-        return "configured (legacy bridge)"
-    return "not authorized"
-
-
-def _status_lines(config: Config) -> tuple[str, str]:
-    credentials_file = Extension.get_credentials_dir(config) / "credentials.json"
-    playback_status = "stored" if credentials_file.is_file() else "not authorized"
-    return (
-        f"Spotify Web API: {_web_status(config)}",
-        f"Spotify playback: {playback_status}",
-    )
+        credentials_dir = Extension.get_credentials_dir(config)
+        result = subprocess.run(  # noqa: S603
+            [helper, os.fspath(credentials_dir)],
+            check=False,
+        )
+    except OSError as exc:
+        logger.warning("Could not run gstspotify-auth: %s", exc)
+        return 1
+    return result.returncode
 
 
 @auth_app.command(help="Show Web API and playback authorization status.")
@@ -145,11 +118,10 @@ def status() -> None:
 @app.command(help="Logout from Spotify account.")
 def logout() -> None:
     config = Config.get_global()
-    credentials_dir = Extension.get_credentials_dir(config)
-    auth_state_path = Extension.get_auth_state_path(config)
 
     credentials_cleared = True
     try:
+        credentials_dir = Extension.get_credentials_dir(config)
         for root, dirs, files in os.walk(credentials_dir, topdown=False):
             root_path = Path(root)
             for name in files:
@@ -167,6 +139,7 @@ def logout() -> None:
 
     auth_state_cleared = True
     try:
+        auth_state_path = Extension.get_auth_state_path(config)
         store.Store(auth_state_path).clear()
         logger.debug(f"Cleared file {auth_state_path}")
     except Exception as error:  # noqa: BLE001
@@ -175,6 +148,47 @@ def logout() -> None:
 
     if credentials_cleared and auth_state_cleared:
         logger.info("Logged out from Spotify")
+
+
+def _web_status(config: Config) -> str:
+    try:
+        auth_store = store.Store(Extension.get_auth_state_path(config))
+        snapshot = auth_store.load()
+    except store.InvalidManifestError:
+        return "invalid authorization state"
+    except (store.Error, OSError) as exc:
+        return f"unavailable ({exc})"
+
+    spotify = config.get("spotify", {})
+    bridge = providers.BridgeProvider(
+        client_id=spotify.get("client_id"),
+        client_secret=spotify.get("client_secret"),
+    )
+    auth_state = snapshot.state if snapshot is not None else None
+
+    if isinstance(auth_state, state.PkceAuthorized):
+        return "authorized (PKCE)"
+    if bridge.supports(auth_state):
+        return "configured (legacy bridge)"
+    if isinstance(auth_state, state.PermanentError):
+        return (
+            "reauthorization required (legacy bridge)"
+            if auth_state.mode == "bridge"
+            else "reauthorization required"
+        )
+    return "not authorized"
+
+
+def _status_lines(config: Config) -> tuple[str, str]:
+    try:
+        credentials_file = Extension.get_credentials_dir(config) / "credentials.json"
+        playback_status = "stored" if credentials_file.is_file() else "not authorized"
+    except OSError as exc:
+        playback_status = f"unavailable ({exc})"
+    return (
+        f"Spotify Web API: {_web_status(config)}",
+        f"Spotify playback: {playback_status}",
+    )
 
 
 def _use_legacy_bridge(config: Config) -> int:

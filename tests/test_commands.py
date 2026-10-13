@@ -146,6 +146,20 @@ def test_logout_clears_credentials_when_auth_state_cleanup_fails(tmp_path: Path)
     assert not auth_state_path.exists()
 
 
+def test_logout_clears_web_authorization_when_playback_path_is_blocked(tmp_path: Path):
+    config = Config({"core": {"data_dir": tmp_path}})
+    auth_store = store.Store(Extension.get_auth_state_path(config))
+    auth_store.persist_pkce_authorization(SecretStr("refresh-token"))
+    (Extension.get_data_dir(config) / "credentials-cache").write_text("blocked")
+
+    with mock.patch.object(Config, "get_global", return_value=config):
+        logout()
+
+    snapshot = auth_store.load()
+    assert snapshot is not None
+    assert snapshot.state == state.Cleared(mode="pkce")
+
+
 def test_auth_command_stores_refresh_token(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -532,9 +546,10 @@ def test_legacy_flag_rejects_storage_option_without_clearing(
     assert auth_store.load() == previous
 
 
-def test_playback_auth_runs_gstreamer_helper(tmp_path: Path):
+@pytest.mark.parametrize("returncode", [0, 1, 7])
+def test_playback_auth_runs_gstreamer_helper(tmp_path: Path, returncode: int):
     config = Config({"core": {"data_dir": tmp_path}})
-    completed = mock.Mock(returncode=0)
+    completed = mock.Mock(returncode=returncode)
 
     with (
         mock.patch.object(Config, "get_global", return_value=config),
@@ -551,7 +566,7 @@ def test_playback_auth_runs_gstreamer_helper(tmp_path: Path):
     ):
         result = commands.playback()
 
-    assert result == 0
+    assert result == returncode
     run.assert_called_once_with(
         [
             "/usr/bin/gstspotify-auth",
@@ -609,6 +624,7 @@ def test_playback_auth_reports_missing_helper(
 )
 def test_auth_status_reports_web_and_playback_separately(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
     manifest: dict[str, object] | None,
     *,
     bridge: bool,
@@ -624,10 +640,89 @@ def test_auth_status_reports_web_and_playback_separately(
         auth_path.write_text(json.dumps(manifest))
     credentials = Extension.get_credentials_dir(config) / "credentials.json"
     credentials.write_text("playback-credentials")
-    assert commands._status_lines(config) == (
+    with mock.patch.object(Config, "get_global", return_value=config):
+        commands.status()
+
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == [
         expected,
         "Spotify playback: stored",
+    ]
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize("changed_credentials", [False, True])
+def test_auth_status_distinguishes_rejected_bridge_credentials(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    changed_credentials: bool,
+):
+    provider = providers.BridgeProvider("client-id", "client-secret")
+    rejection = provider.process(
+        None, tokens.OAuthErrorResponse(error="invalid_grant"), 400
     )
+    config = Config(
+        {
+            "core": {"data_dir": tmp_path},
+            "spotify": {
+                "client_id": "client-id",
+                "client_secret": "new-secret"
+                if changed_credentials
+                else "client-secret",
+            },
+        }
+    )
+    assert store.Store(Extension.get_auth_state_path(config)).compare_and_set(
+        None, rejection
+    )
+
+    with mock.patch.object(Config, "get_global", return_value=config):
+        commands.status()
+
+    expected = (
+        "configured (legacy bridge)"
+        if changed_credentials
+        else "reauthorization required (legacy bridge)"
+    )
+    assert capsys.readouterr().out.splitlines() == [
+        f"Spotify Web API: {expected}",
+        "Spotify playback: not authorized",
+    ]
+
+
+def test_auth_status_reports_web_when_playback_path_is_blocked(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    config = Config({"core": {"data_dir": tmp_path}})
+    store.Store(Extension.get_auth_state_path(config)).persist_pkce_authorization(
+        SecretStr("refresh-token")
+    )
+    (Extension.get_data_dir(config) / "credentials-cache").write_text("blocked")
+
+    with mock.patch.object(Config, "get_global", return_value=config):
+        commands.status()
+
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "Spotify Web API: authorized (PKCE)"
+    assert lines[1].startswith("Spotify playback: unavailable (")
+
+
+def test_playback_auth_reports_helper_launch_failure(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    config = Config({"core": {"data_dir": tmp_path}})
+    with (
+        mock.patch.object(Config, "get_global", return_value=config),
+        mock.patch.object(
+            commands.shutil, "which", return_value="/usr/bin/gstspotify-auth"
+        ),
+        mock.patch.object(commands.subprocess, "run", side_effect=PermissionError),
+    ):
+        assert commands.playback() == 1
+
+    assert "Could not run gstspotify-auth" in caplog.text
 
 
 @pytest.mark.parametrize(

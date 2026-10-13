@@ -60,6 +60,11 @@ Working support for the following features is currently available:
   [Debian packages are available](https://github.com/kingosticks/gst-plugins-rs-build/releases/latest)
   for some platforms.
 
+  Playback authorization also requires the `gstspotify-auth` executable on `PATH`.
+  Upstream plugin releases through 0.15.4 do not include it; use a build that
+  includes the [authentication helper](https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/-/blob/main/audio/spotify/auth/main.rs).
+  Debian 13's main repository does not provide the Spotify plugin or helper.
+
 **We currently prefer a forked version of this plugin which provides better logging.**
 Details in release notes [here](https://github.com/kingosticks/gst-plugins-rs-build/releases/latest).
 
@@ -91,9 +96,12 @@ mopidy spotify auth playback
 access in Spotify, then paste the result shown by the browser into the terminal.
 The command stores the refresh token locally; the website never receives it.
 
-`auth playback` runs the `gstspotify-auth` helper installed with recent
-`gst-plugin-spotify` packages. It uses Spotify's desktop-client authorization
+`auth playback` runs the `gstspotify-auth` helper from a helper-containing
+`gst-plugin-spotify` build. It uses Spotify's desktop-client authorization
 and stores reusable librespot credentials in `credentials-cache`.
+
+The current upstream helper prints its playback access token. Treat its terminal
+output as sensitive; do not include it in logs or bug reports.
 
 These credentials are intentionally not shared. Public Web API tokens fail
 librespot playback with `INVALID_CREDENTIALS`, while desktop-client playback

@@ -27,6 +27,11 @@ playback with `INVALID_CREDENTIALS`. Desktop-client playback credentials do not
 work with Spotify's public Web API. Runtime therefore never passes the Web API
 access token to `spotifyaudiosrc`; playback uses only its credentials cache.
 
+Status inspects local state without contacting Spotify. Playback `stored` means
+the credentials file exists, not that Spotify still accepts it. Web status reports
+saved bridge rejection until the configured credentials change. Storage failure
+in one credential set does not prevent reporting the other.
+
 ## Actors and trust boundaries
 
 ```mermaid
