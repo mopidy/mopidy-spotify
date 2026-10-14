@@ -9,8 +9,56 @@ on a server run by a Mopidy maintainer.
 This document explains the security and recovery decisions for maintainers.
 See the [README](../README.md#configuration) for user setup instructions.
 
-Playback credentials are separate from Web authorization; authorizing one does
-not authorize the other.
+## Separate authorization systems
+
+Spotify's public Web API and librespot playback require different credentials:
+
+- `mopidy spotify auth web` runs the local PKCE flow documented below and
+  stores Web API authorization in `auth.json`.
+- `mopidy spotify auth playback` runs `gstspotify-auth`, which uses Spotify's
+  desktop-client authorization and stores reusable librespot credentials in
+  `credentials-cache/credentials.json`.
+- `mopidy spotify auth status` reports both credential sets independently.
+- Bare `mopidy spotify auth` displays command help. It is reserved for
+  eventually running both authorization flows.
+
+The credentials are not interchangeable. Public Web API tokens fail librespot
+playback with `INVALID_CREDENTIALS`. Desktop-client playback credentials do not
+work with Spotify's public Web API. Runtime therefore never passes the Web API
+access token to `spotifyaudiosrc`; playback uses only its credentials cache.
+
+Status inspects local state without contacting Spotify. Playback `stored` means
+the credentials file exists, not that Spotify still accepts it. Web status reports
+saved bridge rejection until the configured credentials change. Storage failure
+in one credential set does not prevent reporting the other.
+
+`authorization rejected` describes a saved permanent error, not a requirement to
+authorize again using the same mode. Recovery may replace authorization or select
+another mode; the status report does not make that choice.
+
+`SpotifyAccessTokenSource.status()` reports Web authorization using the same
+private resolution as `refresh()`. Resolution combines saved state and current
+credentials to permit a provider or explain why no request can be made; status
+does not contact Spotify or change that decision. Provider-specific eligibility
+remains owned by the refresh providers.
+
+`status.describe()` supplies configuration, obtains the Web owner's status, and
+inspects playback independently. It returns both display lines; the CLI only
+prints them.
+
+### Playback helper availability
+
+Playback authorization requires a `gst-plugin-spotify` build that installs
+`gstspotify-auth` on `PATH`. Upstream releases through 0.15.4 do not include
+the helper; its [source](https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/-/blob/main/audio/spotify/auth/main.rs)
+is available on upstream `main`. Debian 13's main repository does not provide
+the Spotify plugin or helper. Check third-party packages for helper availability
+rather than assuming that installing the playback plugin also installs it.
+
+The helper accepts the credentials-cache directory as its first argument and
+saves reusable librespot credentials in `credentials.json` there. The current
+upstream implementation prints the playback access token, so its terminal output
+must not be collected in logs or shared in bug reports.
 
 ## Actors and trust boundaries
 

@@ -5,7 +5,7 @@ import pytest
 from mopidy import audio
 from mopidy import backend as backend_api
 
-from mopidy_spotify import backend, web
+from mopidy_spotify import backend
 
 
 @pytest.fixture
@@ -17,7 +17,6 @@ def audio_mock() -> mock.Mock:
 def backend_mock(config: dict[str, Any]) -> mock.Mock:
     backend_mock = mock.Mock(spec=backend.SpotifyBackend)
     backend_mock._config = config
-    backend_mock._web_client = mock.Mock(spec=web.OAuthClient)
     return backend_mock
 
 
@@ -44,7 +43,6 @@ def test_on_source_setup_sets_properties(
     assert mock_source.set_property.mock_calls == [
         mock.call("bitrate", "160"),
         mock.call("cache-credentials", cred_dir),
-        mock.call("access-token", mock.ANY),
         mock.call("cache-files", spotify_cache_dir),
         mock.call("cache-max-size", 8589934592),
     ]
@@ -62,7 +60,6 @@ def test_on_source_setup_without_caching(
     assert mock_source.set_property.mock_calls == [
         mock.call("bitrate", "160"),
         mock.call("cache-credentials", cred_dir),
-        mock.call("access-token", mock.ANY),
     ]
 
 

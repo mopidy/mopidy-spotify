@@ -9,10 +9,10 @@
 ## Status
 
 > [!WARNING]
-> Spotify has recently disabled streaming via third-party access tokens, like the one
-> Mopidy-Spotify uses. Current workarounds are to obtain a new credentials.json file
-> using librespot and put that where Mopidy-Spotify expects it. Details at
-> [#437](https://github.com/mopidy/mopidy-spotify/issues/437#issuecomment-5328412090).
+> Library access and playback now require separate authorization. If playback
+> has stopped working, run `mopidy spotify auth playback` as described under
+> [Configuration](#configuration). Details at
+> [#437](https://github.com/mopidy/mopidy-spotify/issues/437).
 
 > [!WARNING]
 > Spotify has introduced refresh token expiration as described in this
@@ -21,9 +21,8 @@
 
 > [!WARNING]
 > Spotify have recently disabled username and password login for playback
-> ([#394](https://github.com/mopidy/mopidy-spotify/issues/394)) and we now use
-> access token login. You no longer need to provide your Spotify account
-> username or password.
+> ([#394](https://github.com/mopidy/mopidy-spotify/issues/394)). The playback
+> authorization command replaces username and password login.
 
 Mopidy-Spotify currently has no support for the following:
 
@@ -61,6 +60,10 @@ Working support for the following features is currently available:
   [Debian packages are available](https://github.com/kingosticks/gst-plugins-rs-build/releases/latest)
   for some platforms.
 
+  Choose a plugin package or source build that also installs `gstspotify-auth`,
+  the helper required to authorize playback. Upstream releases through 0.15.4
+  do not include it. See [helper availability](docs/authentication.md#playback-helper-availability).
+
 **We currently prefer a forked version of this plugin which provides better logging.**
 Details in release notes [here](https://github.com/kingosticks/gst-plugins-rs-build/releases/latest).
 
@@ -69,6 +72,15 @@ Verify the GStreamer spotify plugin is correctly installed:
 ```sh
 gst-inspect-1.0 spotifyaudiosrc | grep Version | awk '{print $2}'
 ```
+
+Check that the playback authorization helper is also installed:
+
+```sh
+command -v gstspotify-auth
+```
+
+If this prints nothing, install a plugin build that includes the helper before
+continuing with playback authorization.
 
 ## Installation
 
@@ -80,38 +92,62 @@ sudo python3 -m pip install --break-system-packages mopidy-spotify
 
 ## Configuration
 
-Before starting Mopidy, authorize Mopidy-Spotify to access your Spotify library:
+Before starting Mopidy, authorize both library access and playback. Run the
+commands as the same operating-system user that runs Mopidy and with the same
+configuration:
 
 ```sh
 mopidy spotify auth web
+mopidy spotify auth playback
 ```
 
-Open the displayed URL, approve access in Spotify, then paste the result shown
-by the browser into the terminal. Then start Mopidy. Run the command again if
-Spotify access expires or is revoked. This authorizes library access, not playback.
-
-The command prefers your operating-system keyring for storing authorization.
-If the token cannot be saved in keyring, it warns before using a local plaintext file
-protected by file permissions. Use `--storage keyring` to require keyring storage.
-For headless Linux services, see
-[keyring's setup guide](https://pypi.org/project/keyring/#user-content-using-keyring-on-headless-linux-systems).
-
-Run the command as the same operating-system user that runs Mopidy and with the
-same configuration. If you run Mopidy as a system service, use:
+If you run Mopidy as a system service, use these commands instead:
 
 ```sh
 sudo mopidyctl spotify auth web
+sudo mopidyctl spotify auth playback
 ```
 
+`auth web` authorizes library access. Open the displayed URL, approve access in
+Spotify, then paste the result shown by the browser into the terminal.
+
+`auth playback` authorizes playback using the `gstspotify-auth` helper. Follow
+its browser instructions. Authorizing library access does not authorize playback,
+or vice versa.
+
+> [!WARNING]
+> The current playback helper prints an access token. Do not share its terminal
+> output in logs or bug reports.
+
+Library authorization is saved in your operating-system keyring when available.
+Otherwise, the Web command warns before saving it in a local file protected by
+file permissions. Use `mopidy spotify auth web --storage keyring` to require
+keyring storage; see the [storage guide](docs/authentication.md#refresh-token-storage)
+for installation and headless-service setup.
+
+Check the saved authorization:
+
+```sh
+mopidy spotify auth status
+```
+
+For a system service, use `sudo mopidyctl spotify auth status`. Status reports
+library access and playback separately. Playback `stored` means credentials are
+saved; it does not check whether Spotify still accepts them.
+
+Then start Mopidy. If library access expires or is revoked, run `auth web` again.
+If playback needs reauthorization, run `auth playback` again. Use the same user
+and configuration as during setup.
+
 Run `mopidy spotify logout` (or `sudo mopidyctl spotify logout` for a system
-service) to clear library authorization and cached playback credentials.
+service) to clear both library authorization and saved playback credentials.
 
 ### Migrating from the old setup
 
 Existing `client_id` and `client_secret` settings in the `[spotify]` section
 still work, but depend on an authentication server run by a Mopidy maintainer.
-We recommend removing both settings and running the authorization command above
-instead.
+We recommend removing both settings and running `mopidy spotify auth web`
+instead. Playback still requires its own authorization command.
 
 Once authorized with the command, Mopidy keeps using that authorization even if
 `client_id` and `client_secret` remain configured. If access expires or is revoked,
@@ -131,9 +167,10 @@ out instead, remove both settings as well.
 See the [authentication docs](docs/authentication.md) for storage options and
 troubleshooting.
 
-> [!IMPORTANT]
-> Remove any `credentials.json` file you may have manually created.
-> You must also do this if you need to reauthorize playback.
+If Mopidy reports invalid or unreadable authorization, run
+`mopidy spotify auth web` again. It will not automatically use the old
+authentication server instead. See [bridge rejection](docs/bridge-rejection.md)
+for refresh-token expiry and the legacy-server workaround.
 
 ### Configuration values
 

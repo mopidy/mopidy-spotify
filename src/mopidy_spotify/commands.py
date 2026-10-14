@@ -1,5 +1,7 @@
 import logging
 import os
+import shutil
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
@@ -8,6 +10,7 @@ import cyclopts
 from mopidy.config import Config
 
 from mopidy_spotify import Extension
+from mopidy_spotify import status as auth_status
 from mopidy_spotify.oauth import flow, store
 
 logger = logging.getLogger(__name__)
@@ -16,7 +19,7 @@ logger = logging.getLogger(__name__)
 app = cyclopts.App(help="Spotify extension commands.")
 auth_app = cyclopts.App(
     name="auth",
-    help="Authorize Spotify access.",
+    help="Authorize Spotify Web API and playback access.",
 )
 app.command(auth_app)
 
@@ -84,14 +87,42 @@ def web(
     return run_auth_command(auth_flow)
 
 
+@auth_app.command(help="Authorize librespot playback credentials.")
+def playback() -> int:
+    config = Config.get_global()
+    helper = shutil.which("gstspotify-auth")
+    if helper is None:
+        logger.error(
+            "Could not find gstspotify-auth. Install a gst-plugin-spotify "
+            "package that includes the authentication helper."
+        )
+        return 1
+
+    try:
+        credentials_dir = Extension.get_credentials_dir(config)
+        result = subprocess.run(  # noqa: S603
+            [helper, os.fspath(credentials_dir)],
+            check=False,
+        )
+    except OSError as exc:
+        logger.warning("Could not run gstspotify-auth: %s", exc)
+        return 1
+    return result.returncode
+
+
+@auth_app.command(help="Show Web API and playback authorization status.")
+def status() -> None:
+    for line in auth_status.describe(Config.get_global()):
+        print(line)  # noqa: T201
+
+
 @app.command(help="Logout from Spotify account.")
 def logout() -> None:
     config = Config.get_global()
-    credentials_dir = Extension.get_credentials_dir(config)
-    auth_state_path = Extension.get_auth_state_path(config)
 
     credentials_cleared = True
     try:
+        credentials_dir = Extension.get_credentials_dir(config)
         for root, dirs, files in os.walk(credentials_dir, topdown=False):
             root_path = Path(root)
             for name in files:
@@ -109,6 +140,7 @@ def logout() -> None:
 
     auth_state_cleared = True
     try:
+        auth_state_path = Extension.get_auth_state_path(config)
         store.Store(auth_state_path).clear()
         logger.debug(f"Cleared file {auth_state_path}")
     except Exception as error:  # noqa: BLE001
