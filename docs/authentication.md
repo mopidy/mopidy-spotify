@@ -36,9 +36,15 @@ in one credential set does not prevent reporting the other.
 authorize again using the same mode. Recovery may replace authorization or select
 another mode; the status report does not make that choice.
 
-`status.describe()` owns local Web and playback inspection, error reporting, and
-display wording. It accepts Mopidy configuration and returns both status lines;
-the CLI only prints them. Web eligibility uses the runtime bridge policy.
+`SpotifyAccessTokenSource.status()` reports Web authorization using the same
+private resolution as `refresh()`. Resolution combines saved state and current
+credentials to permit a provider or explain why no request can be made; status
+does not contact Spotify or change that decision. Provider-specific eligibility
+remains owned by the refresh providers.
+
+`status.describe()` supplies configuration, obtains the Web owner's status, and
+inspects playback independently. It returns both display lines; the CLI only
+prints them.
 
 ### Playback helper availability
 
